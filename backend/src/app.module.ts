@@ -3,8 +3,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import * as fs from 'fs';
-import * as path from 'path';
+import { UsersModule } from './users/users.module';
 
 @Module({
   imports: [
@@ -18,14 +17,15 @@ import * as path from 'path';
         type: 'mysql',
         host: config.get<string>('HOST')!,
         port: parseInt(config.get<string>('PORT')!, 10),
-        username: config.get<string>('USERNAMEDB')!,
+        username: config.get<string>('USERNAME')!,
         password: config.get<string>('PASSWORD')!,
         database: config.get<string>('DATABASE')!,
-        synchronize: config.get<string>('SYNCHRONIZE') === 'true',
+        synchronize: false,
         autoLoadEntities: true,
       }),
-    })],
+    }),
+    UsersModule],
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule {}
+export class AppModule { }
