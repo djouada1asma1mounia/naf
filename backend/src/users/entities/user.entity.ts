@@ -1,4 +1,6 @@
-import { Column, CreateDateColumn, Entity, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
+import { Column, CreateDateColumn, Entity, JoinTable, ManyToMany, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
+import { Permission } from "../../permissions/entities/permission.entity";
+import { Exclude } from "class-transformer";
 
 @Entity('users')
 export class User {
@@ -17,16 +19,20 @@ export class User {
     })
     email?: string;
 
-    @Column({
-        select: false,
-    })
+    @Column()
+    @Exclude({ toPlainOnly: true })
     password: string;
+
+    @ManyToMany(() => Permission)
+    @JoinTable()
+    permissions: Permission[];
 
     @CreateDateColumn()
     createdAt: Date;
 
     @UpdateDateColumn()
     updatedAt: Date;
+
 
     get fullName(): string {
         return `${this.nom} ${this.prenom}`;

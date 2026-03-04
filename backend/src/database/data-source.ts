@@ -5,7 +5,7 @@ dotenv.config({ path: '.env.dev' })
 export default new DataSource({
     type: 'mysql',
     host: process.env.HOST,
-    port: parseInt(process.env.PORT!, 10),
+    port: parseInt(process.env.DB_PORT!, 10),
     username: process.env.USERNAMEDB,
     password: process.env.PASSWORD,
     database: process.env.DATABASE,
