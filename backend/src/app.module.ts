@@ -3,8 +3,9 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import * as fs from 'fs';
-import * as path from 'path';
+import { UsersModule } from './users/users.module';
+import { PermissionsModule } from './permissions/permissions.module';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [
@@ -17,15 +18,22 @@ import * as path from 'path';
       useFactory: (config: ConfigService) => ({
         type: 'mysql',
         host: config.get<string>('HOST')!,
-        port: parseInt(config.get<string>('PORT')!, 10),
+        port: parseInt(config.get<string>('DB_PORT')!, 10),
         username: config.get<string>('USERNAMEDB')!,
         password: config.get<string>('PASSWORD')!,
         database: config.get<string>('DATABASE')!,
-        synchronize: config.get<string>('SYNCHRONIZE') === 'true',
+        synchronize: false,
         autoLoadEntities: true,
+        ssl: {
+          rejectUnauthorized: false
+        },
+
       }),
-    })],
+    }),
+    UsersModule,
+    PermissionsModule,
+    AuthModule],
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule {}
+export class AppModule { }
