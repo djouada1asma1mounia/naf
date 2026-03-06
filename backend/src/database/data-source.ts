@@ -1,6 +1,6 @@
 import * as dotenv from 'dotenv';
 import { DataSource } from 'typeorm';
-dotenv.config({ path: '.env.dev' })
+dotenv.config({ path: '.env' })
 
 export default new DataSource({
     type: 'mysql',

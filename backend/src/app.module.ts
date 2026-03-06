@@ -6,12 +6,13 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { UsersModule } from './users/users.module';
 import { PermissionsModule } from './permissions/permissions.module';
 import { AuthModule } from './auth/auth.module';
+import { RolesModule } from './roles/roles.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: '.env.dev',
+      envFilePath: '.env',
     }),
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
@@ -32,7 +33,8 @@ import { AuthModule } from './auth/auth.module';
     }),
     UsersModule,
     PermissionsModule,
-    AuthModule],
+    AuthModule,
+    RolesModule],
   controllers: [AppController],
   providers: [AppService],
 })
