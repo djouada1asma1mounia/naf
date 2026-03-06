@@ -7,6 +7,7 @@ import * as bcrypt from 'bcrypt';
 import { User } from 'src/users/entities/user.entity';
 import { RegisterUserDto } from './dto/register-user.dto';
 import { LoginUserDto } from './dto/login-user.dto';
+import { JwtService } from '@nestjs/jwt';
 
 @Injectable()
 export class AuthService {
@@ -14,6 +15,7 @@ export class AuthService {
     constructor(
         @InjectRepository(User)
         private userRepository: Repository<User>,
+        private jwtService: JwtService,
     ) { }
 
     async register(RegisterUserDto: RegisterUserDto) {
@@ -44,6 +46,7 @@ export class AuthService {
     async login(LoginUserDto: LoginUserDto) {
         const { email, password } = LoginUserDto;
 
+
         const user = await this.userRepository.findOne({ where: { email } });
 
         if (!user) {
@@ -56,9 +59,34 @@ export class AuthService {
             throw new UnauthorizedException('Identifiants invalides');
         }
 
+        const tokens = await this.generateTokens(user);
+
         return {
             data: user,
+            accessToken: tokens.accessToken,
+            refreshToken: tokens.refreshToken,
             message: 'Connexion réussie',
         }
     }
+
+    async generateTokens(user: User) {
+        const payload = { sub: user.id, email: user.email };
+
+        const accessToken = await this.jwtService.signAsync(payload, {
+            secret: process.env.JWT_ACCESS_SECRET,
+            expiresIn: '1h',
+        })
+
+        const refreshToken = await this.jwtService.signAsync(payload, {
+            secret: process.env.JWT_REFRESH_SECRET,
+            expiresIn: '7d',
+        })
+
+        return {
+            accessToken,
+            refreshToken,
+        }
+    }
 }
+
+
