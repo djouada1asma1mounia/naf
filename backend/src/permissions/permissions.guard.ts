@@ -1,6 +1,6 @@
 import { CanActivate, ExecutionContext, ForbiddenException, Injectable } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
-import { Observable } from "rxjs";
+import { PERMISSIONS_KEY } from "./permissions.decorator";
 
 @Injectable()
 export class PermissionsGuard implements CanActivate {
@@ -8,7 +8,7 @@ export class PermissionsGuard implements CanActivate {
 
 
     canActivate(context: ExecutionContext): boolean {
-        const requiredPermissions = this.reflector.get<string[]>('permissions', context.getHandler());
+        const requiredPermissions = this.reflector.get<string[]>(PERMISSIONS_KEY, context.getHandler());
 
         if (!requiredPermissions) {
             return true;
@@ -17,7 +17,11 @@ export class PermissionsGuard implements CanActivate {
         const request = context.switchToHttp().getRequest();
         const user = request.user;
 
-        const hasPermission = requiredPermissions.every(permission => user.permissions.some(p => p.name === permission))
+        if (!user || !user.permissions) {
+            throw new ForbiddenException('Vous n\'avez pas les permissions nécessaires pour accéder à cette ressource');
+        }
+
+        const hasPermission = requiredPermissions.every(permission => user.permissions.some(p => p.name === permission));
 
         if (!hasPermission) {
             throw new ForbiddenException('Vous n\'avez pas les permissions nécessaires pour accéder à cette ressource');

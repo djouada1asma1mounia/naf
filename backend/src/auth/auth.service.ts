@@ -1,6 +1,5 @@
-import { Injectable, ConflictException, UnauthorizedException } from '@nestjs/common';
+import { Injectable, ConflictException, UnauthorizedException, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
 
 import * as bcrypt from 'bcrypt';
 
@@ -8,6 +7,8 @@ import { User } from 'src/users/entities/user.entity';
 import { RegisterUserDto } from './dto/register-user.dto';
 import { LoginUserDto } from './dto/login-user.dto';
 import { JwtService } from '@nestjs/jwt';
+import { Repository } from 'typeorm';
+import { Role } from 'src/roles/entities/role.entity';
 
 @Injectable()
 export class AuthService {
@@ -15,11 +16,22 @@ export class AuthService {
     constructor(
         @InjectRepository(User)
         private userRepository: Repository<User>,
+        @InjectRepository(Role)
+        private roleRepository: Repository<Role>,
         private jwtService: JwtService,
     ) { }
 
     async register(RegisterUserDto: RegisterUserDto) {
-        const { email, nom, prenom, password } = RegisterUserDto;
+        const { email, nom, prenom, roleId, password } = RegisterUserDto;
+
+
+        const role = await this.roleRepository.findOne({
+            where: { id: roleId },
+        });
+
+        if (!role) {
+            throw new NotFoundException('Role introuvable');
+        }
 
         const existingUser = await this.userRepository.findOne({ where: { email } });
 
@@ -34,6 +46,7 @@ export class AuthService {
             nom,
             prenom,
             password: hashedPassword,
+            role,
         });
 
         await this.userRepository.save(newUser);

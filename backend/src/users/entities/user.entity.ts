@@ -1,7 +1,7 @@
-import { Column, CreateDateColumn, Entity, JoinTable, ManyToMany, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
+import { Column, CreateDateColumn, Entity, JoinTable, ManyToMany, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
 import { Permission } from "../../permissions/entities/permission.entity";
 import { Exclude } from "class-transformer";
-
+import { Role } from "../../roles/entities/role.entity";
 @Entity('users')
 export class User {
 
@@ -26,6 +26,9 @@ export class User {
     @ManyToMany(() => Permission)
     @JoinTable()
     permissions: Permission[];
+
+    @ManyToOne(() => Role, role => role.users)
+    role: Role;
 
     @CreateDateColumn()
     createdAt: Date;
