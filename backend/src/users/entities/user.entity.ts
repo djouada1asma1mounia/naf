@@ -36,6 +36,9 @@ export class User {
     @UpdateDateColumn()
     updatedAt: Date;
 
+    @Column({ nullable: true })
+    @Exclude({ toPlainOnly: true })
+    refreshToken?: string;
 
     get fullName(): string {
         return `${this.nom} ${this.prenom}`;

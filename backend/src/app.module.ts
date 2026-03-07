@@ -28,7 +28,7 @@ import { RolesModule } from './roles/roles.module';
         ssl: {
           rejectUnauthorized: false
         },
-
+        // logging: ['query'],
       }),
     }),
     UsersModule,

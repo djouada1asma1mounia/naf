@@ -74,11 +74,49 @@ export class AuthService {
 
         const tokens = await this.generateTokens(user);
 
+        const hashedRefreshToken = await bcrypt.hash(tokens.refreshToken, 10);
+        user.refreshToken = hashedRefreshToken;
+        await this.userRepository.save(user);
+
         return {
             data: user,
             accessToken: tokens.accessToken,
             refreshToken: tokens.refreshToken,
             message: 'Connexion réussie',
+        }
+    }
+
+    async refreshToken(refreshToken: string) {
+
+        if (!refreshToken) {
+            throw new UnauthorizedException('Refresh token missing');
+        }
+
+        let payload;
+
+        try {
+            payload = await this.jwtService.verifyAsync(refreshToken, {
+                secret: process.env.JWT_REFRESH_SECRET,
+            })
+        } catch {
+            throw new UnauthorizedException('Token de rafraîchissement invalide');
+        }
+
+        const user = await this.userRepository.findOne({ where: { id: payload.sub } });
+        if (!user || !user.refreshToken) {
+            throw new UnauthorizedException('Utilisateur non trouvé ou pas de token de rafraîchissement');
+        }
+
+        const isMatch = await bcrypt.compare(refreshToken, user.refreshToken);
+        if (!isMatch) {
+            throw new UnauthorizedException('Token de rafraîchissement invalide');
+        }
+
+        const accessToken = await this.generateAccessToken(user);
+
+        return {
+            accessToken,
+            message: 'Token de rafraîchissement réussi',
         }
     }
 
@@ -99,6 +137,14 @@ export class AuthService {
             accessToken,
             refreshToken,
         }
+    }
+
+    async generateAccessToken(user: User) {
+        const payload = { sub: user.id, email: user.email };
+        return await this.jwtService.signAsync(payload, {
+            secret: process.env.JWT_ACCESS_SECRET,
+            expiresIn: '1h',
+        })
     }
 }
 
