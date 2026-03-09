@@ -11,41 +11,36 @@ export class RolesController {
   constructor(private readonly rolesService: RolesService) { }
 
   @Post()
-  // to-do
-  // @UseGuards(JwtAuthGuard, PermissionsGuard)
-  // @Permissions('create-role')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Permissions('create-role')
   create(@Body() createRoleDto: CreateRoleDto) {
     return this.rolesService.create(createRoleDto);
   }
 
   @Get()
-  // to-do
-  // @UseGuards(JwtAuthGuard, PermissionsGuard)
-  // @Permissions('read-roles')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Permissions('read-roles')
   findAll() {
     return this.rolesService.findAll();
   }
 
   @Get(':id')
-  // to-do
-  // @UseGuards(JwtAuthGuard, PermissionsGuard)
-  // @Permissions('read-role')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Permissions('read-role')
   findOne(@Param('id') id: string) {
     return this.rolesService.findOne(+id);
   }
 
   @Patch(':id')
-  // to-do
-  // @UseGuards(JwtAuthGuard, PermissionsGuard)
-  // @Permissions('update-role')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Permissions('update-role')
   update(@Param('id') id: string, @Body() updateRoleDto: UpdateRoleDto) {
     return this.rolesService.update(+id, updateRoleDto);
   }
 
   @Delete(':id')
-  // to-do
-  // @UseGuards(JwtAuthGuard, PermissionsGuard)
-  // @Permissions('delete-role')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Permissions('delete-role')
   remove(@Param('id') id: string) {
     return this.rolesService.remove(+id);
   }
