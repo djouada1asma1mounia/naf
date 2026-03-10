@@ -16,6 +16,7 @@ import CategoryIcon from '@mui/icons-material/Category';
 import AssessmentIcon from '@mui/icons-material/Assessment';
 import SettingsIcon from '@mui/icons-material/Settings';
 import PeopleIcon from '@mui/icons-material/People';
+import BadgeIcon from '@mui/icons-material/Badge';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 
@@ -24,25 +25,25 @@ const navItems = [
     label: 'Tableau de Bord',
     icon: <DashboardIcon />,
     path: '/dashboard',
-    roles: [ROLES.ADMIN, ROLES.USER_PLUS, ROLES.USER],
+    roles: [ROLES.ADMIN, ROLES.USER],
   },
   {
     label: 'Matériels',
     icon: <ComputerIcon />,
     path: '/materials',
-    roles: [ROLES.ADMIN, ROLES.USER_PLUS, ROLES.USER],
+    roles: [ROLES.ADMIN, ROLES.USER],
   },
   {
     label: 'Interventions',
     icon: <BuildIcon />,
     path: '/maintenance',
-    roles: [ROLES.ADMIN, ROLES.USER_PLUS, ROLES.USER],
+    roles: [ROLES.ADMIN, ROLES.USER],
   },
   {
     label: 'Structures',
     icon: <BusinessIcon />,
     path: '/structures',
-    roles: [ROLES.ADMIN, ROLES.USER_PLUS],
+    roles: [ROLES.ADMIN, ROLES.USER],
   },
   {
     label: 'Catégories',
@@ -57,16 +58,22 @@ const navItems = [
     roles: [ROLES.ADMIN],
   },
   {
+    label: 'Rôles',
+    icon: <BadgeIcon />,
+    path: '/roles',
+    roles: [ROLES.ADMIN],
+  },
+  {
     label: 'Rapports',
     icon: <AssessmentIcon />,
     path: '/reports',
-    roles: [ROLES.ADMIN, ROLES.USER_PLUS],
+    roles: [ROLES.ADMIN, ROLES.USER],
   },
   {
     label: 'Paramètres',
     icon: <SettingsIcon />,
     path: '/profile',
-    roles: [ROLES.ADMIN, ROLES.USER_PLUS, ROLES.USER],
+    roles: [ROLES.ADMIN, ROLES.USER],
   },
 ];
 

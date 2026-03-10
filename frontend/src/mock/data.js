@@ -1,14 +1,21 @@
 import { ROLES } from '../utils/constants';
 
+export const mockCustomRoles = [
+  { id: 1, name: "Chef d'équipe", description: 'Responsable de la gestion d\'une équipe', createdAt: '2024-01-10' },
+  { id: 2, name: 'Technicien', description: 'Responsable des interventions techniques', createdAt: '2024-01-12' },
+  { id: 3, name: 'Responsable Stock', description: 'Gestion des stocks et inventaires', createdAt: '2024-01-15' },
+];
+
 export const mockUsers = [
   {
     id: 1,
     username: 'admin',
-    password: 'admin123',
+    password: 'admin',
     firstName: 'Ahmed',
     lastName: 'Benali',
     email: 'a.benali@naftal.dz',
     role: ROLES.ADMIN,
+    assignedRoles: [],
     department: 'Informatique',
     departmentId: 1,
     avatar: null,
@@ -23,6 +30,7 @@ export const mockUsers = [
     lastName: 'Ouali',
     email: 'f.ouali@naftal.dz',
     role: ROLES.ADMIN,
+    assignedRoles: [],
     department: 'Direction Générale',
     departmentId: 2,
     avatar: null,
@@ -36,7 +44,8 @@ export const mockUsers = [
     firstName: 'Karim',
     lastName: 'Meziane',
     email: 'k.meziane@naftal.dz',
-    role: ROLES.USER_PLUS,
+    role: ROLES.USER,
+    assignedRoles: [1, 2],
     department: 'Comptabilité',
     departmentId: 3,
     avatar: null,
@@ -51,6 +60,7 @@ export const mockUsers = [
     lastName: 'Hamidi',
     email: 's.hamidi@naftal.dz',
     role: ROLES.USER,
+    assignedRoles: [3],
     department: 'Ressources Humaines',
     departmentId: 4,
     avatar: null,
@@ -65,6 +75,7 @@ export const mockUsers = [
     lastName: 'Cherif',
     email: 'm.cherif@naftal.dz',
     role: ROLES.USER,
+    assignedRoles: [2],
     department: 'Logistique',
     departmentId: 5,
     avatar: null,

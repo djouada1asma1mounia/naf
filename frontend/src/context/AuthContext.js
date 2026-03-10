@@ -36,8 +36,8 @@ export const AuthProvider = ({ children }) => {
     loadUser();
   }, [loadUser]);
 
-  const login = async (username, password) => {
-    const response = await authAPI.login(username, password);
+  const login = async (email, password) => {
+    const response = await authAPI.login(email, password);
     const { token: newToken, user: newUser } = response;
     localStorage.setItem('naftal_token', newToken);
     localStorage.setItem('naftal_user', JSON.stringify(newUser));
@@ -61,12 +61,11 @@ export const AuthProvider = ({ children }) => {
 
   const hasRole = (role) => user?.role === role;
   const isAdmin = () => user?.role === ROLES.ADMIN;
-  const isUserPlus = () => user?.role === ROLES.USER_PLUS;
-  const canEdit = () => user?.role === ROLES.ADMIN || user?.role === ROLES.USER_PLUS;
+  const canEdit = () => user?.role === ROLES.ADMIN;
 
   return (
     <AuthContext.Provider
-      value={{ user, token, loading, login, logout, updateUser, hasRole, isAdmin, isUserPlus, canEdit }}
+      value={{ user, token, loading, login, logout, updateUser, hasRole, isAdmin, canEdit }}
     >
       {children}
     </AuthContext.Provider>

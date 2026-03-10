@@ -14,6 +14,7 @@ const MaintenanceList = lazy(() => import('../pages/maintenance/MaintenanceList'
 const StructuresList = lazy(() => import('../pages/structures/StructuresList'));
 const CategoriesList = lazy(() => import('../pages/categories/CategoriesList'));
 const UserManagement = lazy(() => import('../pages/parameters/UserManagement'));
+const RolesList = lazy(() => import('../pages/roles/RolesList'));
 const Profile = lazy(() => import('../pages/parameters/Profile'));
 const Reports = lazy(() => import('../pages/reports/Reports'));
 
@@ -43,7 +44,7 @@ const AppRoutes = () => (
         <Route
           path="materials"
           element={
-            <RoleGuard allowedRoles={[ROLES.ADMIN, ROLES.USER_PLUS, ROLES.USER]}>
+            <RoleGuard allowedRoles={[ROLES.ADMIN, ROLES.USER]}>
               <MaterialsList />
             </RoleGuard>
           }
@@ -52,7 +53,7 @@ const AppRoutes = () => (
         <Route
           path="maintenance"
           element={
-            <RoleGuard allowedRoles={[ROLES.ADMIN, ROLES.USER_PLUS, ROLES.USER]}>
+            <RoleGuard allowedRoles={[ROLES.ADMIN, ROLES.USER]}>
               <MaintenanceList />
             </RoleGuard>
           }
@@ -61,7 +62,7 @@ const AppRoutes = () => (
         <Route
           path="structures"
           element={
-            <RoleGuard allowedRoles={[ROLES.ADMIN, ROLES.USER_PLUS]}>
+            <RoleGuard allowedRoles={[ROLES.ADMIN, ROLES.USER]}>
               <StructuresList />
             </RoleGuard>
           }
@@ -86,9 +87,18 @@ const AppRoutes = () => (
         />
 
         <Route
+          path="roles"
+          element={
+            <RoleGuard allowedRoles={[ROLES.ADMIN]}>
+              <RolesList />
+            </RoleGuard>
+          }
+        />
+
+        <Route
           path="reports"
           element={
-            <RoleGuard allowedRoles={[ROLES.ADMIN, ROLES.USER_PLUS]}>
+            <RoleGuard allowedRoles={[ROLES.ADMIN, ROLES.USER]}>
               <Reports />
             </RoleGuard>
           }

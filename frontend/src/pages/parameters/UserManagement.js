@@ -4,7 +4,8 @@ import {
   TableContainer, TableHead, TableRow, TablePagination, TextField,
   InputAdornment, IconButton, Tooltip, Grid, Typography, Skeleton,
   Avatar, Chip, Dialog, DialogTitle, DialogContent, DialogActions,
-  Divider, MenuItem, Alert, Switch, FormControlLabel,
+  Divider, MenuItem, Alert,
+  Checkbox, ListItemText, Select, InputLabel, FormControl, OutlinedInput,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
@@ -12,6 +13,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import SearchIcon from '@mui/icons-material/Search';
 import PeopleIcon from '@mui/icons-material/People';
 import { authAPI, ROLES as ROLE_LIST } from '../../api/auth';
+import { rolesAPI } from '../../api/roles';
 import { materialsAPI } from '../../api/materials';
 import { structuresAPI } from '../../api/structures';
 import PageHeader from '../../components/common/PageHeader';
@@ -21,18 +23,18 @@ import { ROLE_LABELS } from '../../utils/constants';
 import { useSnackbar } from 'notistack';
 import { useAuth } from '../../context/AuthContext';
 
-const UserForm = ({ open, onClose, onSubmit, editItem, departments }) => {
+const UserForm = ({ open, onClose, onSubmit, editItem, departments, customRoles }) => {
   const [form, setForm] = useState({
-    firstName: '', lastName: '', username: '', email: '',
-    password: '', role: 'USER', departmentId: '', department: '', active: true,
+    firstName: '', lastName: '', email: '',
+    password: '', confirmPassword: '', role: 'USER', departmentId: '', department: '', assignedRoles: [],
   });
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    setForm(editItem ? { ...editItem, password: '' } : {
-      firstName: '', lastName: '', username: '', email: '',
-      password: '', role: 'USER', departmentId: '', department: '', active: true,
+    setForm(editItem ? { ...editItem, password: '', confirmPassword: '', assignedRoles: editItem.assignedRoles || [] } : {
+      firstName: '', lastName: '', email: '',
+      password: '', confirmPassword: '', role: 'USER', departmentId: '', department: '', assignedRoles: [],
     });
     setErrors({});
   }, [editItem, open]);
@@ -52,8 +54,13 @@ const UserForm = ({ open, onClose, onSubmit, editItem, departments }) => {
     const newErrors = {};
     if (!form.firstName.trim()) newErrors.firstName = 'Requis';
     if (!form.lastName.trim()) newErrors.lastName = 'Requis';
-    if (!form.username.trim()) newErrors.username = 'Requis';
-    if (!editItem && !form.password) newErrors.password = 'Requis';
+    if (!form.email.trim()) newErrors.email = 'Requis';
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) newErrors.email = 'Email invalide';
+    if (!editItem) {
+      if (!form.password) newErrors.password = 'Requis';
+      if (!form.confirmPassword) newErrors.confirmPassword = 'Requis';
+      else if (form.password && form.confirmPassword !== form.password) newErrors.confirmPassword = 'Les mots de passe ne correspondent pas';
+    }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -62,7 +69,8 @@ const UserForm = ({ open, onClose, onSubmit, editItem, departments }) => {
     e.preventDefault();
     if (!validate()) return;
     setLoading(true);
-    await onSubmit(form);
+    const { confirmPassword: _cp, ...submitData } = form;
+    await onSubmit(submitData);
     setLoading(false);
   };
 
@@ -83,16 +91,18 @@ const UserForm = ({ open, onClose, onSubmit, editItem, departments }) => {
             <Grid item xs={6}>
               <TextField fullWidth label="Nom *" value={form.lastName} onChange={handleChange('lastName')} error={!!errors.lastName} helperText={errors.lastName} />
             </Grid>
-            <Grid item xs={6}>
-              <TextField fullWidth label="Utilisateur *" value={form.username} onChange={handleChange('username')} error={!!errors.username} helperText={errors.username} disabled={!!editItem} />
-            </Grid>
-            <Grid item xs={6}>
-              <TextField fullWidth label="Email" value={form.email} onChange={handleChange('email')} type="email" />
+            <Grid item xs={12}>
+              <TextField fullWidth label="Email *" value={form.email} onChange={handleChange('email')} type="email" error={!!errors.email} helperText={errors.email} disabled={!!editItem} />
             </Grid>
             {!editItem && (
-              <Grid item xs={12}>
-                <TextField fullWidth label="Mot de passe *" value={form.password} onChange={handleChange('password')} type="password" error={!!errors.password} helperText={errors.password} />
-              </Grid>
+              <>
+                <Grid item xs={12}>
+                  <TextField fullWidth label="Mot de passe *" value={form.password} onChange={handleChange('password')} type="password" error={!!errors.password} helperText={errors.password} />
+                </Grid>
+                <Grid item xs={12}>
+                  <TextField fullWidth label="Confirmer le mot de passe *" value={form.confirmPassword} onChange={handleChange('confirmPassword')} type="password" error={!!errors.confirmPassword} helperText={errors.confirmPassword} />
+                </Grid>
+              </>
             )}
             <Grid item xs={6}>
               <TextField fullWidth select label="Rôle" value={form.role} onChange={handleChange('role')}>
@@ -106,12 +116,30 @@ const UserForm = ({ open, onClose, onSubmit, editItem, departments }) => {
                 {departments.map((d) => <MenuItem key={d.id} value={d.id}>{d.name}</MenuItem>)}
               </TextField>
             </Grid>
-            <Grid item xs={12}>
-              <FormControlLabel
-                control={<Switch checked={form.active} onChange={handleChange('active')} color="primary" />}
-                label="Compte actif"
-              />
-            </Grid>
+            {form.role === 'USER' && (
+              <Grid item xs={12}>
+                <FormControl fullWidth>
+                  <InputLabel>Rôles assignés</InputLabel>
+                  <Select
+                    multiple
+                    value={form.assignedRoles}
+                    onChange={(e) => setForm((f) => ({ ...f, assignedRoles: e.target.value }))}
+                    input={<OutlinedInput label="Rôles assignés" />}
+                    renderValue={(selected) =>
+                      selected.map((id) => customRoles.find((r) => r.id === id)?.name).filter(Boolean).join(', ')
+                    }
+                  >
+                    {customRoles.map((r) => (
+                      <MenuItem key={r.id} value={r.id}>
+                        <Checkbox checked={form.assignedRoles.includes(r.id)} />
+                        <ListItemText primary={r.name} />
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+            )}
+
           </Grid>
         </Box>
       </DialogContent>
@@ -131,6 +159,7 @@ const UserManagement = () => {
   const { enqueueSnackbar } = useSnackbar();
   const [users, setUsers] = useState([]);
   const [departments, setDepartments] = useState([]);
+  const [customRoles, setCustomRoles] = useState([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(0);
@@ -143,9 +172,10 @@ const UserManagement = () => {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const [usrs, depts] = await Promise.all([authAPI.getUsers(), structuresAPI.getDepartments()]);
+      const [usrs, depts, roles] = await Promise.all([authAPI.getUsers(), structuresAPI.getDepartments(), rolesAPI.getAll()]);
       setUsers(usrs);
       setDepartments(depts);
+      setCustomRoles(roles);
     } catch { enqueueSnackbar('Erreur chargement', { variant: 'error' }); }
     setLoading(false);
   }, [enqueueSnackbar]);
@@ -219,6 +249,7 @@ const UserManagement = () => {
                 <TableCell>Utilisateur</TableCell>
                 <TableCell>Username</TableCell>
                 <TableCell>Rôle</TableCell>
+                <TableCell>Rôles assignés</TableCell>
                 <TableCell>Département</TableCell>
                 <TableCell>Statut</TableCell>
                 <TableCell>Créé le</TableCell>
@@ -228,11 +259,11 @@ const UserManagement = () => {
             <TableBody>
               {loading ? (
                 Array.from({ length: 5 }).map((_, i) => (
-                  <TableRow key={i}>{[1,2,3,4,5,6,7].map((j) => <TableCell key={j}><Skeleton /></TableCell>)}</TableRow>
+                  <TableRow key={i}>{[1,2,3,4,5,6,7,8].map((j) => <TableCell key={j}><Skeleton /></TableCell>)}</TableRow>
                 ))
               ) : displayed.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} align="center" sx={{ py: 4 }}>
+                  <TableCell colSpan={8} align="center" sx={{ py: 4 }}>
                     <PeopleIcon sx={{ fontSize: 40, opacity: 0.3 }} />
                     <Typography variant="body2" color="text.secondary">Aucun utilisateur</Typography>
                   </TableCell>
@@ -253,6 +284,19 @@ const UserManagement = () => {
                     </TableCell>
                     <TableCell><Typography variant="body2">{u.username}</Typography></TableCell>
                     <TableCell><RoleChip role={u.role} /></TableCell>
+                    <TableCell>
+                      <Box display="flex" gap={0.5} flexWrap="wrap">
+                        {(u.assignedRoles || []).map((roleId) => {
+                          const cr = customRoles.find((r) => r.id === roleId);
+                          return cr ? (
+                            <Chip key={roleId} label={cr.name} size="small" variant="outlined" color="secondary" sx={{ fontSize: '0.65rem', fontWeight: 600 }} />
+                          ) : null;
+                        })}
+                        {(!u.assignedRoles || u.assignedRoles.length === 0) && (
+                          <Typography variant="caption" color="text.secondary">—</Typography>
+                        )}
+                      </Box>
+                    </TableCell>
                     <TableCell><Typography variant="body2">{u.department}</Typography></TableCell>
                     <TableCell>
                       <Chip
@@ -295,7 +339,7 @@ const UserManagement = () => {
         />
       </Card>
 
-      <UserForm open={formOpen} onClose={() => setFormOpen(false)} onSubmit={handleFormSubmit} editItem={editItem} departments={departments} />
+      <UserForm open={formOpen} onClose={() => setFormOpen(false)} onSubmit={handleFormSubmit} editItem={editItem} departments={departments} customRoles={customRoles} />
       <ConfirmDialog
         open={deleteDialog.open}
         title="Supprimer l'Utilisateur"

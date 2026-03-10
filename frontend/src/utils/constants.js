@@ -1,6 +1,5 @@
 export const ROLES = {
   ADMIN: 'ADMIN',
-  USER_PLUS: 'USER_PLUS',
   USER: 'USER',
 };
 
@@ -14,13 +13,11 @@ export const INTERVENTION_PRIORITIES = ['Basse', 'Normale', 'Haute', 'Urgente'];
 
 export const ROLE_LABELS = {
   ADMIN: 'Administrateur',
-  USER_PLUS: 'Utilisateur+',
   USER: 'Utilisateur',
 };
 
 export const ROLE_COLORS = {
   ADMIN: 'error',
-  USER_PLUS: 'warning',
   USER: 'info',
 };
 
