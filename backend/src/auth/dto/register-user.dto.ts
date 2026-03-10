@@ -1,4 +1,4 @@
-import { IsEmail, IsString, MinLength } from "class-validator";
+import { IsEmail, IsNumber, IsString, MinLength } from "class-validator";
 import { Match } from "src/validators/match.validators";
 
 export class RegisterUserDto {
@@ -11,6 +11,9 @@ export class RegisterUserDto {
 
     @IsString()
     prenom: string;
+
+    @IsNumber()
+    roleId: number;
 
     @IsString()
     @MinLength(6)

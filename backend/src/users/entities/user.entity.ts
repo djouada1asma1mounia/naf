@@ -1,7 +1,7 @@
-import { Column, CreateDateColumn, Entity, JoinTable, ManyToMany, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
+import { Column, CreateDateColumn, Entity, JoinTable, ManyToMany, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
 import { Permission } from "../../permissions/entities/permission.entity";
 import { Exclude } from "class-transformer";
-
+import { Role } from "../../roles/entities/role.entity";
 @Entity('users')
 export class User {
 
@@ -17,7 +17,7 @@ export class User {
     @Column({
         unique: true,
     })
-    email?: string;
+    email: string;
 
     @Column()
     @Exclude({ toPlainOnly: true })
@@ -27,12 +27,18 @@ export class User {
     @JoinTable()
     permissions: Permission[];
 
+    @ManyToOne(() => Role, role => role.users)
+    role: Role;
+
     @CreateDateColumn()
     createdAt: Date;
 
     @UpdateDateColumn()
     updatedAt: Date;
 
+    @Column({ nullable: true })
+    @Exclude({ toPlainOnly: true })
+    refreshToken?: string;
 
     get fullName(): string {
         return `${this.nom} ${this.prenom}`;
