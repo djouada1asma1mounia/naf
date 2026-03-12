@@ -25,7 +25,7 @@ export class UsersController {
 
   @Patch(':id')
   @UseGuards(JwtAuthGuard, PermissionsGuard)
-  // @Permissions('update-user')
+  @Permissions('update-user')
   update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
     return this.usersService.update(id, updateUserDto);
   }

@@ -9,6 +9,7 @@ import { LoginUserDto } from './dto/login-user.dto';
 import { JwtService } from '@nestjs/jwt';
 import { Repository } from 'typeorm';
 import { Role } from 'src/roles/entities/role.entity';
+import { Department } from 'src/departments/entities/department.entity';
 
 @Injectable()
 export class AuthService {
@@ -18,22 +19,27 @@ export class AuthService {
         private userRepository: Repository<User>,
         @InjectRepository(Role)
         private roleRepository: Repository<Role>,
+        @InjectRepository(Department)
+        private departmentRepository: Repository<Department>,
         private jwtService: JwtService,
     ) { }
 
     async register(RegisterUserDto: RegisterUserDto) {
-        const { email, nom, prenom, roleId, password } = RegisterUserDto;
+        const { email, nom, prenom, roleId, departmentId, password } = RegisterUserDto;
 
-
-        const role = await this.roleRepository.findOne({
-            where: { id: roleId },
-        });
+        const [role, department, existingUser] = await Promise.all([
+            this.roleRepository.findOne({ where: { id: roleId } }),
+            this.departmentRepository.findOne({ where: { id: departmentId } }),
+            this.userRepository.findOne({ where: { email } }),
+        ]);
 
         if (!role) {
             throw new NotFoundException('Role introuvable');
         }
 
-        const existingUser = await this.userRepository.findOne({ where: { email } });
+        if (!department) {
+            throw new NotFoundException('Département introuvable');
+        }
 
         if (existingUser) {
             throw new ConflictException('Email already exists');
@@ -47,6 +53,7 @@ export class AuthService {
             prenom,
             password: hashedPassword,
             role,
+            department,
         });
 
         await this.userRepository.save(newUser);

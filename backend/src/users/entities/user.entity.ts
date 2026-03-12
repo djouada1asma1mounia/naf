@@ -2,6 +2,8 @@ import { Column, CreateDateColumn, Entity, JoinTable, ManyToMany, ManyToOne, Pri
 import { Permission } from "../../permissions/entities/permission.entity";
 import { Exclude } from "class-transformer";
 import { Role } from "../../roles/entities/role.entity";
+import { Department } from "../../departments/entities/department.entity";
+
 @Entity('users')
 export class User {
 
@@ -29,6 +31,9 @@ export class User {
 
     @ManyToOne(() => Role, role => role.users)
     role: Role;
+
+    @ManyToOne(() => Department, department => department.users)
+    department: Department;
 
     @CreateDateColumn()
     createdAt: Date;

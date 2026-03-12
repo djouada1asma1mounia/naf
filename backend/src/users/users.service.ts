@@ -4,6 +4,7 @@ import { In, Repository } from 'typeorm';
 import { User } from './entities/user.entity';
 import { Role } from '../roles/entities/role.entity';
 import { Permission } from '../permissions/entities/permission.entity';
+import { Department } from '../departments/entities/department.entity';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UserDetailDto, UserSummaryDto } from './dto/user-summary.dto';
 
@@ -17,11 +18,13 @@ export class UsersService {
     private readonly rolesRepository: Repository<Role>,
     @InjectRepository(Permission)
     private readonly permissionsRepository: Repository<Permission>,
+    @InjectRepository(Department)
+    private readonly departmentRepository: Repository<Department>,
   ) { }
 
   async findAll(): Promise<{ data: UserSummaryDto[]; message: string }> {
     const users = await this.usersRepository.find({
-      relations: ['role'],
+      relations: ['role', 'department'],
       order: { createdAt: 'DESC' },
     });
 
@@ -33,6 +36,10 @@ export class UsersService {
           id: user.role?.id,
           name: user.role?.name,
         },
+        department: {
+          id: user.department?.id,
+          name: user.department?.name,
+        },
       })),
       message: 'Liste des utilisateurs récupérée avec succès',
     };
@@ -41,7 +48,7 @@ export class UsersService {
   async findOne(id: string): Promise<{ data: UserDetailDto; message: string }> {
     const user = await this.usersRepository.findOne({
       where: { id },
-      relations: ['role', 'permissions'],
+      relations: ['role', 'permissions', 'department'],
     });
 
     if (!user) {
@@ -57,6 +64,10 @@ export class UsersService {
           id: user.role?.id,
           name: user.role?.name,
         },
+        department: {
+          id: user.department?.id,
+          name: user.department?.name,
+        },
         permissions: user.permissions.map(p => ({ id: p.id, name: p.name })),
         createdAt: user.createdAt,
         updatedAt: user.updatedAt,
@@ -68,14 +79,14 @@ export class UsersService {
   async update(id: string, dto: UpdateUserDto): Promise<{ data: UserDetailDto; message: string }> {
     const user = await this.usersRepository.findOne({
       where: { id },
-      relations: ['role', 'permissions'],
+      relations: ['role', 'permissions', 'department'],
     });
 
     if (!user) {
       throw new NotFoundException(`Utilisateur avec l'id "${id}" introuvable`);
     }
 
-    const { roleId, permissionIds, ...fields } = dto;
+    const { roleId, departmentId, permissionIds, ...fields } = dto;
 
     Object.assign(user, fields);
 
@@ -83,6 +94,12 @@ export class UsersService {
       const role = await this.rolesRepository.findOne({ where: { id: roleId } });
       if (!role) throw new NotFoundException(`Rôle avec l'id "${roleId}" introuvable`);
       user.role = role;
+    }
+
+    if (departmentId !== undefined) {
+      const department = await this.departmentRepository.findOne({ where: { id: departmentId } });
+      if (!department) throw new NotFoundException(`Département avec l'id "${departmentId}" introuvable`);
+      user.department = department;
     }
 
     if (permissionIds !== undefined) {
@@ -99,6 +116,7 @@ export class UsersService {
         fullName: saved.fullName,
         email: saved.email,
         role: { id: saved.role?.id, name: saved.role?.name },
+        department: { id: saved.department?.id, name: saved.department?.name },
         permissions: saved.permissions.map(p => ({ id: p.id, name: p.name })),
         createdAt: saved.createdAt,
         updatedAt: saved.updatedAt,

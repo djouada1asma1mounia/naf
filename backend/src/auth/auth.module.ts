@@ -6,9 +6,10 @@ import { User } from '../users/entities/user.entity';
 import { JwtModule } from '@nestjs/jwt';
 import { JwtStrategy } from './jwt.strategy';
 import { Role } from 'src/roles/entities/role.entity';
+import { Department } from 'src/departments/entities/department.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([User, Role]),
+  imports: [TypeOrmModule.forFeature([User, Role, Department]),
   JwtModule.register({
     secret: process.env.JWT_ACCESS_SECRET,
     signOptions: { expiresIn: '1h' },

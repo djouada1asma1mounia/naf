@@ -15,6 +15,9 @@ export class RegisterUserDto {
     @IsNumber()
     roleId: number;
 
+    @IsNumber()
+    departmentId: number;
+
     @IsString()
     @MinLength(6)
     password: string;

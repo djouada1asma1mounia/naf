@@ -25,4 +25,8 @@ export class CreateUserDto {
     @IsOptional()
     @IsInt()
     roleId?: number;
+
+    @IsOptional()
+    @IsInt()
+    departmentId?: number;
 }

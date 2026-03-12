@@ -19,7 +19,7 @@ export class PermissionsController {
 
   @Get()
   @UseGuards(JwtAuthGuard, PermissionsGuard)
-  // @Permissions('read-permissions')
+  @Permissions('read-permissions')
   findAll() {
     return this.permissionsService.findAll();
   }

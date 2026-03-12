@@ -7,6 +7,7 @@ import { UsersModule } from './users/users.module';
 import { PermissionsModule } from './permissions/permissions.module';
 import { AuthModule } from './auth/auth.module';
 import { RolesModule } from './roles/roles.module';
+import { DepartmentsModule } from './departments/departments.module';
 
 @Module({
   imports: [
@@ -34,7 +35,8 @@ import { RolesModule } from './roles/roles.module';
     UsersModule,
     PermissionsModule,
     AuthModule,
-    RolesModule],
+    RolesModule,
+    DepartmentsModule],
   controllers: [AppController],
   providers: [AppService],
 })
