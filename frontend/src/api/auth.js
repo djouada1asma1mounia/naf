@@ -5,25 +5,45 @@
 
 import { mockUsers } from '../mock/data';
 import { ROLES } from '../utils/constants';
-// import axiosInstance from './axios'; // ← uncomment when switching to real API
+import axiosInstance from './axios';
 
 const delay = (ms = 500) => new Promise((r) => setTimeout(r, ms));
 
 let usersDB = [...mockUsers];
 let nextId = usersDB.length + 1;
 
+const getErrorMessage = (error, fallback) => {
+  const apiMessage = error?.response?.data?.message;
+  if (Array.isArray(apiMessage)) return apiMessage[0] || fallback;
+  return apiMessage || error?.message || fallback;
+};
+
 export { ROLES };
 
 export const authAPI = {
-  /** POST /auth/login → { token, user } */
+  /** POST /auth/login → { accessToken, data, message } */
   login: async (email, password) => {
-    await delay(600);
-    const user = usersDB.find((u) => u.email === email && u.password === password && u.active);
-    if (!user) throw new Error('Identifiants incorrects');
-    if (!user.active) throw new Error('Ce compte est désactivé. Contactez un administrateur.');
-    const token = btoa(JSON.stringify({ id: user.id, role: user.role, exp: Date.now() + 86400000 }));
-    const { password: _p, ...safeUser } = user;
-    return { token, user: safeUser };
+    try {
+      const response = await axiosInstance.post('/auth/login', { email, password });
+      const payload = response.data || {};
+      return {
+        accessToken: payload.accessToken,
+        data: payload.data,
+        message: payload.message,
+      };
+    } catch (error) {
+      throw new Error(getErrorMessage(error, 'Identifiants incorrects.'));
+    }
+  },
+
+  /** POST /auth/register */
+  register: async (payload) => {
+    try {
+      const response = await axiosInstance.post('/auth/register', payload);
+      return response.data;
+    } catch (error) {
+      throw new Error(getErrorMessage(error, 'Erreur lors de l’inscription.'));
+    }
   },
 
   /** GET /users */
