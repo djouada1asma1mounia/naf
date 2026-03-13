@@ -12,6 +12,31 @@ export const useAuth = () => {
   return ctx;
 };
 
+const normalizeRole = (roleValue) => {
+  if (!roleValue) return null;
+  if (typeof roleValue === 'string') return roleValue.toUpperCase();
+  if (typeof roleValue === 'object') {
+    const raw = roleValue.name || roleValue.code || roleValue.label || null;
+    return raw ? String(raw).toUpperCase() : null;
+  }
+  return null;
+};
+
+const normalizeUser = (rawUser) => {
+  if (!rawUser || typeof rawUser !== 'object') return null;
+
+  const normalizedRole = normalizeRole(rawUser.role);
+  const roleId = typeof rawUser.role === 'object' ? rawUser.role?.id : rawUser.roleId;
+  const departmentId = typeof rawUser.department === 'object' ? rawUser.department?.id : rawUser.departmentId;
+
+  return {
+    ...rawUser,
+    role: normalizedRole || rawUser.role || null,
+    roleId: roleId || null,
+    departmentId: departmentId || null,
+  };
+};
+
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(() => localStorage.getItem('naftal_token'));
@@ -23,7 +48,7 @@ export const AuthProvider = ({ children }) => {
     if (storedToken && storedUser) {
       try {
         setToken(storedToken);
-        setUser(JSON.parse(storedUser));
+        setUser(normalizeUser(JSON.parse(storedUser)));
       } catch {
         localStorage.removeItem('naftal_token');
         localStorage.removeItem('naftal_user');
@@ -38,13 +63,21 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     const response = await authAPI.login(email, password);
-    const { token: newToken, user: newUser } = response;
+    const newToken = response.accessToken;
+    const newUser = normalizeUser(response.data);
+
+    if (!newToken || !newUser) {
+      throw new Error('Réponse de connexion invalide depuis le serveur.');
+    }
+
     localStorage.setItem('naftal_token', newToken);
     localStorage.setItem('naftal_user', JSON.stringify(newUser));
     setToken(newToken);
     setUser(newUser);
     return newUser;
   };
+
+  const register = async (payload) => authAPI.register(payload);
 
   const logout = () => {
     localStorage.removeItem('naftal_token');
@@ -65,7 +98,7 @@ export const AuthProvider = ({ children }) => {
 
   return (
     <AuthContext.Provider
-      value={{ user, token, loading, login, logout, updateUser, hasRole, isAdmin, canEdit }}
+      value={{ user, token, loading, login, register, logout, updateUser, hasRole, isAdmin, canEdit }}
     >
       {children}
     </AuthContext.Provider>
