@@ -1,4 +1,4 @@
-import { Column, CreateDateColumn, Entity, JoinTable, ManyToMany, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
+import { Column, CreateDateColumn, Entity, JoinTable, ManyToMany, ManyToOne, OneToOne, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
 import { Permission } from "../../permissions/entities/permission.entity";
 import { Exclude } from "class-transformer";
 import { Role } from "../../roles/entities/role.entity";
@@ -44,6 +44,9 @@ export class User {
     @Column({ nullable: true })
     @Exclude({ toPlainOnly: true })
     refreshToken?: string;
+
+    @OneToOne(() => Department, department => department.managerId)
+    departmentManager: Department;
 
     get fullName(): string {
         return `${this.nom} ${this.prenom}`;
