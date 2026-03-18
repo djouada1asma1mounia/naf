@@ -204,7 +204,7 @@ const UserForm = ({ open, onClose, onSubmit, editItem, departments, customRoles,
 };
 
 const UserManagement = () => {
-  const { user: currentUser } = useAuth();
+  const { user: currentUser, updateUser } = useAuth();
   const { enqueueSnackbar } = useSnackbar();
   const [users, setUsers] = useState([]);
   const [departments, setDepartments] = useState([]);
@@ -258,12 +258,23 @@ const UserManagement = () => {
 
   const handleFormSubmit = async (data) => {
     try {
+      if (!data.roleId || Number(data.roleId) <= 0) {
+        enqueueSnackbar('Veuillez sélectionner un rôle backend valide.', { variant: 'error' });
+        return;
+      }
+
       if (editItem) {
-        await authAPI.updateUser(editItem.id, data);
+        const updatedUser = await authAPI.updateUser(editItem.id, data);
+        if (String(editItem.id) === String(currentUser?.id)) {
+          updateUser(updatedUser);
+        }
         enqueueSnackbar('Utilisateur modifié', { variant: 'success' });
       } else {
-        await authAPI.createUser(data);
+        const createResult = await authAPI.createUser(data);
         enqueueSnackbar('Utilisateur créé', { variant: 'success' });
+        if (createResult?.permissionsApplyWarning) {
+          enqueueSnackbar('Compte créé, mais certaines permissions (ex: create-role) n\'ont pas pu être appliquées automatiquement. Modifiez le compte pour les réappliquer.', { variant: 'warning' });
+        }
       }
       setFormOpen(false);
       loadData();

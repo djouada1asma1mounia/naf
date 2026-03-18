@@ -1,19 +1,19 @@
-import { mockDepartments, mockUsers } from '../mock/data';
 import axiosInstance from './axios';
+import { authAPI } from './auth';
 
-const delay = (ms = 400) => new Promise((r) => setTimeout(r, ms));
-
-let departmentsDB = [...mockDepartments];
-let nextId = departmentsDB.length + 1;
+const getErrorMessage = (error, fallback) => {
+  const apiMessage = error?.response?.data?.message;
+  if (Array.isArray(apiMessage)) return apiMessage[0] || fallback;
+  return apiMessage || error?.message || fallback;
+};
 
 export const structuresAPI = {
   getDepartments: async () => {
     try {
       const response = await axiosInstance.get('/departments');
       return response?.data?.data || [];
-    } catch {
-      await delay();
-      return [...departmentsDB];
+    } catch (error) {
+      throw new Error(getErrorMessage(error, 'Erreur lors du chargement des départements.'));
     }
   },
 
@@ -21,36 +21,37 @@ export const structuresAPI = {
     try {
       const response = await axiosInstance.get(`/departments/${id}`);
       return response?.data?.data || response.data;
-    } catch {
-      await delay(200);
-      const d = departmentsDB.find((d) => d.id === Number(id));
-      if (!d) throw new Error('Département non trouvé');
-      return d;
+    } catch (error) {
+      throw new Error(getErrorMessage(error, 'Département non trouvé.'));
     }
   },
 
   createDepartment: async (data) => {
     try {
-      const response = await axiosInstance.post('/departments', data);
+      const payload = {
+        name: data.name,
+        code: data.code,
+      };
+      if (data.managerId) payload.managerId = data.managerId;
+
+      const response = await axiosInstance.post('/departments', payload);
       return response?.data?.data || response.data;
-    } catch {
-      await delay(500);
-      const newD = { ...data, id: nextId++, staffCount: 0 };
-      departmentsDB.push(newD);
-      return newD;
+    } catch (error) {
+      throw new Error(getErrorMessage(error, 'Erreur lors de la création du département.'));
     }
   },
 
   updateDepartment: async (id, data) => {
     try {
-      const response = await axiosInstance.patch(`/departments/${id}`, data);
+      const payload = {
+        name: data.name,
+        code: data.code,
+        managerId: data.managerId || null,
+      };
+      const response = await axiosInstance.patch(`/departments/${id}`, payload);
       return response?.data?.data || response.data;
-    } catch {
-      await delay(400);
-      const idx = departmentsDB.findIndex((d) => d.id === Number(id));
-      if (idx === -1) throw new Error('Département non trouvé');
-      departmentsDB[idx] = { ...departmentsDB[idx], ...data };
-      return departmentsDB[idx];
+    } catch (error) {
+      throw new Error(getErrorMessage(error, 'Erreur lors de la modification du département.'));
     }
   },
 
@@ -58,20 +59,20 @@ export const structuresAPI = {
     try {
       const response = await axiosInstance.delete(`/departments/${id}`);
       return response.data;
-    } catch {
-      await delay(400);
-      departmentsDB = departmentsDB.filter((d) => d.id !== Number(id));
-      return { success: true };
+    } catch (error) {
+      throw new Error(getErrorMessage(error, 'Erreur lors de la suppression du département.'));
     }
   },
 
   getStaff: async (departmentId) => {
-    await delay(300);
-    if (departmentId) {
-      return mockUsers
-        .filter((u) => u.departmentId === Number(departmentId))
-        .map(({ password: _p, ...u }) => u);
+    try {
+      const users = await authAPI.getUsers();
+      if (departmentId === undefined || departmentId === null || departmentId === '') {
+        return users;
+      }
+      return users.filter((user) => String(user.departmentId) === String(departmentId));
+    } catch (error) {
+      throw new Error(getErrorMessage(error, 'Erreur lors du chargement du personnel.'));
     }
-    return mockUsers.map(({ password: _p, ...u }) => u);
   },
 };

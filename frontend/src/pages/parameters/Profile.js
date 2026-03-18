@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Box, Card, CardContent, Grid, Typography, TextField, Button,
   Avatar, Divider, Alert, Chip, Tab, Tabs, InputAdornment, IconButton,
@@ -17,6 +17,12 @@ import { useSnackbar } from 'notistack';
 
 const TabPanel = ({ children, value, index }) => value === index && <Box pt={3}>{children}</Box>;
 
+const getDepartmentLabel = (department) => {
+  if (!department) return '';
+  if (typeof department === 'object') return department.name || '';
+  return String(department);
+};
+
 const Profile = () => {
   const { user, updateUser } = useAuth();
   const { enqueueSnackbar } = useSnackbar();
@@ -28,8 +34,17 @@ const Profile = () => {
     firstName: user?.firstName || '',
     lastName: user?.lastName || '',
     email: user?.email || '',
-    department: user?.department || '',
+    department: getDepartmentLabel(user?.department),
   });
+
+  useEffect(() => {
+    setProfileForm({
+      firstName: user?.firstName || '',
+      lastName: user?.lastName || '',
+      email: user?.email || '',
+      department: getDepartmentLabel(user?.department),
+    });
+  }, [user]);
 
   const [pwForm, setPwForm] = useState({ old: '', new1: '', new2: '' });
   const [showPw, setShowPw] = useState({ old: false, new1: false, new2: false });
@@ -106,14 +121,14 @@ const Profile = () => {
               <Box textAlign="left">
                 {[
                   { label: "Nom d'utilisateur", value: user?.username },
-                  { label: 'Département', value: user?.department },
+                  { label: 'Département', value: getDepartmentLabel(user?.department) },
                   { label: 'Membre depuis', value: user?.createdAt },
                 ].map(({ label, value }) => (
                   <Box key={label} mb={1.5}>
                     <Typography variant="caption" color="text.secondary" fontWeight={600} textTransform="uppercase" letterSpacing="0.05em">
                       {label}
                     </Typography>
-                    <Typography variant="body2" fontWeight={500}>{value}</Typography>
+                    <Typography variant="body2" fontWeight={500}>{value || '—'}</Typography>
                   </Box>
                 ))}
               </Box>

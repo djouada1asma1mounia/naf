@@ -48,6 +48,16 @@ const roleFromId = (roleId) => {
   return null;
 };
 
+const splitFullName = (fullName = '') => {
+  const parts = String(fullName).trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return { firstName: '', lastName: '' };
+  if (parts.length === 1) return { firstName: parts[0], lastName: '' };
+  return {
+    firstName: parts.slice(0, -1).join(' '),
+    lastName: parts[parts.length - 1],
+  };
+};
+
 const normalizeUser = (rawUser) => {
   if (!rawUser || typeof rawUser !== 'object') return null;
 
@@ -61,14 +71,22 @@ const normalizeUser = (rawUser) => {
     ? mockUsers.find((mockUser) => mockUser.email?.toLowerCase() === rawUser.email.toLowerCase())
     : null;
 
+  const fromFullName = splitFullName(rawUser.fullName || '');
+
   const roleId = typeof rawUser.role === 'object' ? rawUser.role?.id : rawUser.roleId;
   const departmentId = typeof rawUser.department === 'object' ? rawUser.department?.id : rawUser.departmentId;
+  const departmentName = typeof rawUser.department === 'object'
+    ? rawUser.department?.name || ''
+    : rawUser.department || '';
+  const username = rawUser.username || (rawUser.email ? String(rawUser.email).split('@')[0] : '');
 
   return {
     ...rawUser,
-    firstName: rawUser.firstName || rawUser.prenom || matchedMockUser?.firstName || '',
-    lastName: rawUser.lastName || rawUser.nom || matchedMockUser?.lastName || '',
+    firstName: rawUser.prenom || fromFullName.firstName || rawUser.firstName || matchedMockUser?.firstName || '',
+    lastName: rawUser.nom || fromFullName.lastName || rawUser.lastName || matchedMockUser?.lastName || '',
     role: normalizedRole || matchedMockUser?.role || ROLES.USER,
+    username,
+    department: departmentName,
     roleId: roleId || null,
     departmentId: departmentId || null,
   };
@@ -124,7 +142,13 @@ export const AuthProvider = ({ children }) => {
   };
 
   const updateUser = (updatedUser) => {
-    const merged = normalizeUser({ ...user, ...updatedUser });
+    const mergedRaw = { ...user, ...updatedUser };
+    if (updatedUser?.fullName && !updatedUser?.firstName && !updatedUser?.lastName && !updatedUser?.prenom && !updatedUser?.nom) {
+      const { firstName, lastName } = splitFullName(updatedUser.fullName);
+      mergedRaw.firstName = firstName;
+      mergedRaw.lastName = lastName;
+    }
+    const merged = normalizeUser(mergedRaw);
     localStorage.setItem('naftal_user', JSON.stringify(merged));
     setUser(merged);
   };

@@ -146,7 +146,45 @@ export const authAPI = {
   /** POST /auth/register */
   createUser: async (data) => {
     try {
-      const response = await axiosInstance.post('/auth/register', mapCreateRegisterPayload(data));
+      const resolvedRoleId = Number(data.roleId);
+      if (!resolvedRoleId || Number.isNaN(resolvedRoleId) || resolvedRoleId <= 0) {
+        throw new Error('Veuillez sélectionner un rôle backend valide.');
+      }
+
+      const response = await axiosInstance.post('/auth/register', mapCreateRegisterPayload({
+        ...data,
+        roleId: resolvedRoleId,
+      }));
+
+      const requestedPermissionIds = Array.isArray(data.permissionIds)
+        ? data.permissionIds.map((id) => Number(id)).filter((id) => !Number.isNaN(id))
+        : [];
+
+      if (requestedPermissionIds.length > 0) {
+        try {
+          const users = await authAPI.getUsers();
+          const createdUser = users.find(
+            (user) => String(user?.email || '').toLowerCase() === String(data.email || '').toLowerCase()
+          );
+
+          if (createdUser?.id) {
+            await authAPI.updateUser(createdUser.id, {
+              firstName: data.firstName,
+              lastName: data.lastName,
+              email: data.email,
+              roleId: resolvedRoleId,
+              departmentId: data.departmentId,
+              permissionIds: requestedPermissionIds,
+            });
+            return { ...(response.data || {}), permissionsApplied: true };
+          }
+
+          return { ...(response.data || {}), permissionsApplied: false, permissionsApplyWarning: true };
+        } catch {
+          return { ...(response.data || {}), permissionsApplied: false, permissionsApplyWarning: true };
+        }
+      }
+
       return response.data;
     } catch (error) {
       throw new Error(getErrorMessage(error, 'Erreur lors de la création de l’utilisateur.'));
@@ -156,7 +194,12 @@ export const authAPI = {
   /** PATCH /users/:id */
   updateUser: async (id, data) => {
     try {
-      const response = await axiosInstance.patch(`/users/${id}`, mapUpdatePayload(data));
+      const mapped = mapUpdatePayload(data);
+      if (mapped.roleId !== undefined && (!mapped.roleId || Number(mapped.roleId) <= 0)) {
+        throw new Error('Veuillez sélectionner un rôle backend valide.');
+      }
+
+      const response = await axiosInstance.patch(`/users/${id}`, mapped);
       return response?.data?.data || response.data;
     } catch (error) {
       throw new Error(getErrorMessage(error, 'Erreur lors de la mise à jour de l’utilisateur.'));

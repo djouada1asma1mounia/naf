@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box, Button, Card, Typography, TextField, Dialog,
   DialogTitle, DialogContent, DialogActions, IconButton, Tooltip,
@@ -28,8 +28,11 @@ const RoleForm = ({ open, onClose, onSubmit, editItem }) => {
     e.preventDefault();
     if (!form.name.trim()) { setErrors({ name: 'Champ requis' }); return; }
     setLoading(true);
-    await onSubmit(form);
-    setLoading(false);
+    try {
+      await onSubmit(form);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -83,13 +86,17 @@ const RolesList = () => {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setLoading(true);
-    try { setRoles(await rolesAPI.getAll()); } catch {}
+    try {
+      setRoles(await rolesAPI.getAll());
+    } catch (err) {
+      enqueueSnackbar(err.message || 'Erreur chargement rôles', { variant: 'error' });
+    }
     setLoading(false);
-  };
+  }, [enqueueSnackbar]);
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => { loadData(); }, [loadData]);
 
   const displayed = roles.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
 

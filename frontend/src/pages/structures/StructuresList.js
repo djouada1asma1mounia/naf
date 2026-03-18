@@ -3,7 +3,7 @@ import {
   Box, Grid, Card, CardContent, Typography, Avatar, Divider,
   List, ListItem, ListItemAvatar, ListItemText, Chip, Button,
   TextField, Dialog, DialogTitle, DialogContent, DialogActions,
-  IconButton, Tooltip, Skeleton, Accordion, AccordionSummary, AccordionDetails,
+  IconButton, Tooltip, Skeleton, Accordion, AccordionSummary, AccordionDetails, MenuItem,
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import BusinessIcon from '@mui/icons-material/Business';
@@ -19,7 +19,7 @@ import { RoleChip } from '../../components/common/StatusChip';
 import { useAuth } from '../../context/AuthContext';
 import { useSnackbar } from 'notistack';
 
-const emptyForm = { name: '', code: '', manager: '' };
+const emptyForm = { name: '', code: '', managerId: '' };
 
 const StructuresList = () => {
   const { isAdmin } = useAuth();
@@ -59,9 +59,9 @@ const StructuresList = () => {
     loadData();
   }, [enqueueSnackbar]);
 
-  const getDeptStaff = (deptId) => staff.filter((s) => s.departmentId === deptId);
-  const getDeptMaterials = (deptId) => materials.filter((m) => m.departmentId === deptId);
-  const getUserMaterials = (userId) => materials.filter((m) => m.ownerId === userId);
+  const getDeptStaff = (deptId) => staff.filter((s) => String(s.departmentId) === String(deptId));
+  const getDeptMaterials = (deptId) => materials.filter((m) => String(m.departmentId) === String(deptId));
+  const getUserMaterials = (userId) => materials.filter((m) => String(m.ownerId) === String(userId));
 
   // ── Dialog helpers ──────────────────────────────────────────────
   const openAdd = () => {
@@ -73,7 +73,7 @@ const StructuresList = () => {
   const openEdit = (dept, e) => {
     e.stopPropagation();
     setEditTarget(dept);
-    setForm({ name: dept.name, code: dept.code, manager: dept.manager });
+    setForm({ name: dept.name || '', code: dept.code || '', managerId: dept.manager?.id || '' });
     setDialogOpen(true);
   };
 
@@ -91,18 +91,25 @@ const StructuresList = () => {
     }
     setSaving(true);
     try {
+      const payload = {
+        name: form.name.trim(),
+        code: form.code.trim().toUpperCase(),
+        managerId: form.managerId || null,
+      };
+
       if (editTarget) {
-        const updated = await structuresAPI.updateDepartment(editTarget.id, form);
-        setDepartments((prev) => prev.map((d) => (d.id === updated.id ? updated : d)));
+        await structuresAPI.updateDepartment(editTarget.id, payload);
         enqueueSnackbar('Département modifié avec succès', { variant: 'success' });
       } else {
-        const created = await structuresAPI.createDepartment(form);
-        setDepartments((prev) => [...prev, created]);
+        await structuresAPI.createDepartment(payload);
         enqueueSnackbar('Département ajouté avec succès', { variant: 'success' });
       }
+      const [depts, stf] = await Promise.all([structuresAPI.getDepartments(), structuresAPI.getStaff()]);
+      setDepartments(depts);
+      setStaff(stf);
       setDialogOpen(false);
-    } catch {
-      enqueueSnackbar('Erreur lors de la sauvegarde', { variant: 'error' });
+    } catch (error) {
+      enqueueSnackbar(error.message || 'Erreur lors de la sauvegarde', { variant: 'error' });
     }
     setSaving(false);
   };
@@ -117,11 +124,13 @@ const StructuresList = () => {
     setDeleting(true);
     try {
       await structuresAPI.deleteDepartment(deleteTarget.id);
-      setDepartments((prev) => prev.filter((d) => d.id !== deleteTarget.id));
+      const [depts, stf] = await Promise.all([structuresAPI.getDepartments(), structuresAPI.getStaff()]);
+      setDepartments(depts);
+      setStaff(stf);
       enqueueSnackbar('Département supprimé', { variant: 'success' });
       setDeleteTarget(null);
-    } catch {
-      enqueueSnackbar('Erreur lors de la suppression', { variant: 'error' });
+    } catch (error) {
+      enqueueSnackbar(error.message || 'Erreur lors de la suppression', { variant: 'error' });
     }
     setDeleting(false);
   };
@@ -212,7 +221,7 @@ const StructuresList = () => {
                 <Box flex={1}>
                   <Typography variant="subtitle1" fontWeight={700}>{dept.name}</Typography>
                   <Typography variant="caption" color="text.secondary">
-                    Chef: {dept.manager}
+                    Chef: {dept.manager?.fullName || '—'}
                   </Typography>
                 </Box>
                 <Box display="flex" gap={1} mr={2}>
@@ -250,7 +259,7 @@ const StructuresList = () => {
                         <ListItem key={person.id} disablePadding sx={{ py: 0.5 }}>
                           <ListItemAvatar>
                             <Avatar sx={{ width: 32, height: 32, fontSize: '0.75rem', bgcolor: 'secondary.main', color: 'secondary.contrastText' }}>
-                              {person.firstName[0]}{person.lastName[0]}
+                              {`${person.firstName?.[0] || ''}${person.lastName?.[0] || ''}` || 'U'}
                             </Avatar>
                           </ListItemAvatar>
                           <ListItemText
@@ -345,11 +354,19 @@ const StructuresList = () => {
             />
             <TextField
               label="Chef de département"
-              value={form.manager}
-              onChange={handleFormChange('manager')}
+              value={form.managerId}
+              onChange={handleFormChange('managerId')}
+              select
               fullWidth
               disabled={saving}
-            />
+            >
+              <MenuItem value="">Aucun</MenuItem>
+              {staff.map((person) => (
+                <MenuItem key={person.id} value={person.id}>
+                  {person.firstName} {person.lastName}
+                </MenuItem>
+              ))}
+            </TextField>
           </Box>
         </DialogContent>
         <DialogActions>
