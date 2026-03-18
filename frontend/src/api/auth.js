@@ -1,16 +1,5 @@
-// ─── Mock data layer (replace each function body with an axiosInstance call when connecting to backend) ───
-// Example swap for login:
-//   return axiosInstance.post('/auth/login', { username, password }).then((r) => r.data);
-// ─────────────────────────────────────────────────────────────────────────────────────────────────────────
-
-import { mockUsers } from '../mock/data';
 import { ROLES } from '../utils/constants';
 import axiosInstance from './axios';
-
-const delay = (ms = 500) => new Promise((r) => setTimeout(r, ms));
-
-let usersDB = [...mockUsers];
-let nextId = usersDB.length + 1;
 
 const getErrorMessage = (error, fallback) => {
   const apiMessage = error?.response?.data?.message;
@@ -19,6 +8,75 @@ const getErrorMessage = (error, fallback) => {
 };
 
 export { ROLES };
+
+const splitFullName = (fullName = '') => {
+  const parts = String(fullName).trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return { firstName: '', lastName: '' };
+  if (parts.length === 1) return { firstName: parts[0], lastName: '' };
+  return {
+    firstName: parts.slice(0, -1).join(' '),
+    lastName: parts[parts.length - 1],
+  };
+};
+
+const normalizeUserSummary = (summary, detail) => {
+  const fullName = detail?.fullName || summary?.fullName || '';
+  const { firstName, lastName } = splitFullName(fullName);
+  const role = detail?.role || summary?.role || null;
+  const department = detail?.department || summary?.department || null;
+
+  return {
+    id: detail?.id || summary?.id,
+    firstName,
+    lastName,
+    email: detail?.email || '',
+    username: detail?.email ? String(detail.email).split('@')[0] : '',
+    role: role?.name || role?.code || null,
+    roleId: role?.id || null,
+    department: department?.name || '',
+    departmentId: department?.id || null,
+    permissions: detail?.permissions || [],
+    permissionIds: (detail?.permissions || []).map((permission) => permission?.id).filter((id) => id != null),
+    active: true,
+    createdAt: detail?.createdAt ? new Date(detail.createdAt).toISOString().split('T')[0] : '-',
+  };
+};
+
+const mapCreateRegisterPayload = (payload = {}) => ({
+  email: payload.email,
+  nom: payload.lastName || payload.nom,
+  prenom: payload.firstName || payload.prenom,
+  roleId: Number(payload.roleId),
+  departmentId: Number(payload.departmentId),
+  password: payload.password,
+  password_confirmed: payload.confirmPassword || payload.password_confirmed,
+});
+
+const mapUpdatePayload = (payload = {}) => {
+  const mapped = {
+    nom: payload.lastName || payload.nom,
+    prenom: payload.firstName || payload.prenom,
+    email: payload.email,
+  };
+
+  if (payload.departmentId !== undefined && payload.departmentId !== '') {
+    mapped.departmentId = Number(payload.departmentId);
+  }
+
+  if (payload.roleId !== undefined && payload.roleId !== '') {
+    mapped.roleId = Number(payload.roleId);
+  }
+
+  if (Array.isArray(payload.permissionIds)) {
+    mapped.permissionIds = payload.permissionIds.map((id) => Number(id)).filter((id) => !Number.isNaN(id));
+  }
+
+  if (payload.password) {
+    mapped.password = payload.password;
+  }
+
+  return mapped;
+};
 
 export const authAPI = {
   /** POST /auth/login → { accessToken, data, message } */
@@ -39,7 +97,7 @@ export const authAPI = {
   /** POST /auth/register */
   register: async (payload) => {
     try {
-      const response = await axiosInstance.post('/auth/register', payload);
+      const response = await axiosInstance.post('/auth/register', mapCreateRegisterPayload(payload));
       return response.data;
     } catch (error) {
       throw new Error(getErrorMessage(error, 'Erreur lors de l’inscription.'));
@@ -48,55 +106,84 @@ export const authAPI = {
 
   /** GET /users */
   getUsers: async () => {
-    await delay(400);
-    return usersDB.map(({ password: _p, ...u }) => u);
+    try {
+      const response = await axiosInstance.get('/users');
+      const summaries = response?.data?.data || [];
+
+      const users = await Promise.all(
+        summaries.map(async (summary) => {
+          try {
+            const detailResponse = await axiosInstance.get(`/users/${summary.id}`);
+            const detail = detailResponse?.data?.data;
+            return normalizeUserSummary(summary, detail);
+          } catch {
+            return normalizeUserSummary(summary, null);
+          }
+        })
+      );
+
+      return users;
+    } catch (error) {
+      throw new Error(getErrorMessage(error, 'Erreur lors du chargement des utilisateurs.'));
+    }
   },
 
   /** GET /users/:id */
   getUserById: async (id) => {
-    await delay(300);
-    const user = usersDB.find((u) => u.id === Number(id));
-    if (!user) throw new Error('Utilisateur non trouvé');
-    const { password: _p, ...safe } = user;
-    return safe;
+    try {
+      const [summaryResponse, detailResponse] = await Promise.all([
+        axiosInstance.get('/users'),
+        axiosInstance.get(`/users/${id}`),
+      ]);
+
+      const summary = (summaryResponse?.data?.data || []).find((item) => String(item.id) === String(id));
+      return normalizeUserSummary(summary, detailResponse?.data?.data || null);
+    } catch (error) {
+      throw new Error(getErrorMessage(error, 'Utilisateur non trouvé'));
+    }
   },
 
-  /** POST /users */
+  /** POST /auth/register */
   createUser: async (data) => {
-    await delay(500);
-    const exists = usersDB.find((u) => u.email === data.email);
-    if (exists) throw new Error('Email déjà utilisé');
-    const newUser = { ...data, id: nextId++, createdAt: new Date().toISOString().split('T')[0], active: true };
-    usersDB.push(newUser);
-    const { password: _p, ...safe } = newUser;
-    return safe;
+    try {
+      const response = await axiosInstance.post('/auth/register', mapCreateRegisterPayload(data));
+      return response.data;
+    } catch (error) {
+      throw new Error(getErrorMessage(error, 'Erreur lors de la création de l’utilisateur.'));
+    }
   },
 
   /** PATCH /users/:id */
   updateUser: async (id, data) => {
-    await delay(400);
-    const idx = usersDB.findIndex((u) => u.id === Number(id));
-    if (idx === -1) throw new Error('Utilisateur non trouvé');
-    usersDB[idx] = { ...usersDB[idx], ...data };
-    const { password: _p, ...safe } = usersDB[idx];
-    return safe;
+    try {
+      const response = await axiosInstance.patch(`/users/${id}`, mapUpdatePayload(data));
+      return response?.data?.data || response.data;
+    } catch (error) {
+      throw new Error(getErrorMessage(error, 'Erreur lors de la mise à jour de l’utilisateur.'));
+    }
   },
 
   /** DELETE /users/:id */
   deleteUser: async (id) => {
-    await delay(400);
-    usersDB = usersDB.filter((u) => u.id !== Number(id));
-    return { success: true };
+    try {
+      const response = await axiosInstance.delete(`/users/${id}`);
+      return response.data;
+    } catch (error) {
+      throw new Error(getErrorMessage(error, 'Erreur lors de la suppression de l’utilisateur.'));
+    }
   },
 
   /** PATCH /users/:id/password */
   changePassword: async (id, oldPassword, newPassword) => {
-    await delay(400);
-    const user = usersDB.find((u) => u.id === Number(id));
-    if (!user) throw new Error('Utilisateur non trouvé');
-    if (user.password !== oldPassword) throw new Error('Ancien mot de passe incorrect');
-    user.password = newPassword;
-    return { success: true };
+    try {
+      const response = await axiosInstance.patch(`/users/${id}/password`, {
+        oldPassword,
+        newPassword,
+      });
+      return response.data;
+    } catch (error) {
+      throw new Error(getErrorMessage(error, 'Erreur lors du changement de mot de passe.'));
+    }
   },
 };
 

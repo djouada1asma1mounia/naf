@@ -12,29 +12,44 @@ import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import SearchIcon from '@mui/icons-material/Search';
 import PeopleIcon from '@mui/icons-material/People';
-import { authAPI, ROLES as ROLE_LIST } from '../../api/auth';
+import { authAPI } from '../../api/auth';
 import { rolesAPI } from '../../api/roles';
+import { permissionsAPI } from '../../api/permissions';
 import { materialsAPI } from '../../api/materials';
 import { structuresAPI } from '../../api/structures';
 import PageHeader from '../../components/common/PageHeader';
-import { RoleChip } from '../../components/common/StatusChip';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
-import { ROLE_LABELS } from '../../utils/constants';
 import { useSnackbar } from 'notistack';
 import { useAuth } from '../../context/AuthContext';
 
-const UserForm = ({ open, onClose, onSubmit, editItem, departments, customRoles }) => {
+const extractPermissionIds = (user) => {
+  if (Array.isArray(user?.permissionIds)) return user.permissionIds.map(Number).filter((id) => !Number.isNaN(id));
+  if (Array.isArray(user?.permissions)) {
+    return user.permissions
+      .map((permission) => (typeof permission === 'number' ? permission : Number(permission?.id)))
+      .filter((id) => !Number.isNaN(id));
+  }
+  return [];
+};
+
+const UserForm = ({ open, onClose, onSubmit, editItem, departments, customRoles, permissions }) => {
   const [form, setForm] = useState({
     firstName: '', lastName: '', email: '',
-    password: '', confirmPassword: '', role: 'USER', departmentId: '', department: '', assignedRoles: [],
+    password: '', confirmPassword: '', departmentId: '', department: '', roleId: '', permissionIds: [],
   });
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    setForm(editItem ? { ...editItem, password: '', confirmPassword: '', assignedRoles: editItem.assignedRoles || [] } : {
+    setForm(editItem ? {
+      ...editItem,
+      password: '',
+      confirmPassword: '',
+      roleId: editItem.roleId || editItem.role?.id || '',
+      permissionIds: extractPermissionIds(editItem),
+    } : {
       firstName: '', lastName: '', email: '',
-      password: '', confirmPassword: '', role: 'USER', departmentId: '', department: '', assignedRoles: [],
+      password: '', confirmPassword: '', departmentId: '', department: '', roleId: '', permissionIds: [],
     });
     setErrors({});
   }, [editItem, open]);
@@ -46,8 +61,9 @@ const UserForm = ({ open, onClose, onSubmit, editItem, departments, customRoles 
   };
 
   const handleDeptChange = (e) => {
-    const dept = departments.find((d) => d.id === e.target.value);
-    setForm((f) => ({ ...f, departmentId: e.target.value, department: dept?.name || '' }));
+    const selectedId = Number(e.target.value);
+    const dept = departments.find((d) => Number(d.id) === selectedId);
+    setForm((f) => ({ ...f, departmentId: selectedId, department: dept?.name || '' }));
   };
 
   const validate = () => {
@@ -56,6 +72,8 @@ const UserForm = ({ open, onClose, onSubmit, editItem, departments, customRoles 
     if (!form.lastName.trim()) newErrors.lastName = 'Requis';
     if (!form.email.trim()) newErrors.email = 'Requis';
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) newErrors.email = 'Email invalide';
+    if (!form.roleId) newErrors.roleId = 'Requis';
+    if (!form.departmentId) newErrors.departmentId = 'Requis';
     if (!editItem) {
       if (!form.password) newErrors.password = 'Requis';
       if (!form.confirmPassword) newErrors.confirmPassword = 'Requis';
@@ -69,9 +87,11 @@ const UserForm = ({ open, onClose, onSubmit, editItem, departments, customRoles 
     e.preventDefault();
     if (!validate()) return;
     setLoading(true);
-    const { confirmPassword: _cp, ...submitData } = form;
-    await onSubmit(submitData);
-    setLoading(false);
+    try {
+      await onSubmit(form);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -105,38 +125,67 @@ const UserForm = ({ open, onClose, onSubmit, editItem, departments, customRoles 
               </>
             )}
             <Grid item xs={6}>
-              <TextField fullWidth select label="Rôle" value={form.role} onChange={handleChange('role')}>
-                {Object.entries(ROLE_LABELS).map(([k, v]) => (
-                  <MenuItem key={k} value={k}>{v}</MenuItem>
-                ))}
-              </TextField>
-            </Grid>
-            <Grid item xs={6}>
-              <TextField fullWidth select label="Département" value={form.departmentId || ''} onChange={handleDeptChange}>
+              <TextField
+                fullWidth
+                select
+                label="Département *"
+                value={form.departmentId || ''}
+                onChange={handleDeptChange}
+                error={!!errors.departmentId}
+                helperText={errors.departmentId}
+              >
                 {departments.map((d) => <MenuItem key={d.id} value={d.id}>{d.name}</MenuItem>)}
               </TextField>
             </Grid>
-            {form.role === 'USER' && (
+            <Grid item xs={6}>
+              <FormControl fullWidth error={!!errors.roleId}>
+                <InputLabel>Rôle *</InputLabel>
+                <Select
+                  value={form.roleId || ''}
+                  onChange={(e) => setForm((f) => ({
+                    ...f,
+                    roleId: Number(e.target.value),
+                  }))}
+                  input={<OutlinedInput label="Rôle *" />}
+                >
+                  {customRoles.map((r) => (
+                    <MenuItem key={r.id} value={r.id}>
+                      <ListItemText primary={r.name} />
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12}>
+              <FormControl fullWidth>
+                <InputLabel>Permissions</InputLabel>
+                <Select
+                  multiple
+                  value={form.permissionIds}
+                  disabled={permissions.length === 0}
+                  onChange={(e) => setForm((f) => ({
+                    ...f,
+                    permissionIds: e.target.value.map((value) => Number(value)),
+                  }))}
+                  input={<OutlinedInput label="Permissions" />}
+                  renderValue={(selected) =>
+                    selected.map((id) => permissions.find((permission) => permission.id === id)?.name).filter(Boolean).join(', ')
+                  }
+                >
+                  {permissions.map((permission) => (
+                    <MenuItem key={permission.id} value={permission.id}>
+                      <Checkbox checked={form.permissionIds.includes(permission.id)} />
+                      <ListItemText primary={permission.name} />
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+            {permissions.length === 0 && (
               <Grid item xs={12}>
-                <FormControl fullWidth>
-                  <InputLabel>Rôles assignés</InputLabel>
-                  <Select
-                    multiple
-                    value={form.assignedRoles}
-                    onChange={(e) => setForm((f) => ({ ...f, assignedRoles: e.target.value }))}
-                    input={<OutlinedInput label="Rôles assignés" />}
-                    renderValue={(selected) =>
-                      selected.map((id) => customRoles.find((r) => r.id === id)?.name).filter(Boolean).join(', ')
-                    }
-                  >
-                    {customRoles.map((r) => (
-                      <MenuItem key={r.id} value={r.id}>
-                        <Checkbox checked={form.assignedRoles.includes(r.id)} />
-                        <ListItemText primary={r.name} />
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
+                <Alert severity="info">
+                  Mode frontend: permissions backend indisponibles, tous les comptes disposent actuellement d'un accès complet.
+                </Alert>
               </Grid>
             )}
 
@@ -160,6 +209,8 @@ const UserManagement = () => {
   const [users, setUsers] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [customRoles, setCustomRoles] = useState([]);
+  const [permissions, setPermissions] = useState([]);
+  const [permissionsFallback, setPermissionsFallback] = useState(false);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(0);
@@ -172,10 +223,28 @@ const UserManagement = () => {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const [usrs, depts, roles] = await Promise.all([authAPI.getUsers(), structuresAPI.getDepartments(), rolesAPI.getAll()]);
-      setUsers(usrs);
-      setDepartments(depts);
-      setCustomRoles(roles);
+      const [usrsResult, deptsResult, rolesResult, permissionsResult] = await Promise.allSettled([
+        authAPI.getUsers(),
+        structuresAPI.getDepartments(),
+        rolesAPI.getAll(),
+        permissionsAPI.getAll(),
+      ]);
+
+      if (usrsResult.status === 'rejected' || deptsResult.status === 'rejected' || rolesResult.status === 'rejected') {
+        throw new Error('Erreur chargement');
+      }
+
+      setUsers(usrsResult.value);
+      setDepartments(deptsResult.value);
+      setCustomRoles(rolesResult.value);
+
+      if (permissionsResult.status === 'fulfilled' && Array.isArray(permissionsResult.value) && permissionsResult.value.length > 0) {
+        setPermissions(permissionsResult.value);
+        setPermissionsFallback(false);
+      } else {
+        setPermissions([]);
+        setPermissionsFallback(true);
+      }
     } catch { enqueueSnackbar('Erreur chargement', { variant: 'error' }); }
     setLoading(false);
   }, [enqueueSnackbar]);
@@ -183,7 +252,7 @@ const UserManagement = () => {
   useEffect(() => { loadData(); }, [loadData]);
 
   const filtered = users.filter((u) =>
-    `${u.firstName} ${u.lastName} ${u.username} ${u.email}`.toLowerCase().includes(search.toLowerCase())
+    `${u.firstName || ''} ${u.lastName || ''} ${u.username || ''} ${u.email || ''}`.toLowerCase().includes(search.toLowerCase())
   );
   const displayed = filtered.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
 
@@ -228,6 +297,11 @@ const UserManagement = () => {
 
       <Card sx={{ mb: 2 }}>
         <CardContent sx={{ py: 2 }}>
+          {permissionsFallback && (
+            <Alert severity="info" sx={{ mb: 2 }}>
+              Mode frontend actif: permissions backend non prêtes, tous les comptes ont temporairement un accès complet.
+            </Alert>
+          )}
           <TextField
             placeholder="Rechercher..."
             value={search}
@@ -249,7 +323,7 @@ const UserManagement = () => {
                 <TableCell>Utilisateur</TableCell>
                 <TableCell>Username</TableCell>
                 <TableCell>Rôle</TableCell>
-                <TableCell>Rôles assignés</TableCell>
+                <TableCell>Permissions</TableCell>
                 <TableCell>Département</TableCell>
                 <TableCell>Statut</TableCell>
                 <TableCell>Créé le</TableCell>
@@ -274,7 +348,7 @@ const UserManagement = () => {
                     <TableCell>
                       <Box display="flex" alignItems="center" gap={1.5}>
                         <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main', fontSize: '0.75rem' }}>
-                          {u.firstName[0]}{u.lastName[0]}
+                          {`${u.firstName?.[0] || ''}${u.lastName?.[0] || ''}` || 'U'}
                         </Avatar>
                         <Box>
                           <Typography variant="body2" fontWeight={600}>{u.firstName} {u.lastName}</Typography>
@@ -282,22 +356,36 @@ const UserManagement = () => {
                         </Box>
                       </Box>
                     </TableCell>
-                    <TableCell><Typography variant="body2">{u.username}</Typography></TableCell>
-                    <TableCell><RoleChip role={u.role} /></TableCell>
+                    <TableCell><Typography variant="body2">{u.username || '—'}</Typography></TableCell>
                     <TableCell>
                       <Box display="flex" gap={0.5} flexWrap="wrap">
-                        {(u.assignedRoles || []).map((roleId) => {
-                          const cr = customRoles.find((r) => r.id === roleId);
-                          return cr ? (
-                            <Chip key={roleId} label={cr.name} size="small" variant="outlined" color="secondary" sx={{ fontSize: '0.65rem', fontWeight: 600 }} />
-                          ) : null;
-                        })}
-                        {(!u.assignedRoles || u.assignedRoles.length === 0) && (
+                        {u.roleId ? (
+                          <Chip
+                            label={customRoles.find((r) => Number(r.id) === Number(u.roleId))?.name || u.role || '—'}
+                            size="small"
+                            variant="outlined"
+                            color="secondary"
+                            sx={{ fontSize: '0.65rem', fontWeight: 600 }}
+                          />
+                        ) : (
                           <Typography variant="caption" color="text.secondary">—</Typography>
                         )}
                       </Box>
                     </TableCell>
-                    <TableCell><Typography variant="body2">{u.department}</Typography></TableCell>
+                    <TableCell>
+                      <Box display="flex" gap={0.5} flexWrap="wrap">
+                        {extractPermissionIds(u).map((permissionId) => {
+                          const permission = permissions.find((item) => item.id === permissionId);
+                          return permission ? (
+                            <Chip key={permissionId} label={permission.name} size="small" variant="outlined" color="primary" sx={{ fontSize: '0.65rem', fontWeight: 600 }} />
+                          ) : null;
+                        })}
+                        {extractPermissionIds(u).length === 0 && (
+                          <Typography variant="caption" color="text.secondary">—</Typography>
+                        )}
+                      </Box>
+                    </TableCell>
+                    <TableCell><Typography variant="body2">{u.department || '—'}</Typography></TableCell>
                     <TableCell>
                       <Chip
                         label={u.active ? 'Actif' : 'Inactif'}
@@ -339,7 +427,15 @@ const UserManagement = () => {
         />
       </Card>
 
-      <UserForm open={formOpen} onClose={() => setFormOpen(false)} onSubmit={handleFormSubmit} editItem={editItem} departments={departments} customRoles={customRoles} />
+      <UserForm
+        open={formOpen}
+        onClose={() => setFormOpen(false)}
+        onSubmit={handleFormSubmit}
+        editItem={editItem}
+        departments={departments}
+        customRoles={customRoles}
+        permissions={permissions}
+      />
       <ConfirmDialog
         open={deleteDialog.open}
         title="Supprimer l'Utilisateur"

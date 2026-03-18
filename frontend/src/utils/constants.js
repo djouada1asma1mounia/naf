@@ -3,6 +3,8 @@ export const ROLES = {
   USER: 'USER',
 };
 
+export const FULL_ACCESS_MODE = (process.env.REACT_APP_FULL_ACCESS_MODE ?? 'true').toLowerCase() !== 'false';
+
 export const MATERIAL_STATUSES = ['Actif', 'En Panne', 'En Maintenance'];
 
 export const INTERVENTION_TYPES = ['Corrective', 'Préventive', 'Évolutive'];

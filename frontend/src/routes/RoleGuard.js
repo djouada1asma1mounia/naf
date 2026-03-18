@@ -1,11 +1,13 @@
 import React from 'react';
-import { Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Box, Typography, Paper } from '@mui/material';
 import LockIcon from '@mui/icons-material/Lock';
+import { FULL_ACCESS_MODE } from '../utils/constants';
 
 const RoleGuard = ({ children, allowedRoles }) => {
   const { user } = useAuth();
+
+  if (FULL_ACCESS_MODE) return children;
 
   if (!user || !allowedRoles.includes(user.role)) {
     return (

@@ -6,7 +6,7 @@ import {
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth, ROLES } from '../../context/AuthContext';
 import { useThemeMode } from '../../context/ThemeContext';
-import { SIDEBAR_WIDTH, ROLE_LABELS, ROLE_COLORS } from '../../utils/constants';
+import { SIDEBAR_WIDTH, ROLE_LABELS, ROLE_COLORS, FULL_ACCESS_MODE } from '../../utils/constants';
 
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import ComputerIcon from '@mui/icons-material/Computer';
@@ -100,7 +100,7 @@ const Sidebar = ({ open, onClose, variant = 'permanent' }) => {
   const footerColor = isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.35)';
   const borderColorLight = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)';
 
-  const visibleItems = navItems.filter((item) => item.roles.includes(user?.role));
+  const visibleItems = FULL_ACCESS_MODE ? navItems : navItems.filter((item) => item.roles.includes(user?.role));
 
   const handleNavClick = (path) => {
     navigate(path);
