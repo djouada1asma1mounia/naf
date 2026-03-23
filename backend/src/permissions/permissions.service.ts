@@ -39,14 +39,31 @@ export class PermissionsService {
   }
 
   async findOne(id: number) {
-    const permission = await this.permissionRepository.findOne({ where: { id } });
+    const permission = await this.permissionRepository.findOne({
+      where: { id },
+      relations: ['users', 'users.role'],
+    });
 
     if (!permission) {
       throw new NotFoundException("Permission non trouvée");
     }
 
     return {
-      data: permission,
+      data: {
+        id: permission.id,
+        name: permission.name,
+        users: permission.users?.map(user => ({
+          id: user.id,
+          fullName: user.fullName,
+          email: user.email,
+          role: user.role
+            ? {
+              id: user.role.id,
+              name: user.role.name,
+            }
+            : null,
+        })) ?? [],
+      },
       message: 'Permission récupérée avec succès',
     }
   }

@@ -41,14 +41,25 @@ export class RolesService {
   }
 
   async findOne(id: number) {
-    const role = await this.roleRepository.findOne({ where: { id } });
+    const role = await this.roleRepository.findOne({
+      where: { id },
+      relations: ['users'],
+    });
 
     if (!role) {
       throw new NotFoundException("Rôle non trouvé");
     }
 
     return {
-      data: role,
+      data: {
+        id: role.id,
+        name: role.name,
+        users: role.users?.map(user => ({
+          id: user.id,
+          fullName: user.fullName,
+          email: user.email,
+        })) ?? [],
+      },
       message: 'Rôle récupéré avec succès',
     }
   }

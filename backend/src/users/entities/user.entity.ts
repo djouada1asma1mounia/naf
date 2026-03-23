@@ -25,7 +25,7 @@ export class User {
     @Exclude({ toPlainOnly: true })
     password: string;
 
-    @ManyToMany(() => Permission)
+    @ManyToMany(() => Permission, permission => permission.users)
     @JoinTable()
     permissions: Permission[];
 
