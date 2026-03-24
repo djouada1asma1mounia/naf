@@ -1,36 +1,47 @@
-import { mockCategories } from '../mock/data';
+import axiosInstance from './axios';
 
-const delay = (ms = 400) => new Promise((r) => setTimeout(r, ms));
-
-let categoriesDB = [...mockCategories];
-let nextId = categoriesDB.length + 1;
+const getErrorMessage = (error, fallback) => {
+  const apiMessage = error?.response?.data?.message;
+  if (Array.isArray(apiMessage)) return apiMessage[0] || fallback;
+  return apiMessage || error?.message || fallback;
+};
 
 export const categoriesAPI = {
   getAll: async () => {
-    await delay();
-    return [...categoriesDB];
+    try {
+      const response = await axiosInstance.get('/categories');
+      return response?.data?.data || [];
+    } catch (error) {
+      throw new Error(getErrorMessage(error, 'Erreur lors du chargement des catégories.'));
+    }
   },
 
   create: async (data) => {
-    await delay(500);
-    const exists = categoriesDB.find((c) => c.name.toLowerCase() === data.name.toLowerCase());
-    if (exists) throw new Error('Cette catégorie existe déjà');
-    const newCat = { ...data, id: nextId++, materialsCount: 0 };
-    categoriesDB.push(newCat);
-    return newCat;
+    try {
+      const payload = { name: data?.name };
+      const response = await axiosInstance.post('/categories', payload);
+      return response?.data?.data || response.data;
+    } catch (error) {
+      throw new Error(getErrorMessage(error, 'Erreur lors de la création de la catégorie.'));
+    }
   },
 
   update: async (id, data) => {
-    await delay(400);
-    const idx = categoriesDB.findIndex((c) => c.id === Number(id));
-    if (idx === -1) throw new Error('Catégorie non trouvée');
-    categoriesDB[idx] = { ...categoriesDB[idx], ...data };
-    return categoriesDB[idx];
+    try {
+      const payload = { name: data?.name };
+      const response = await axiosInstance.patch(`/categories/${id}`, payload);
+      return response?.data?.data || response.data;
+    } catch (error) {
+      throw new Error(getErrorMessage(error, 'Erreur lors de la modification de la catégorie.'));
+    }
   },
 
   delete: async (id) => {
-    await delay(400);
-    categoriesDB = categoriesDB.filter((c) => c.id !== Number(id));
-    return { success: true };
+    try {
+      const response = await axiosInstance.delete(`/categories/${id}`);
+      return response.data;
+    } catch (error) {
+      throw new Error(getErrorMessage(error, 'Erreur lors de la suppression de la catégorie.'));
+    }
   },
 };

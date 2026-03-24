@@ -14,12 +14,12 @@ import ConfirmDialog from '../../components/common/ConfirmDialog';
 import { useSnackbar } from 'notistack';
 
 const CategoryForm = ({ open, onClose, onSubmit, editItem }) => {
-  const [form, setForm] = useState({ name: '', description: '' });
+  const [form, setForm] = useState({ name: '' });
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    setForm(editItem ? { name: editItem.name, description: editItem.description || '' } : { name: '', description: '' });
+    setForm(editItem ? { name: editItem.name } : { name: '' });
     setErrors({});
   }, [editItem, open]);
 
@@ -48,15 +48,7 @@ const CategoryForm = ({ open, onClose, onSubmit, editItem }) => {
             onChange={(e) => { setForm((f) => ({ ...f, name: e.target.value })); setErrors({}); }}
             error={!!errors.name}
             helperText={errors.name}
-            sx={{ mb: 2 }}
-          />
-          <TextField
-            fullWidth
-            multiline
-            rows={2}
-            label="Description"
-            value={form.description}
-            onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+            sx={{ mb: 1 }}
           />
         </Box>
       </DialogContent>
@@ -168,7 +160,7 @@ const CategoriesList = () => {
                       <Box>
                         <Typography variant="subtitle1" fontWeight={700}>{cat.name}</Typography>
                         <Chip
-                          label={`${cat.materialsCount} matériel(s)`}
+                          label={`ID #${cat.id}`}
                           size="small"
                           color={COLORS[idx % COLORS.length]}
                           variant="outlined"
@@ -189,11 +181,6 @@ const CategoriesList = () => {
                       </Tooltip>
                     </Box>
                   </Box>
-                  {cat.description && (
-                    <Typography variant="body2" color="text.secondary" mt={1.5} fontSize="0.8rem">
-                      {cat.description}
-                    </Typography>
-                  )}
                 </CardContent>
               </Card>
             </Grid>
