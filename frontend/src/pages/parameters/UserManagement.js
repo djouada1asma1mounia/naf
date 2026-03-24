@@ -12,6 +12,7 @@ import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import SearchIcon from '@mui/icons-material/Search';
 import PeopleIcon from '@mui/icons-material/People';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import { authAPI } from '../../api/auth';
 import { rolesAPI } from '../../api/roles';
 import { permissionsAPI } from '../../api/permissions';
@@ -21,6 +22,21 @@ import PageHeader from '../../components/common/PageHeader';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
 import { useSnackbar } from 'notistack';
 import { useAuth } from '../../context/AuthContext';
+
+const REQUIRED_PERMISSION_NAMES = ['create-role'];
+
+const buildPermissionOptions = (backendPermissions = []) => {
+  const normalized = Array.isArray(backendPermissions) ? [...backendPermissions] : [];
+  const existingNames = new Set(normalized.map((permission) => String(permission?.name || '').trim().toLowerCase()));
+
+  REQUIRED_PERMISSION_NAMES.forEach((permissionName) => {
+    if (!existingNames.has(permissionName.toLowerCase())) {
+      normalized.push({ id: `virtual:${permissionName}`, name: permissionName, virtual: true });
+    }
+  });
+
+  return normalized;
+};
 
 const extractPermissionIds = (user) => {
   if (Array.isArray(user?.permissionIds)) return user.permissionIds.map(Number).filter((id) => !Number.isNaN(id));
@@ -165,16 +181,19 @@ const UserForm = ({ open, onClose, onSubmit, editItem, departments, customRoles,
                   disabled={permissions.length === 0}
                   onChange={(e) => setForm((f) => ({
                     ...f,
-                    permissionIds: e.target.value.map((value) => Number(value)),
+                    permissionIds: e.target.value,
                   }))}
                   input={<OutlinedInput label="Permissions" />}
                   renderValue={(selected) =>
-                    selected.map((id) => permissions.find((permission) => permission.id === id)?.name).filter(Boolean).join(', ')
+                    selected
+                      .map((id) => permissions.find((permission) => String(permission.id) === String(id))?.name)
+                      .filter(Boolean)
+                      .join(', ')
                   }
                 >
                   {permissions.map((permission) => (
                     <MenuItem key={permission.id} value={permission.id}>
-                      <Checkbox checked={form.permissionIds.includes(permission.id)} />
+                      <Checkbox checked={form.permissionIds.some((value) => String(value) === String(permission.id))} />
                       <ListItemText primary={permission.name} />
                     </MenuItem>
                   ))}
@@ -219,6 +238,7 @@ const UserManagement = () => {
   const [editItem, setEditItem] = useState(null);
   const [deleteDialog, setDeleteDialog] = useState({ open: false, id: null, name: '' });
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [detailsDialog, setDetailsDialog] = useState({ open: false, user: null });
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -239,10 +259,10 @@ const UserManagement = () => {
       setCustomRoles(rolesResult.value);
 
       if (permissionsResult.status === 'fulfilled' && Array.isArray(permissionsResult.value) && permissionsResult.value.length > 0) {
-        setPermissions(permissionsResult.value);
+        setPermissions(buildPermissionOptions(permissionsResult.value));
         setPermissionsFallback(false);
       } else {
-        setPermissions([]);
+        setPermissions(buildPermissionOptions([]));
         setPermissionsFallback(true);
       }
     } catch { enqueueSnackbar('Erreur chargement', { variant: 'error' }); }
@@ -263,14 +283,24 @@ const UserManagement = () => {
         return;
       }
 
+      const permissionSelections = (data.permissionIds || []).map((id) => {
+        const permission = permissions.find((item) => String(item.id) === String(id));
+        return permission ? { id: permission.id, name: permission.name } : null;
+      }).filter(Boolean);
+
+      const payload = {
+        ...data,
+        permissionSelections,
+      };
+
       if (editItem) {
-        const updatedUser = await authAPI.updateUser(editItem.id, data);
+        const updatedUser = await authAPI.updateUser(editItem.id, payload);
         if (String(editItem.id) === String(currentUser?.id)) {
           updateUser(updatedUser);
         }
         enqueueSnackbar('Utilisateur modifié', { variant: 'success' });
       } else {
-        const createResult = await authAPI.createUser(data);
+        const createResult = await authAPI.createUser(payload);
         enqueueSnackbar('Utilisateur créé', { variant: 'success' });
         if (createResult?.permissionsApplyWarning) {
           enqueueSnackbar('Compte créé, mais certaines permissions (ex: create-role) n\'ont pas pu être appliquées automatiquement. Modifiez le compte pour les réappliquer.', { variant: 'warning' });
@@ -333,22 +363,19 @@ const UserManagement = () => {
               <TableRow>
                 <TableCell>Utilisateur</TableCell>
                 <TableCell>Username</TableCell>
-                <TableCell>Rôle</TableCell>
-                <TableCell>Permissions</TableCell>
                 <TableCell>Département</TableCell>
-                <TableCell>Statut</TableCell>
-                <TableCell>Créé le</TableCell>
+                <TableCell>Rôle</TableCell>
                 <TableCell align="center">Actions</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {loading ? (
                 Array.from({ length: 5 }).map((_, i) => (
-                  <TableRow key={i}>{[1,2,3,4,5,6,7,8].map((j) => <TableCell key={j}><Skeleton /></TableCell>)}</TableRow>
+                  <TableRow key={i}>{[1,2,3,4,5].map((j) => <TableCell key={j}><Skeleton /></TableCell>)}</TableRow>
                 ))
               ) : displayed.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} align="center" sx={{ py: 4 }}>
+                  <TableCell colSpan={5} align="center" sx={{ py: 4 }}>
                     <PeopleIcon sx={{ fontSize: 40, opacity: 0.3 }} />
                     <Typography variant="body2" color="text.secondary">Aucun utilisateur</Typography>
                   </TableCell>
@@ -368,6 +395,7 @@ const UserManagement = () => {
                       </Box>
                     </TableCell>
                     <TableCell><Typography variant="body2">{u.username || '—'}</Typography></TableCell>
+                    <TableCell><Typography variant="body2">{u.department || '—'}</Typography></TableCell>
                     <TableCell>
                       <Box display="flex" gap={0.5} flexWrap="wrap">
                         {u.roleId ? (
@@ -383,31 +411,30 @@ const UserManagement = () => {
                         )}
                       </Box>
                     </TableCell>
-                    <TableCell>
-                      <Box display="flex" gap={0.5} flexWrap="wrap">
-                        {extractPermissionIds(u).map((permissionId) => {
-                          const permission = permissions.find((item) => item.id === permissionId);
-                          return permission ? (
-                            <Chip key={permissionId} label={permission.name} size="small" variant="outlined" color="primary" sx={{ fontSize: '0.65rem', fontWeight: 600 }} />
-                          ) : null;
-                        })}
-                        {extractPermissionIds(u).length === 0 && (
-                          <Typography variant="caption" color="text.secondary">—</Typography>
-                        )}
-                      </Box>
-                    </TableCell>
-                    <TableCell><Typography variant="body2">{u.department || '—'}</Typography></TableCell>
-                    <TableCell>
-                      <Chip
-                        label={u.active ? 'Actif' : 'Inactif'}
-                        size="small"
-                        color={u.active ? 'success' : 'default'}
-                        sx={{ fontWeight: 600, fontSize: '0.65rem' }}
-                      />
-                    </TableCell>
-                    <TableCell><Typography variant="caption" color="text.secondary">{u.createdAt}</Typography></TableCell>
                     <TableCell align="center">
                       <Box display="flex" gap={0.5} justifyContent="center">
+                        <Tooltip title="Afficher détails">
+                          <Button
+                            size="small"
+                            variant="contained"
+                            color="info"
+                            disableElevation
+                            startIcon={<InfoOutlinedIcon fontSize="small" />}
+                            onClick={() => setDetailsDialog({ open: true, user: u })}
+                            sx={{
+                              textTransform: 'none',
+                              minWidth: 0,
+                              px: 1.1,
+                              py: 0.25,
+                              borderRadius: 6,
+                              fontSize: '0.72rem',
+                              fontWeight: 600,
+                              lineHeight: 1.1,
+                            }}
+                          >
+                            Détails
+                          </Button>
+                        </Tooltip>
                         <Tooltip title="Modifier">
                           <IconButton size="small" color="primary" onClick={() => { setEditItem(u); setFormOpen(true); }}>
                             <EditIcon fontSize="small" />
@@ -455,6 +482,105 @@ const UserManagement = () => {
         onClose={() => setDeleteDialog({ open: false, id: null, name: '' })}
         loading={deleteLoading}
       />
+
+      <Dialog
+        open={detailsDialog.open}
+        onClose={() => setDetailsDialog({ open: false, user: null })}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>
+          <Typography variant="h6" fontWeight={700}>Détails de l'utilisateur</Typography>
+        </DialogTitle>
+        <Divider />
+        <DialogContent>
+          {detailsDialog.user && (
+            <Box sx={{ pt: 0.5 }}>
+              <Box
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 1.5,
+                  p: 2,
+                  mb: 2,
+                  border: 1,
+                  borderColor: 'divider',
+                  borderRadius: 2,
+                  bgcolor: 'background.default',
+                }}
+              >
+                <Avatar sx={{ width: 44, height: 44, bgcolor: 'primary.main', fontWeight: 700 }}>
+                  {`${detailsDialog.user.firstName?.[0] || ''}${detailsDialog.user.lastName?.[0] || ''}` || 'U'}
+                </Avatar>
+                <Box>
+                  <Typography variant="subtitle1" fontWeight={700}>
+                    {`${detailsDialog.user.firstName || ''} ${detailsDialog.user.lastName || ''}`.trim() || '—'}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">{detailsDialog.user.email || '—'}</Typography>
+                </Box>
+              </Box>
+
+              <Grid container spacing={1.5}>
+                <Grid item xs={12} sm={6}>
+                  <Box sx={{ p: 1.5, border: 1, borderColor: 'divider', borderRadius: 2 }}>
+                    <Typography variant="caption" color="text.secondary">Username</Typography>
+                    <Typography variant="body2" fontWeight={600}>{detailsDialog.user.username || '—'}</Typography>
+                  </Box>
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <Box sx={{ p: 1.5, border: 1, borderColor: 'divider', borderRadius: 2 }}>
+                    <Typography variant="caption" color="text.secondary">Département</Typography>
+                    <Typography variant="body2" fontWeight={600}>{detailsDialog.user.department || '—'}</Typography>
+                  </Box>
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <Box sx={{ p: 1.5, border: 1, borderColor: 'divider', borderRadius: 2 }}>
+                    <Typography variant="caption" color="text.secondary">Rôle</Typography>
+                    <Typography variant="body2" fontWeight={600}>
+                      {customRoles.find((r) => Number(r.id) === Number(detailsDialog.user.roleId))?.name || detailsDialog.user.role || '—'}
+                    </Typography>
+                  </Box>
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <Box sx={{ p: 1.5, border: 1, borderColor: 'divider', borderRadius: 2 }}>
+                    <Typography variant="caption" color="text.secondary">Date de création</Typography>
+                    <Typography variant="body2" fontWeight={600}>{detailsDialog.user.createdAt || '—'}</Typography>
+                  </Box>
+                </Grid>
+                <Grid item xs={12}>
+                  <Box sx={{ p: 1.5, border: 1, borderColor: 'divider', borderRadius: 2 }}>
+                    <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
+                      Permissions
+                    </Typography>
+                    <Box display="flex" gap={0.75} flexWrap="wrap">
+                      {extractPermissionIds(detailsDialog.user).map((permissionId) => {
+                        const permission = permissions.find((item) => item.id === permissionId);
+                        return permission ? (
+                          <Chip
+                            key={permissionId}
+                            label={permission.name}
+                            size="small"
+                            variant="outlined"
+                            color="primary"
+                            sx={{ fontSize: '0.7rem', fontWeight: 600 }}
+                          />
+                        ) : null;
+                      })}
+                      {extractPermissionIds(detailsDialog.user).length === 0 && (
+                        <Typography variant="body2" color="text.secondary">Aucune permission</Typography>
+                      )}
+                    </Box>
+                  </Box>
+                </Grid>
+              </Grid>
+            </Box>
+          )}
+        </DialogContent>
+        <Divider />
+        <DialogActions sx={{ px: 3, py: 2 }}>
+          <Button onClick={() => setDetailsDialog({ open: false, user: null })} variant="outlined">Fermer</Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

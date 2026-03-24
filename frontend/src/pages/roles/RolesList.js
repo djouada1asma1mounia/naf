@@ -9,18 +9,20 @@ import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
 import BadgeIcon from '@mui/icons-material/Badge';
+import PeopleIcon from '@mui/icons-material/People';
 import { rolesAPI } from '../../api/roles';
+import { authAPI } from '../../api/auth';
 import PageHeader from '../../components/common/PageHeader';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
 import { useSnackbar } from 'notistack';
 
 const RoleForm = ({ open, onClose, onSubmit, editItem }) => {
-  const [form, setForm] = useState({ name: '', description: '' });
+  const [form, setForm] = useState({ name: '' });
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    setForm(editItem ? { name: editItem.name, description: editItem.description || '' } : { name: '', description: '' });
+    setForm(editItem ? { name: editItem.name } : { name: '' });
     setErrors({});
   }, [editItem, open]);
 
@@ -52,15 +54,7 @@ const RoleForm = ({ open, onClose, onSubmit, editItem }) => {
             onChange={(e) => { setForm((f) => ({ ...f, name: e.target.value })); setErrors({}); }}
             error={!!errors.name}
             helperText={errors.name}
-            sx={{ mb: 2 }}
-          />
-          <TextField
-            fullWidth
-            multiline
-            rows={2}
-            label="Description"
-            value={form.description}
-            onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+            sx={{ mb: 1 }}
           />
         </Box>
       </DialogContent>
@@ -83,6 +77,12 @@ const RolesList = () => {
   const [editItem, setEditItem] = useState(null);
   const [deleteDialog, setDeleteDialog] = useState({ open: false, id: null, name: '' });
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [usersDialog, setUsersDialog] = useState({
+    open: false,
+    roleName: '',
+    users: [],
+    loading: false,
+  });
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
 
@@ -125,6 +125,22 @@ const RolesList = () => {
     setDeleteLoading(false);
   };
 
+  const handleViewRoleUsers = async (role) => {
+    setUsersDialog({ open: true, roleName: role.name, users: [], loading: true });
+    try {
+      const allUsers = await authAPI.getUsers();
+      const roleUsers = allUsers.filter((user) => {
+        const byId = user.roleId != null && String(user.roleId) === String(role.id);
+        const byName = String(user.role || '').trim().toLowerCase() === String(role.name || '').trim().toLowerCase();
+        return byId || byName;
+      });
+      setUsersDialog({ open: true, roleName: role.name, users: roleUsers, loading: false });
+    } catch (err) {
+      enqueueSnackbar(err.message || 'Erreur chargement utilisateurs', { variant: 'error' });
+      setUsersDialog({ open: true, roleName: role.name, users: [], loading: false });
+    }
+  };
+
   return (
     <Box>
       <PageHeader
@@ -144,19 +160,17 @@ const RolesList = () => {
             <TableHead>
               <TableRow>
                 <TableCell>Nom</TableCell>
-                <TableCell>Description</TableCell>
-                <TableCell>Créé le</TableCell>
                 <TableCell align="center">Actions</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {loading ? (
                 Array.from({ length: 3 }).map((_, i) => (
-                  <TableRow key={i}>{[1,2,3,4].map((j) => <TableCell key={j}><Skeleton /></TableCell>)}</TableRow>
+                  <TableRow key={i}>{[1,2].map((j) => <TableCell key={j}><Skeleton /></TableCell>)}</TableRow>
                 ))
               ) : displayed.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={4} align="center" sx={{ py: 4 }}>
+                  <TableCell colSpan={2} align="center" sx={{ py: 4 }}>
                     <BadgeIcon sx={{ fontSize: 40, opacity: 0.3 }} />
                     <Typography variant="body2" color="text.secondary">Aucun rôle</Typography>
                   </TableCell>
@@ -172,14 +186,13 @@ const RolesList = () => {
                         <Typography variant="body2" fontWeight={600}>{r.name}</Typography>
                       </Box>
                     </TableCell>
-                    <TableCell>
-                      <Typography variant="body2" color="text.secondary">{r.description || '—'}</Typography>
-                    </TableCell>
-                    <TableCell>
-                      <Typography variant="caption" color="text.secondary">{r.createdAt}</Typography>
-                    </TableCell>
                     <TableCell align="center">
                       <Box display="flex" gap={0.5} justifyContent="center">
+                        <Tooltip title="Voir utilisateurs">
+                          <IconButton size="small" color="info" onClick={() => handleViewRoleUsers(r)}>
+                            <PeopleIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
                         <Tooltip title="Modifier">
                           <IconButton size="small" color="primary" onClick={() => { setEditItem(r); setFormOpen(true); }}>
                             <EditIcon fontSize="small" />
@@ -219,6 +232,60 @@ const RolesList = () => {
         onClose={() => setDeleteDialog({ open: false, id: null, name: '' })}
         loading={deleteLoading}
       />
+
+      <Dialog
+        open={usersDialog.open}
+        onClose={() => setUsersDialog({ open: false, roleName: '', users: [], loading: false })}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>
+          <Typography variant="h6" fontWeight={700}>
+            Utilisateurs du rôle "{usersDialog.roleName}"
+          </Typography>
+        </DialogTitle>
+        <Divider />
+        <DialogContent>
+          {usersDialog.loading ? (
+            <Box py={1}>
+              <Skeleton height={36} />
+              <Skeleton height={36} />
+              <Skeleton height={36} />
+            </Box>
+          ) : usersDialog.users.length === 0 ? (
+            <Typography variant="body2" color="text.secondary" py={2}>
+              Aucun utilisateur n'a ce rôle.
+            </Typography>
+          ) : (
+            <TableContainer>
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Nom complet</TableCell>
+                    <TableCell>Email</TableCell>
+                    <TableCell>Département</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {usersDialog.users.map((user) => (
+                    <TableRow key={user.id}>
+                      <TableCell>{`${user.firstName || ''} ${user.lastName || ''}`.trim() || '—'}</TableCell>
+                      <TableCell>{user.email || '—'}</TableCell>
+                      <TableCell>{user.department || '—'}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          )}
+        </DialogContent>
+        <Divider />
+        <DialogActions sx={{ px: 3, py: 2 }}>
+          <Button onClick={() => setUsersDialog({ open: false, roleName: '', users: [], loading: false })} variant="outlined">
+            Fermer
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

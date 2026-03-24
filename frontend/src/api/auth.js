@@ -67,15 +67,48 @@ const mapUpdatePayload = (payload = {}) => {
     mapped.roleId = Number(payload.roleId);
   }
 
-  if (Array.isArray(payload.permissionIds)) {
-    mapped.permissionIds = payload.permissionIds.map((id) => Number(id)).filter((id) => !Number.isNaN(id));
-  }
-
   if (payload.password) {
     mapped.password = payload.password;
   }
 
   return mapped;
+};
+
+const resolveBackendPermissionIds = async (permissionSelections = []) => {
+  if (!Array.isArray(permissionSelections) || permissionSelections.length === 0) return [];
+
+  const response = await axiosInstance.get('/permissions');
+  const backendPermissions = response?.data?.data || [];
+
+  const resolvedIds = [];
+  const unresolvedNames = [];
+
+  permissionSelections.forEach((selection) => {
+    const numericId = Number(selection?.id);
+    if (!Number.isNaN(numericId) && numericId > 0) {
+      const exists = backendPermissions.some((permission) => Number(permission.id) === numericId);
+      if (exists) {
+        resolvedIds.push(numericId);
+        return;
+      }
+    }
+
+    const normalizedName = String(selection?.name || '').trim().toLowerCase();
+    if (!normalizedName) return;
+
+    const byName = backendPermissions.find((permission) => String(permission?.name || '').trim().toLowerCase() === normalizedName);
+    if (byName?.id) {
+      resolvedIds.push(Number(byName.id));
+    } else {
+      unresolvedNames.push(selection.name);
+    }
+  });
+
+  if (unresolvedNames.length > 0) {
+    throw new Error(`Permissions introuvables côté backend: ${unresolvedNames.join(', ')}`);
+  }
+
+  return Array.from(new Set(resolvedIds));
 };
 
 export const authAPI = {
@@ -156,9 +189,7 @@ export const authAPI = {
         roleId: resolvedRoleId,
       }));
 
-      const requestedPermissionIds = Array.isArray(data.permissionIds)
-        ? data.permissionIds.map((id) => Number(id)).filter((id) => !Number.isNaN(id))
-        : [];
+      const requestedPermissionIds = await resolveBackendPermissionIds(data.permissionSelections || []);
 
       if (requestedPermissionIds.length > 0) {
         try {
@@ -197,6 +228,10 @@ export const authAPI = {
       const mapped = mapUpdatePayload(data);
       if (mapped.roleId !== undefined && (!mapped.roleId || Number(mapped.roleId) <= 0)) {
         throw new Error('Veuillez sélectionner un rôle backend valide.');
+      }
+
+      if (Array.isArray(data.permissionSelections)) {
+        mapped.permissionIds = await resolveBackendPermissionIds(data.permissionSelections);
       }
 
       const response = await axiosInstance.patch(`/users/${id}`, mapped);
