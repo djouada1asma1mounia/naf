@@ -1,8 +1,9 @@
-import { Column, CreateDateColumn, Entity, JoinTable, ManyToMany, ManyToOne, OneToOne, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
+import { Column, CreateDateColumn, Entity, JoinTable, ManyToMany, ManyToOne, OneToMany, OneToOne, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
 import { Permission } from "../../permissions/entities/permission.entity";
 import { Exclude } from "class-transformer";
 import { Role } from "../../roles/entities/role.entity";
 import { Department } from "../../departments/entities/department.entity";
+import { Materiel } from "../../materiels/entities/materiel.entity";
 
 @Entity('users')
 export class User {
@@ -34,6 +35,9 @@ export class User {
 
     @ManyToOne(() => Department, department => department.users)
     department: Department;
+
+    @OneToMany(() => Materiel, materiel => materiel.proprietaire)
+    materiels: Materiel[];
 
     @CreateDateColumn()
     createdAt: Date;
