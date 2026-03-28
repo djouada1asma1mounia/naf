@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Box, Grid, Card, CardContent, Typography, Skeleton, Divider, LinearProgress,
+  Box, Grid, Card, CardContent, Typography, Skeleton, LinearProgress,
   ToggleButtonGroup, ToggleButton, useTheme,
 } from '@mui/material';
 import {

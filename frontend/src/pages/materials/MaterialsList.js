@@ -9,7 +9,6 @@ import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import SearchIcon from '@mui/icons-material/Search';
-import FilterListIcon from '@mui/icons-material/FilterList';
 import ComputerIcon from '@mui/icons-material/Computer';
 import { useAuth, ROLES } from '../../context/AuthContext';
 import { materialsAPI } from '../../api/materials';
@@ -41,21 +40,36 @@ const MaterialsList = () => {
 
   const loadData = useCallback(async () => {
     setLoading(true);
-    try {
-      const apiFilters = { ...filters };
-      if (user?.role === ROLES.USER) apiFilters.ownerId = user.id;
+    const apiFilters = { ...filters };
+    if (user?.role === ROLES.USER) apiFilters.ownerId = user.id;
 
-      const [mats, cats, depts] = await Promise.all([
-        materialsAPI.getAll(apiFilters),
-        categoriesAPI.getAll(),
-        structuresAPI.getDepartments(),
-      ]);
-      setMaterials(mats);
-      setCategories(cats);
-      setDepartments(depts);
-    } catch (err) {
-      enqueueSnackbar('Erreur lors du chargement', { variant: 'error' });
+    const [matsResult, catsResult, deptsResult] = await Promise.allSettled([
+      materialsAPI.getAll(apiFilters),
+      categoriesAPI.getAll(),
+      structuresAPI.getDepartments(),
+    ]);
+
+    if (matsResult.status === 'fulfilled') {
+      setMaterials(matsResult.value || []);
+    } else {
+      setMaterials([]);
+      enqueueSnackbar('Impossible de charger les matériels.', { variant: 'warning' });
     }
+
+    if (catsResult.status === 'fulfilled') {
+      setCategories(catsResult.value || []);
+    } else {
+      setCategories([]);
+      enqueueSnackbar('Impossible de charger les catégories.', { variant: 'warning' });
+    }
+
+    if (deptsResult.status === 'fulfilled') {
+      setDepartments(deptsResult.value || []);
+    } else {
+      setDepartments([]);
+      enqueueSnackbar('Impossible de charger les départements.', { variant: 'warning' });
+    }
+
     setLoading(false);
   }, [filters, user, enqueueSnackbar]);
 
@@ -80,11 +94,20 @@ const MaterialsList = () => {
 
   const handleFormSubmit = async (data) => {
     try {
+      const payload = {
+        ...data,
+        ownerId: data?.ownerId || user?.id,
+      };
+
+      if (!payload.ownerId) {
+        throw new Error('Utilisateur introuvable. Reconnectez-vous puis réessayez.');
+      }
+
       if (editItem) {
-        await materialsAPI.update(editItem.id, data);
+        await materialsAPI.update(editItem.id, payload);
         enqueueSnackbar('Matériel modifié avec succès', { variant: 'success' });
       } else {
-        await materialsAPI.create(data);
+        await materialsAPI.create(payload);
         enqueueSnackbar('Matériel créé avec succès', { variant: 'success' });
       }
       setFormOpen(false);

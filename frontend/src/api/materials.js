@@ -1,64 +1,154 @@
-import { mockMaterials } from '../mock/data';
+import axiosInstance from './axios';
 
-const delay = (ms = 400) => new Promise((r) => setTimeout(r, ms));
+const getErrorMessage = (error, fallback) => {
+  const apiMessage = error?.response?.data?.message;
+  if (Array.isArray(apiMessage)) return apiMessage[0] || fallback;
+  return apiMessage || error?.message || fallback;
+};
 
-let materialsDB = [...mockMaterials];
-let nextId = materialsDB.length + 1;
+const toUiStatus = (etat) => {
+  const normalized = String(etat || '').toLowerCase();
+  if (normalized.includes('maintenance')) return 'En Maintenance';
+  if (normalized.includes('panne')) return 'En Panne';
+  return 'Actif';
+};
 
+const toBackendEtat = (status) => {
+  if (status === 'En Maintenance') return 'en Maintenance';
+  if (status === 'En Panne') return 'en Panne';
+  return 'Active';
+};
+
+const normalizeMaterial = (item = {}) => {
+  const ownerFirstName = item?.proprietaire?.prenom || '';
+  const ownerLastName = item?.proprietaire?.nom || '';
+  const ownerLabel = `${ownerFirstName} ${ownerLastName}`.trim() || item?.proprietaire?.email || '';
+  const name = `${item?.marque || ''} ${item?.modele || ''}`.trim() || item?.numeroSerie || 'Matériel';
+
+  return {
+    id: item?.numeroSerie,
+    serialNumber: item?.numeroSerie,
+    code: item?.numeroSerie,
+    name,
+    brand: item?.marque || '',
+    model: item?.modele || '',
+    categoryId: item?.categorie?.id || '',
+    category: item?.categorie?.name || '',
+    ownerId: item?.proprietaire?.id || '',
+    owner: ownerLabel,
+    departmentId: item?.department?.id || '',
+    department: item?.department?.name || '',
+    status: toUiStatus(item?.etat),
+    purchaseDate: item?.dateEntree || '',
+    warrantyExpiry: '',
+    description: '',
+    createdAt: item?.dateEntree || '',
+  };
+};
+
+const toIntOrUndefined = (value) => {
+  if (value === null || value === undefined || value === '') return undefined;
+  const parsed = Number(value);
+  return Number.isNaN(parsed) ? undefined : parsed;
+};
+
+const buildPayload = (data = {}) => ({
+  numeroSerie: String(data?.serialNumber || '').trim(),
+  categorieId: toIntOrUndefined(data?.categoryId),
+  departmentId: toIntOrUndefined(data?.departmentId),
+  proprietaireId: data?.ownerId || undefined,
+  dateEntree: data?.purchaseDate || undefined,
+  etat: toBackendEtat(data?.status),
+  marque: String(data?.brand || data?.name || '').trim() || undefined,
+  modele: String(data?.model || '').trim() || undefined,
+});
+
+const applyFilters = (materials, filters = {}) => {
+  let result = [...materials];
+
+  if (filters.ownerId) {
+    result = result.filter((m) => String(m.ownerId) === String(filters.ownerId));
+  }
+  if (filters.departmentId) {
+    result = result.filter((m) => String(m.departmentId) === String(filters.departmentId));
+  }
+  if (filters.categoryId) {
+    result = result.filter((m) => String(m.categoryId) === String(filters.categoryId));
+  }
+  if (filters.status) {
+    result = result.filter((m) => m.status === filters.status);
+  }
+  if (filters.search) {
+    const s = String(filters.search).toLowerCase();
+    result = result.filter((m) => {
+      const nameMatch = String(m.name || '').toLowerCase().includes(s);
+      const serialMatch = String(m.serialNumber || '').toLowerCase().includes(s);
+      return nameMatch || serialMatch;
+    });
+  }
+
+  return result;
+};
 
 export const materialsAPI = {
   getAll: async (filters = {}) => {
-    await delay();
-    let result = [...materialsDB];
-    if (filters.ownerId) result = result.filter((m) => m.ownerId === Number(filters.ownerId));
-    if (filters.departmentId) result = result.filter((m) => m.departmentId === Number(filters.departmentId));
-    if (filters.categoryId) result = result.filter((m) => m.categoryId === Number(filters.categoryId));
-    if (filters.status) result = result.filter((m) => m.status === filters.status);
-    if (filters.search) {
-      const s = filters.search.toLowerCase();
-      result = result.filter((m) => m.name.toLowerCase().includes(s) || (m.serialNumber && m.serialNumber.toLowerCase().includes(s)));
+    try {
+      const response = await axiosInstance.get('/materiels');
+      const rawItems = response?.data?.data || [];
+      const normalized = rawItems.map(normalizeMaterial);
+      return applyFilters(normalized, filters);
+    } catch (error) {
+      throw new Error(getErrorMessage(error, 'Erreur lors du chargement des matériels.'));
     }
-    return result;
   },
 
   getById: async (id) => {
-    await delay(200);
-    const m = materialsDB.find((m) => m.id === Number(id));
-    if (!m) throw new Error('Matériel non trouvé');
-    return m;
+    try {
+      const response = await axiosInstance.get(`/materiels/${id}`);
+      const rawItem = response?.data?.data || response?.data;
+      return normalizeMaterial(rawItem);
+    } catch (error) {
+      throw new Error(getErrorMessage(error, 'Matériel non trouvé.'));
+    }
   },
 
   create: async (data) => {
-    await delay(500);
-    if (!data.serialNumber || !data.serialNumber.trim()) throw new Error('Le numéro de série est requis');
-    const duplicate = materialsDB.find((m) => m.serialNumber && m.serialNumber.toLowerCase() === data.serialNumber.trim().toLowerCase());
-    if (duplicate) throw new Error('Ce numéro de série existe déjà');
-    const newMat = { ...data, id: nextId++, createdAt: new Date().toISOString().split('T')[0] };
-    materialsDB.push(newMat);
-    return newMat;
+    try {
+      const payload = buildPayload(data);
+      const response = await axiosInstance.post('/materiels', payload);
+      return normalizeMaterial(response?.data?.data || response?.data);
+    } catch (error) {
+      throw new Error(getErrorMessage(error, 'Erreur lors de la création du matériel.'));
+    }
   },
 
   update: async (id, data) => {
-    await delay(400);
-    const idx = materialsDB.findIndex((m) => m.id === Number(id));
-    if (idx === -1) throw new Error('Matériel non trouvé');
-    if (data.serialNumber && data.serialNumber.trim()) {
-      const duplicate = materialsDB.find((m) => m.id !== Number(id) && m.serialNumber && m.serialNumber.toLowerCase() === data.serialNumber.trim().toLowerCase());
-      if (duplicate) throw new Error('Ce numéro de série existe déjà');
+    try {
+      const payload = buildPayload(data);
+      delete payload.numeroSerie;
+      const response = await axiosInstance.patch(`/materiels/${id}`, payload);
+      return normalizeMaterial(response?.data?.data || response?.data);
+    } catch (error) {
+      throw new Error(getErrorMessage(error, 'Erreur lors de la mise à jour du matériel.'));
     }
-    materialsDB[idx] = { ...materialsDB[idx], ...data };
-    return materialsDB[idx];
   },
 
   delete: async (id) => {
-    await delay(400);
-    materialsDB = materialsDB.filter((m) => m.id !== Number(id));
-    return { success: true };
+    try {
+      const response = await axiosInstance.delete(`/materiels/${id}`);
+      return response?.data || { success: true };
+    } catch (error) {
+      throw new Error(getErrorMessage(error, 'Erreur lors de la suppression du matériel.'));
+    }
   },
 
   deleteByOwner: async (ownerId) => {
-    await delay(400);
-    materialsDB = materialsDB.filter((m) => m.ownerId !== Number(ownerId));
-    return { success: true };
+    try {
+      const ownerMaterials = await materialsAPI.getAll({ ownerId });
+      await Promise.all(ownerMaterials.map((m) => materialsAPI.delete(m.serialNumber)));
+      return { success: true };
+    } catch (error) {
+      throw new Error(getErrorMessage(error, 'Erreur lors de la suppression des matériels de l’utilisateur.'));
+    }
   },
 };
