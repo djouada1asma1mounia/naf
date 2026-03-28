@@ -45,12 +45,13 @@ const MaintenanceForm = ({ open, onClose, onSubmit, editItem, departments = [] }
   };
 
   const handleMaterialChange = (e) => {
-    const mat = materials.find((m) => m.id === e.target.value);
+    const selectedId = e.target.value;
+    const mat = materials.find((m) => String(m.id) === String(selectedId));
     if (mat) {
       setForm((f) => ({
         ...f,
         materialId: mat.id,
-        materialCode: mat.code,
+        materialCode: mat.serialNumber || mat.code,
         materialName: mat.name,
         departmentId: mat.departmentId,
         department: mat.department,
@@ -117,7 +118,7 @@ const MaintenanceForm = ({ open, onClose, onSubmit, editItem, departments = [] }
               >
                 {materials.map((m) => (
                   <MenuItem key={m.id} value={m.id}>
-                    [{m.code}] {m.name}
+                    [{m.serialNumber || m.code}] {m.name}
                   </MenuItem>
                 ))}
               </TextField>

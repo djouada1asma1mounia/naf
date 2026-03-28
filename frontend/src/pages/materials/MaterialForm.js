@@ -40,13 +40,15 @@ const MaterialForm = ({ open, onClose, onSubmit, editItem, categories = [], depa
   };
 
   const handleCategoryChange = (e) => {
-    const cat = categories.find((c) => c.id === e.target.value);
-    setForm((f) => ({ ...f, categoryId: e.target.value, category: cat?.name || '' }));
+    const selectedId = e.target.value;
+    const cat = categories.find((c) => String(c.id) === String(selectedId));
+    setForm((f) => ({ ...f, categoryId: selectedId, category: cat?.name || '' }));
   };
 
   const handleDeptChange = (e) => {
-    const dept = departments.find((d) => d.id === e.target.value);
-    setForm((f) => ({ ...f, departmentId: e.target.value, department: dept?.name || '' }));
+    const selectedId = e.target.value;
+    const dept = departments.find((d) => String(d.id) === String(selectedId));
+    setForm((f) => ({ ...f, departmentId: selectedId, department: dept?.name || '' }));
   };
 
   const validate = () => {
@@ -55,7 +57,8 @@ const MaterialForm = ({ open, onClose, onSubmit, editItem, categories = [], depa
     if (!form.serialNumber || !form.serialNumber.trim()) newErrors.serialNumber = 'Champ requis';
     if (!form.categoryId) newErrors.categoryId = 'Champ requis';
     if (!form.status) newErrors.status = 'Champ requis';
-    if (!form.department) newErrors.department = 'Champ requis';
+    if (!form.departmentId) newErrors.departmentId = 'Champ requis';
+    if (!form.ownerId) newErrors.ownerId = 'Propriétaire introuvable';
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -102,6 +105,7 @@ const MaterialForm = ({ open, onClose, onSubmit, editItem, categories = [], depa
                 label="Numéro de Série *"
                 value={form.serialNumber}
                 onChange={handleChange('serialNumber')}
+                disabled={!!editItem}
                 error={!!errors.serialNumber}
                 helperText={errors.serialNumber}
               />
@@ -143,8 +147,8 @@ const MaterialForm = ({ open, onClose, onSubmit, editItem, categories = [], depa
                 label="Département *"
                 value={form.departmentId || ''}
                 onChange={handleDeptChange}
-                error={!!errors.department}
-                helperText={errors.department}
+                error={!!errors.departmentId}
+                helperText={errors.departmentId}
               >
                 {departments.map((d) => (
                   <MenuItem key={d.id} value={d.id}>{d.name}</MenuItem>
@@ -152,7 +156,14 @@ const MaterialForm = ({ open, onClose, onSubmit, editItem, categories = [], depa
               </TextField>
             </Grid>
             <Grid item xs={12} sm={6}>
-              <TextField fullWidth label="Propriétaire" value={form.owner} onChange={handleChange('owner')} />
+              <TextField
+                fullWidth
+                label="Propriétaire"
+                value={form.owner}
+                disabled
+                error={!!errors.ownerId}
+                helperText={errors.ownerId || 'Attribué via l’utilisateur connecté'}
+              />
             </Grid>
             <Grid item xs={12} sm={6}>
               <TextField

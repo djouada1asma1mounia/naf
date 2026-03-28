@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box, Grid, Card, CardContent, Typography, Avatar, Divider,
   List, ListItem, ListItemAvatar, ListItemText, Chip, Button,
@@ -23,6 +23,7 @@ const emptyForm = { name: '', code: '', managerId: '' };
 
 const StructuresList = () => {
   const { isAdmin } = useAuth();
+  const isAdminUser = isAdmin();
   const { enqueueSnackbar } = useSnackbar();
   const [departments, setDepartments] = useState([]);
   const [staff, setStaff] = useState([]);
@@ -39,25 +40,43 @@ const StructuresList = () => {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
 
+  const refreshData = useCallback(async ({ showGlobalError = true } = {}) => {
+    const [deptsResult, staffResult, matsResult] = await Promise.allSettled([
+      structuresAPI.getDepartments(),
+      structuresAPI.getStaff(),
+      materialsAPI.getAll(),
+    ]);
+
+    if (deptsResult.status === 'fulfilled') {
+      setDepartments(deptsResult.value || []);
+    } else {
+      setDepartments([]);
+      if (showGlobalError) {
+        enqueueSnackbar('Erreur lors du chargement des départements', { variant: 'error' });
+      }
+    }
+
+    if (staffResult.status === 'fulfilled') {
+      setStaff(staffResult.value || []);
+    } else {
+      setStaff([]);
+    }
+
+    if (matsResult.status === 'fulfilled') {
+      setMaterials(matsResult.value || []);
+    } else {
+      setMaterials([]);
+    }
+  }, [enqueueSnackbar]);
+
   useEffect(() => {
     const loadData = async () => {
       setLoading(true);
-      try {
-        const [depts, stf, mats] = await Promise.all([
-          structuresAPI.getDepartments(),
-          structuresAPI.getStaff(),
-          materialsAPI.getAll(),
-        ]);
-        setDepartments(depts);
-        setStaff(stf);
-        setMaterials(mats);
-      } catch {
-        enqueueSnackbar('Erreur lors du chargement', { variant: 'error' });
-      }
+      await refreshData({ showGlobalError: true });
       setLoading(false);
     };
     loadData();
-  }, [enqueueSnackbar]);
+  }, [refreshData]);
 
   const getDeptStaff = (deptId) => staff.filter((s) => String(s.departmentId) === String(deptId));
   const getDeptMaterials = (deptId) => materials.filter((m) => String(m.departmentId) === String(deptId));
@@ -104,9 +123,7 @@ const StructuresList = () => {
         await structuresAPI.createDepartment(payload);
         enqueueSnackbar('Département ajouté avec succès', { variant: 'success' });
       }
-      const [depts, stf] = await Promise.all([structuresAPI.getDepartments(), structuresAPI.getStaff()]);
-      setDepartments(depts);
-      setStaff(stf);
+      await refreshData({ showGlobalError: false });
       setDialogOpen(false);
     } catch (error) {
       enqueueSnackbar(error.message || 'Erreur lors de la sauvegarde', { variant: 'error' });
@@ -124,9 +141,7 @@ const StructuresList = () => {
     setDeleting(true);
     try {
       await structuresAPI.deleteDepartment(deleteTarget.id);
-      const [depts, stf] = await Promise.all([structuresAPI.getDepartments(), structuresAPI.getStaff()]);
-      setDepartments(depts);
-      setStaff(stf);
+      await refreshData({ showGlobalError: false });
       enqueueSnackbar('Département supprimé', { variant: 'success' });
       setDeleteTarget(null);
     } catch (error) {
@@ -153,7 +168,7 @@ const StructuresList = () => {
         subtitle={`${departments.length} département(s) · ${staff.length} agent(s)`}
         breadcrumbs={[{ label: 'Accueil', path: '/dashboard' }, { label: 'Structures' }]}
         action={
-          isAdmin && (
+          isAdminUser && (
             <Button variant="contained" startIcon={<AddIcon />} onClick={openAdd}>
               Ajouter département
             </Button>
@@ -228,7 +243,7 @@ const StructuresList = () => {
                   <Chip label={`${deptStaff.length} agents`} size="small" color="primary" variant="outlined" />
                   <Chip label={`${deptMats.length} matériels`} size="small" color="info" variant="outlined" />
                 </Box>
-                {isAdmin && (
+                {isAdminUser && (
                   <Box display="flex" gap={0.5} onClick={(e) => e.stopPropagation()}>
                     <Tooltip title="Modifier">
                       <IconButton size="small" color="primary" onClick={(e) => openEdit(dept, e)}>

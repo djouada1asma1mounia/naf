@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
   Box, Card, CardContent, Grid, Typography, TextField, Button,
-  Avatar, Divider, Alert, Chip, Tab, Tabs, InputAdornment, IconButton,
+  Avatar, Divider, Alert, Tab, Tabs, InputAdornment, IconButton,
 } from '@mui/material';
 import PersonIcon from '@mui/icons-material/Person';
 import LockIcon from '@mui/icons-material/Lock';
@@ -34,7 +34,6 @@ const Profile = () => {
     firstName: user?.firstName || '',
     lastName: user?.lastName || '',
     email: user?.email || '',
-    department: getDepartmentLabel(user?.department),
   });
 
   useEffect(() => {
@@ -42,7 +41,6 @@ const Profile = () => {
       firstName: user?.firstName || '',
       lastName: user?.lastName || '',
       email: user?.email || '',
-      department: getDepartmentLabel(user?.department),
     });
   }, [user]);
 
@@ -187,15 +185,6 @@ const Profile = () => {
                       value={profileForm.email}
                       onChange={(e) => setProfileForm((f) => ({ ...f, email: e.target.value }))}
                       disabled={!editMode}
-                    />
-                  </Grid>
-                  <Grid item xs={12}>
-                    <TextField
-                      fullWidth
-                      label="Département"
-                      value={profileForm.department}
-                      disabled
-                      helperText="Contactez un administrateur pour modifier le département"
                     />
                   </Grid>
                 </Grid>
