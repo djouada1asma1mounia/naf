@@ -20,7 +20,7 @@ export class MaterielsService {
     private readonly departmentsRepository: Repository<Department>,
     @InjectRepository(User)
     private readonly usersRepository: Repository<User>,
-  ) { }
+  ) {}
 
   private baseQuery() {
     return this.materielsRepository
@@ -28,7 +28,12 @@ export class MaterielsService {
       .leftJoinAndSelect('materiel.categorie', 'categorie')
       .leftJoinAndSelect('materiel.department', 'department')
       .leftJoinAndSelect('materiel.proprietaire', 'proprietaire')
-      .addSelect(['proprietaire.id', 'proprietaire.nom', 'proprietaire.prenom', 'proprietaire.email']);
+      .addSelect([
+        'proprietaire.id',
+        'proprietaire.nom',
+        'proprietaire.prenom',
+        'proprietaire.email',
+      ]);
   }
 
   private async findOneOrThrow(numeroSerie: string): Promise<Materiel> {
@@ -37,28 +42,43 @@ export class MaterielsService {
       .getOne();
 
     if (!materiel) {
-      throw new NotFoundException(`Matériel avec le numéro de série "${numeroSerie}" introuvable`);
+      throw new NotFoundException(
+        `Matériel avec le numéro de série "${numeroSerie}" introuvable`,
+      );
     }
 
     return materiel;
   }
 
   async create(createMaterielDto: CreateMaterielDto) {
-    const { categorieId, departmentId, proprietaireId, ...fields } = createMaterielDto;
+    const { categorieId, departmentId, proprietaireId, ...fields } =
+      createMaterielDto;
 
-    const categorie = await this.categoriesRepository.findOne({ where: { id: categorieId } });
+    const categorie = await this.categoriesRepository.findOne({
+      where: { id: categorieId },
+    });
     if (!categorie) {
-      throw new NotFoundException(`Catégorie avec l'id "${categorieId}" introuvable`);
+      throw new NotFoundException(
+        `Catégorie avec l'id "${categorieId}" introuvable`,
+      );
     }
 
-    const department = await this.departmentsRepository.findOne({ where: { id: departmentId } });
+    const department = await this.departmentsRepository.findOne({
+      where: { id: departmentId },
+    });
     if (!department) {
-      throw new NotFoundException(`Département avec l'id "${departmentId}" introuvable`);
+      throw new NotFoundException(
+        `Département avec l'id "${departmentId}" introuvable`,
+      );
     }
 
-    const proprietaire = await this.usersRepository.findOne({ where: { id: proprietaireId } });
+    const proprietaire = await this.usersRepository.findOne({
+      where: { id: proprietaireId },
+    });
     if (!proprietaire) {
-      throw new NotFoundException(`Utilisateur avec l'id "${proprietaireId}" introuvable`);
+      throw new NotFoundException(
+        `Utilisateur avec l'id "${proprietaireId}" introuvable`,
+      );
     }
 
     const materiel = this.materielsRepository.create({
@@ -82,7 +102,7 @@ export class MaterielsService {
       .orderBy('materiel.numeroSerie', 'ASC')
       .getMany();
 
-    const data: MaterielListResponseDto[] = materiels.map(materiel => ({
+    const data: MaterielListResponseDto[] = materiels.map((materiel) => ({
       numeroSerie: materiel.numeroSerie,
       etat: materiel.etat,
       proprietaireName: `${materiel.proprietaire.nom} ${materiel.proprietaire.prenom}`,
@@ -116,25 +136,37 @@ export class MaterielsService {
     Object.assign(materiel, fields);
 
     if (categorieId !== undefined) {
-      const categorie = await this.categoriesRepository.findOne({ where: { id: categorieId } });
+      const categorie = await this.categoriesRepository.findOne({
+        where: { id: categorieId },
+      });
       if (!categorie) {
-        throw new NotFoundException(`Catégorie avec l'id "${categorieId}" introuvable`);
+        throw new NotFoundException(
+          `Catégorie avec l'id "${categorieId}" introuvable`,
+        );
       }
       materiel.categorie = categorie;
     }
 
     if (departmentId !== undefined) {
-      const department = await this.departmentsRepository.findOne({ where: { id: departmentId } });
+      const department = await this.departmentsRepository.findOne({
+        where: { id: departmentId },
+      });
       if (!department) {
-        throw new NotFoundException(`Département avec l'id "${departmentId}" introuvable`);
+        throw new NotFoundException(
+          `Département avec l'id "${departmentId}" introuvable`,
+        );
       }
       materiel.department = department;
     }
 
     if (proprietaireId !== undefined) {
-      const proprietaire = await this.usersRepository.findOne({ where: { id: proprietaireId } });
+      const proprietaire = await this.usersRepository.findOne({
+        where: { id: proprietaireId },
+      });
       if (!proprietaire) {
-        throw new NotFoundException(`Utilisateur avec l'id "${proprietaireId}" introuvable`);
+        throw new NotFoundException(
+          `Utilisateur avec l'id "${proprietaireId}" introuvable`,
+        );
       }
       materiel.proprietaire = proprietaire;
     }
@@ -149,9 +181,13 @@ export class MaterielsService {
   }
 
   async remove(numeroSerie: string) {
-    const materiel = await this.materielsRepository.findOne({ where: { numeroSerie } });
+    const materiel = await this.materielsRepository.findOne({
+      where: { numeroSerie },
+    });
     if (!materiel) {
-      throw new NotFoundException(`Matériel avec le numéro de série "${numeroSerie}" introuvable`);
+      throw new NotFoundException(
+        `Matériel avec le numéro de série "${numeroSerie}" introuvable`,
+      );
     }
 
     await this.materielsRepository.remove(materiel);
