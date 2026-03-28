@@ -2,6 +2,7 @@ import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/commo
 import { MaterielsService } from './materiels.service';
 import { CreateMaterielDto } from './dto/create-materiel.dto';
 import { UpdateMaterielDto } from './dto/update-materiel.dto';
+import { MaterielResponseDto, MaterielListResponseDto } from './dto/materiel-response.dto';
 
 @Controller('materiels')
 export class MaterielsController {
@@ -13,12 +14,12 @@ export class MaterielsController {
   }
 
   @Get()
-  findAll() {
+  findAll(): Promise<{ data: MaterielListResponseDto[]; message: string }> {
     return this.materielsService.findAll();
   }
 
   @Get(':id')
-  findOne(@Param('id') numeroSerie: string) {
+  findOne(@Param('id') numeroSerie: string): Promise<{ data: MaterielResponseDto; message: string }> {
     return this.materielsService.findOne(numeroSerie);
   }
 

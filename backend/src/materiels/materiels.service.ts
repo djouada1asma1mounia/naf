@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { CreateMaterielDto } from './dto/create-materiel.dto';
 import { UpdateMaterielDto } from './dto/update-materiel.dto';
+import { MaterielListResponseDto } from './dto/materiel-response.dto';
 import { Repository } from 'typeorm';
 import { Materiel } from './entities/materiel.entity';
 import { Category } from '../categories/entities/category.entity';
@@ -81,8 +82,14 @@ export class MaterielsService {
       .orderBy('materiel.numeroSerie', 'ASC')
       .getMany();
 
+    const data: MaterielListResponseDto[] = materiels.map(materiel => ({
+      numeroSerie: materiel.numeroSerie,
+      etat: materiel.etat,
+      proprietaireName: `${materiel.proprietaire.nom} ${materiel.proprietaire.prenom}`,
+    }));
+
     return {
-      data: materiels,
+      data,
       message: 'Liste des matériels récupérée avec succès',
     };
   }
