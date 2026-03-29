@@ -7,6 +7,29 @@ export { ROLES };
 
 const AuthContext = createContext(null);
 
+const normalizePermissionName = (value) => String(value || '')
+  .normalize('NFD')
+  .replace(/[\u0300-\u036f]/g, '')
+  .toLowerCase()
+  .replace(/[_-]+/g, ' ')
+  .replace(/\s+/g, ' ')
+  .trim();
+
+const extractPermissionNames = (permissions = []) => {
+  if (!Array.isArray(permissions)) return [];
+
+  return permissions
+    .map((permission) => {
+      if (typeof permission === 'string') return permission;
+      if (permission && typeof permission === 'object') {
+        return permission.name || permission.code || permission.label || '';
+      }
+      return '';
+    })
+    .map((name) => normalizePermissionName(name))
+    .filter(Boolean);
+};
+
 export const useAuth = () => {
   const ctx = useContext(AuthContext);
   if (!ctx) throw new Error('useAuth must be used within AuthProvider');
@@ -89,6 +112,8 @@ const normalizeUser = (rawUser) => {
     department: departmentName,
     roleId: roleId || null,
     departmentId: departmentId || null,
+    permissions: Array.isArray(rawUser.permissions) ? rawUser.permissions : [],
+    permissionNames: extractPermissionNames(rawUser.permissions),
   };
 };
 
@@ -156,10 +181,34 @@ export const AuthProvider = ({ children }) => {
   const hasRole = (role) => FULL_ACCESS_MODE || user?.role === role;
   const isAdmin = () => FULL_ACCESS_MODE || user?.role === ROLES.ADMIN;
   const canEdit = () => FULL_ACCESS_MODE || user?.role === ROLES.ADMIN;
+  const hasPermission = (permissionName) => {
+    if (FULL_ACCESS_MODE) return true;
+    const normalized = normalizePermissionName(permissionName);
+    if (!normalized) return false;
+    return (user?.permissionNames || []).includes(normalized);
+  };
+  const hasPermissionAny = (permissionNames = []) => {
+    if (FULL_ACCESS_MODE) return true;
+    if (!Array.isArray(permissionNames) || permissionNames.length === 0) return false;
+    return permissionNames.some((permissionName) => hasPermission(permissionName));
+  };
 
   return (
     <AuthContext.Provider
-      value={{ user, token, loading, login, register, logout, updateUser, hasRole, isAdmin, canEdit }}
+      value={{
+        user,
+        token,
+        loading,
+        login,
+        register,
+        logout,
+        updateUser,
+        hasRole,
+        isAdmin,
+        canEdit,
+        hasPermission,
+        hasPermissionAny,
+      }}
     >
       {children}
     </AuthContext.Provider>

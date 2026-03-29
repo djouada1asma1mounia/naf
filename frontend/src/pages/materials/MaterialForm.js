@@ -13,7 +13,16 @@ const initialForm = {
   purchaseDate: '', warrantyExpiry: '', description: '',
 };
 
-const MaterialForm = ({ open, onClose, onSubmit, editItem, categories = [], departments = [] }) => {
+const MaterialForm = ({
+  open,
+  onClose,
+  onSubmit,
+  editItem,
+  categories = [],
+  departments = [],
+  owners = [],
+  canSelectOwner = false,
+}) => {
   const { user } = useAuth();
   const [form, setForm] = useState(initialForm);
   const [errors, setErrors] = useState({});
@@ -49,6 +58,12 @@ const MaterialForm = ({ open, onClose, onSubmit, editItem, categories = [], depa
     const selectedId = e.target.value;
     const dept = departments.find((d) => String(d.id) === String(selectedId));
     setForm((f) => ({ ...f, departmentId: selectedId, department: dept?.name || '' }));
+  };
+
+  const handleOwnerChange = (e) => {
+    const selectedId = e.target.value;
+    const owner = owners.find((o) => String(o.id) === String(selectedId));
+    setForm((f) => ({ ...f, ownerId: selectedId, owner: owner?.label || '' }));
   };
 
   const validate = () => {
@@ -156,14 +171,33 @@ const MaterialForm = ({ open, onClose, onSubmit, editItem, categories = [], depa
               </TextField>
             </Grid>
             <Grid item xs={12} sm={6}>
-              <TextField
-                fullWidth
-                label="Propriétaire"
-                value={form.owner}
-                disabled
-                error={!!errors.ownerId}
-                helperText={errors.ownerId || 'Attribué via l’utilisateur connecté'}
-              />
+              {canSelectOwner ? (
+                <TextField
+                  fullWidth
+                  select
+                  label="Propriétaire *"
+                  value={form.ownerId || ''}
+                  onChange={handleOwnerChange}
+                  error={!!errors.ownerId}
+                  helperText={errors.ownerId || 'Choisissez le propriétaire du matériel'}
+                >
+                  {form.ownerId && !owners.some((o) => String(o.id) === String(form.ownerId)) && (
+                    <MenuItem value={form.ownerId}>{form.owner || form.ownerId}</MenuItem>
+                  )}
+                  {owners.map((o) => (
+                    <MenuItem key={o.id} value={o.id}>{o.label}</MenuItem>
+                  ))}
+                </TextField>
+              ) : (
+                <TextField
+                  fullWidth
+                  label="Propriétaire"
+                  value={form.owner}
+                  disabled
+                  error={!!errors.ownerId}
+                  helperText={errors.ownerId || 'Attribué via l’utilisateur connecté'}
+                />
+              )}
             </Grid>
             <Grid item xs={12} sm={6}>
               <TextField

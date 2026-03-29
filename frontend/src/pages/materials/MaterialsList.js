@@ -10,10 +10,11 @@ import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import SearchIcon from '@mui/icons-material/Search';
 import ComputerIcon from '@mui/icons-material/Computer';
-import { useAuth, ROLES } from '../../context/AuthContext';
+import { useAuth } from '../../context/AuthContext';
 import { materialsAPI } from '../../api/materials';
 import { categoriesAPI } from '../../api/categories';
 import { structuresAPI } from '../../api/structures';
+import { authAPI } from '../../api/auth';
 import PageHeader from '../../components/common/PageHeader';
 import { StatusChip } from '../../components/common/StatusChip';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
@@ -21,13 +22,25 @@ import MaterialForm from './MaterialForm';
 import { MATERIAL_STATUSES } from '../../utils/constants';
 import { useSnackbar } from 'notistack';
 
+const MATERIAL_PERMISSIONS = {
+  createOwn: ['create-materiel', 'create materiel', 'cree material', 'cree materiel'],
+  createAll: ['create-materiels', 'create materiels', 'create materials', 'cree materials', 'cree materiels'],
+  readOwn: ['read-materiel', 'read materiel', 'read material'],
+  readAll: ['read-materiels', 'read materiels', 'read materials'],
+  updateOwn: ['update-materiel', 'update materiel', 'update material'],
+  updateAll: ['update-materiels', 'update materiels', 'update materials'],
+  deleteOwn: ['delete-materiel', 'delete materiel', 'delete material'],
+  deleteAll: ['delete-materiels', 'delete materiels', 'delete materials'],
+};
+
 const MaterialsList = () => {
-  const { user, isAdmin, canEdit } = useAuth();
+  const { user, hasPermissionAny } = useAuth();
   const { enqueueSnackbar } = useSnackbar();
 
   const [materials, setMaterials] = useState([]);
   const [categories, setCategories] = useState([]);
   const [departments, setDepartments] = useState([]);
+  const [owners, setOwners] = useState([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
@@ -38,16 +51,46 @@ const MaterialsList = () => {
   const [deleteDialog, setDeleteDialog] = useState({ open: false, id: null, name: '' });
   const [deleteLoading, setDeleteLoading] = useState(false);
 
+  const canReadOwn = hasPermissionAny(MATERIAL_PERMISSIONS.readOwn);
+  const canReadAll = hasPermissionAny(MATERIAL_PERMISSIONS.readAll);
+  const canCreateOwn = hasPermissionAny(MATERIAL_PERMISSIONS.createOwn);
+  const canCreateAll = hasPermissionAny(MATERIAL_PERMISSIONS.createAll);
+  const canUpdateOwn = hasPermissionAny(MATERIAL_PERMISSIONS.updateOwn);
+  const canUpdateAll = hasPermissionAny(MATERIAL_PERMISSIONS.updateAll);
+  const canDeleteOwn = hasPermissionAny(MATERIAL_PERMISSIONS.deleteOwn);
+  const canDeleteAll = hasPermissionAny(MATERIAL_PERMISSIONS.deleteAll);
+
+  const canReadAny = canReadOwn || canReadAll;
+  const canCreateAny = canCreateOwn || canCreateAll;
+  const canMutateAny = canUpdateOwn || canUpdateAll || canDeleteOwn || canDeleteAll;
+
+  const isOwnMaterial = (material) => String(material?.ownerId || '') === String(user?.id || '');
+  const canUpdateMaterial = (material) => canUpdateAll || (canUpdateOwn && isOwnMaterial(material));
+  const canDeleteMaterial = (material) => canDeleteAll || (canDeleteOwn && isOwnMaterial(material));
+
   const loadData = useCallback(async () => {
     setLoading(true);
-    const apiFilters = { ...filters };
-    if (user?.role === ROLES.USER) apiFilters.ownerId = user.id;
+    if (!canReadAny) {
+      setMaterials([]);
+      setCategories([]);
+      setDepartments([]);
+      setOwners([]);
+      enqueueSnackbar('Vous n\'avez pas la permission de lire les matériels.', { variant: 'warning' });
+      setLoading(false);
+      return;
+    }
 
-    const [matsResult, catsResult, deptsResult] = await Promise.allSettled([
+    const apiFilters = { ...filters };
+    if (!canReadAll) apiFilters.ownerId = user?.id;
+
+    const loaders = [
       materialsAPI.getAll(apiFilters),
       categoriesAPI.getAll(),
       structuresAPI.getDepartments(),
-    ]);
+      canCreateAll || canUpdateAll ? authAPI.getUsers() : Promise.resolve([]),
+    ];
+
+    const [matsResult, catsResult, deptsResult, ownersResult] = await Promise.allSettled(loaders);
 
     if (matsResult.status === 'fulfilled') {
       setMaterials(matsResult.value || []);
@@ -70,8 +113,29 @@ const MaterialsList = () => {
       enqueueSnackbar('Impossible de charger les départements.', { variant: 'warning' });
     }
 
+    if (ownersResult.status === 'fulfilled') {
+      setOwners((ownersResult.value || []).map((owner) => ({
+        id: owner.id,
+        label: `${owner.firstName || ''} ${owner.lastName || ''}`.trim() || owner.email || owner.id,
+        departmentId: owner.departmentId,
+      })));
+    } else {
+      setOwners([]);
+      if (canCreateAll || canUpdateAll) {
+        enqueueSnackbar('Impossible de charger la liste des propriétaires.', { variant: 'warning' });
+      }
+    }
+
     setLoading(false);
-  }, [filters, user, enqueueSnackbar]);
+  }, [
+    filters,
+    user,
+    canReadAny,
+    canReadAll,
+    canCreateAll,
+    canUpdateAll,
+    enqueueSnackbar,
+  ]);
 
   useEffect(() => {
     loadData();
@@ -94,10 +158,20 @@ const MaterialsList = () => {
 
   const handleFormSubmit = async (data) => {
     try {
-      const payload = {
-        ...data,
-        ownerId: data?.ownerId || user?.id,
-      };
+      if (editItem && !canUpdateMaterial(editItem)) {
+        throw new Error('Vous ne pouvez modifier que vos propres matériels.');
+      }
+
+      const payload = { ...data };
+
+      if (editItem) {
+        payload.ownerId = canUpdateAll ? (data?.ownerId || editItem.ownerId || user?.id) : user?.id;
+      } else {
+        if (!canCreateAny) {
+          throw new Error('Vous n\'avez pas la permission de créer des matériels.');
+        }
+        payload.ownerId = canCreateAll ? (data?.ownerId || user?.id) : user?.id;
+      }
 
       if (!payload.ownerId) {
         throw new Error('Utilisateur introuvable. Reconnectez-vous puis réessayez.');
@@ -120,6 +194,10 @@ const MaterialsList = () => {
   const handleDeleteConfirm = async () => {
     setDeleteLoading(true);
     try {
+      const target = materials.find((item) => String(item.id) === String(deleteDialog.id));
+      if (!target || !canDeleteMaterial(target)) {
+        throw new Error('Vous ne pouvez supprimer que vos propres matériels.');
+      }
       await materialsAPI.delete(deleteDialog.id);
       enqueueSnackbar('Matériel supprimé', { variant: 'success' });
       setDeleteDialog({ open: false, id: null, name: '' });
@@ -139,7 +217,7 @@ const MaterialsList = () => {
         subtitle={`${materials.length} matériel(s) trouvé(s)`}
         breadcrumbs={[{ label: 'Accueil', path: '/dashboard' }, { label: 'Matériels' }]}
         action={
-          canEdit() && (
+          canCreateAny && (
             <Button variant="contained" startIcon={<AddIcon />} onClick={handleAdd}>
               Nouveau Matériel
             </Button>
@@ -188,7 +266,7 @@ const MaterialsList = () => {
                 </Select>
               </FormControl>
             </Grid>
-            {isAdmin() && (
+            {canReadAll && (
               <Grid item xs={6} sm={3} md={3}>
                 <FormControl fullWidth size="small">
                   <InputLabel>Département</InputLabel>
@@ -218,7 +296,7 @@ const MaterialsList = () => {
                 <TableCell>Département</TableCell>
                 <TableCell>Statut</TableCell>
                 <TableCell>Date</TableCell>
-                {canEdit() && <TableCell align="center">Actions</TableCell>}
+                {canMutateAny && <TableCell align="center">Actions</TableCell>}
               </TableRow>
             </TableHead>
             <TableBody>
@@ -266,15 +344,17 @@ const MaterialsList = () => {
                         {mat.purchaseDate ? new Date(mat.purchaseDate).toLocaleDateString('fr-FR') : '—'}
                       </Typography>
                     </TableCell>
-                    {canEdit() && (
+                    {canMutateAny && (
                       <TableCell align="center">
                         <Box display="flex" gap={0.5} justifyContent="center">
-                          <Tooltip title="Modifier">
-                            <IconButton size="small" color="primary" onClick={() => handleEdit(mat)}>
-                              <EditIcon fontSize="small" />
-                            </IconButton>
-                          </Tooltip>
-                          {isAdmin() && (
+                          {canUpdateMaterial(mat) && (
+                            <Tooltip title="Modifier">
+                              <IconButton size="small" color="primary" onClick={() => handleEdit(mat)}>
+                                <EditIcon fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+                          )}
+                          {canDeleteMaterial(mat) && (
                             <Tooltip title="Supprimer">
                               <IconButton
                                 size="small"
@@ -315,6 +395,8 @@ const MaterialsList = () => {
         editItem={editItem}
         categories={categories}
         departments={departments}
+        owners={owners}
+        canSelectOwner={editItem ? canUpdateAll : canCreateAll}
       />
 
       {/* Delete Confirm */}
