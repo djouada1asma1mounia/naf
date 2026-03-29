@@ -2,7 +2,7 @@ import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards } from '@n
 import { MaterielsService } from './materiels.service';
 import { CreateMaterielDto } from './dto/create-materiel.dto';
 import { UpdateMaterielDto } from './dto/update-materiel.dto';
-import { MaterielResponseDto, MaterielListResponseDto } from './dto/materiel-response.dto';
+import { MaterielResponseDto } from './dto/materiel-response.dto';
 import { JwtAuthGuard } from 'src/auth/jwt.guard';
 import { PermissionsGuard } from 'src/permissions/permissions.guard';
 import { Permissions } from 'src/permissions/permissions.decorator';
@@ -21,7 +21,7 @@ export class MaterielsController {
   @Get()
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @Permissions('read-materiels')
-  findAll(): Promise<{ data: MaterielListResponseDto[]; message: string }> {
+  findAll(): Promise<{ data: MaterielResponseDto[]; message: string }> {
     return this.materielsService.findAll();
   }
 

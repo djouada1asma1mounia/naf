@@ -15,9 +15,3 @@ export class MaterielResponseDto {
     categorie?: any;
     department?: any;
 }
-
-export class MaterielListResponseDto {
-    numeroSerie: string;
-    etat: string;
-    proprietaireName: string;
-}
