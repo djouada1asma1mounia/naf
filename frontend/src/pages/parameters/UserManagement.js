@@ -70,6 +70,42 @@ const UserForm = ({ open, onClose, onSubmit, editItem, departments, customRoles,
     setErrors({});
   }, [editItem, open]);
 
+  const togglePermission = (permissionId) => {
+    setForm((prev) => {
+      const exists = prev.permissionIds.some((id) => String(id) === String(permissionId));
+      if (exists) {
+        return {
+          ...prev,
+          permissionIds: prev.permissionIds.filter((id) => String(id) !== String(permissionId)),
+        };
+      }
+      return {
+        ...prev,
+        permissionIds: [...prev.permissionIds, permissionId],
+      };
+    });
+  };
+
+  const selectAllPermissions = () => {
+    setForm((prev) => {
+      const merged = new Map(prev.permissionIds.map((id) => [String(id), id]));
+      permissions.forEach((permission) => {
+        merged.set(String(permission.id), permission.id);
+      });
+      return {
+        ...prev,
+        permissionIds: Array.from(merged.values()),
+      };
+    });
+  };
+
+  const clearAllPermissions = () => {
+    setForm((prev) => ({
+      ...prev,
+      permissionIds: [],
+    }));
+  };
+
   const handleChange = (field) => (e) => {
     const val = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
     setForm((f) => ({ ...f, [field]: val }));
@@ -173,32 +209,53 @@ const UserForm = ({ open, onClose, onSubmit, editItem, departments, customRoles,
               </FormControl>
             </Grid>
             <Grid item xs={12}>
-              <FormControl fullWidth>
-                <InputLabel>Permissions</InputLabel>
-                <Select
-                  multiple
-                  value={form.permissionIds}
-                  disabled={permissions.length === 0}
-                  onChange={(e) => setForm((f) => ({
-                    ...f,
-                    permissionIds: e.target.value,
-                  }))}
-                  input={<OutlinedInput label="Permissions" />}
-                  renderValue={(selected) =>
-                    selected
-                      .map((id) => permissions.find((permission) => String(permission.id) === String(id))?.name)
-                      .filter(Boolean)
-                      .join(', ')
-                  }
-                >
-                  {permissions.map((permission) => (
-                    <MenuItem key={permission.id} value={permission.id}>
-                      <Checkbox checked={form.permissionIds.some((value) => String(value) === String(permission.id))} />
-                      <ListItemText primary={permission.name} />
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
+              <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 2, p: 1.5 }}>
+                <Box display="flex" justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={1} mb={1.2}>
+                  <Typography variant="subtitle2" fontWeight={700}>
+                    Permissions ({form.permissionIds.length})
+                  </Typography>
+                  <Box display="flex" gap={1}>
+                    <Button size="small" onClick={selectAllPermissions} disabled={permissions.length === 0}>
+                      Tout sélectionner
+                    </Button>
+                    <Button size="small" color="inherit" onClick={clearAllPermissions} disabled={form.permissionIds.length === 0}>
+                      Vider
+                    </Button>
+                  </Box>
+                </Box>
+
+                <Box sx={{ maxHeight: 220, overflowY: 'auto', border: 1, borderColor: 'divider', borderRadius: 1.5, p: 1 }}>
+                  {permissions
+                    .slice()
+                    .sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')))
+                    .map((permission) => (
+                      <Box
+                        key={permission.id}
+                        display="flex"
+                        alignItems="center"
+                        justifyContent="space-between"
+                        sx={{
+                          px: 0.6,
+                          py: 0.3,
+                          borderRadius: 1,
+                          '&:hover': { bgcolor: 'action.hover' },
+                        }}
+                      >
+                        <Box display="flex" alignItems="center" gap={1}>
+                          <Checkbox
+                            size="small"
+                            checked={form.permissionIds.some((value) => String(value) === String(permission.id))}
+                            onChange={() => togglePermission(permission.id)}
+                          />
+                          <Typography variant="body2">{permission.name}</Typography>
+                        </Box>
+                        {permission.virtual && (
+                          <Chip size="small" label="Virtuelle" color="warning" variant="outlined" />
+                        )}
+                      </Box>
+                    ))}
+                </Box>
+              </Box>
             </Grid>
             {permissions.length === 0 && (
               <Grid item xs={12}>
