@@ -1,6 +1,6 @@
 import { Column, Entity, JoinColumn, ManyToOne, PrimaryColumn } from 'typeorm';
 import { Category } from '../../categories/entities/category.entity';
-import { Department } from '../../departments/entities/department.entity';
+import { ServiceEntity } from '../../services/entities/service.entity';
 import { User } from '../../users/entities/user.entity';
 
 export enum MaterielEtat {
@@ -13,6 +13,9 @@ export enum MaterielEtat {
 export class Materiel {
     @PrimaryColumn()
     numeroSerie: string;
+
+    @Column({ unique: true })
+    numeroInventaire: string;
 
     @Column({ type: 'date', nullable: true })
     dateEntree?: string;
@@ -33,9 +36,9 @@ export class Materiel {
     @JoinColumn({ name: 'categorieId' })
     categorie: Category;
 
-    @ManyToOne(() => Department, (department) => department.materiels, { nullable: false })
-    @JoinColumn({ name: 'departmentId' })
-    department: Department;
+    @ManyToOne(() => ServiceEntity, (service) => service.materiels, { nullable: false })
+    @JoinColumn({ name: 'serviceId' })
+    service: ServiceEntity;
 
     @ManyToOne(() => User, (user) => user.materiels, { nullable: false })
     @JoinColumn({ name: 'proprietaireId' })

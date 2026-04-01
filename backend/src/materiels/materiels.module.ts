@@ -4,11 +4,11 @@ import { MaterielsController } from './materiels.controller';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Materiel } from './entities/materiel.entity';
 import { Category } from '../categories/entities/category.entity';
-import { Department } from '../departments/entities/department.entity';
+import { ServiceEntity } from '../services/entities/service.entity';
 import { User } from '../users/entities/user.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Materiel, Category, Department, User])],
+  imports: [TypeOrmModule.forFeature([Materiel, Category, ServiceEntity, User])],
   controllers: [MaterielsController],
   providers: [MaterielsService],
 })

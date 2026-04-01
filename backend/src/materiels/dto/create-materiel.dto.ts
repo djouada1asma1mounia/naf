@@ -6,11 +6,15 @@ export class CreateMaterielDto {
     @IsNotEmpty()
     numeroSerie: string;
 
+    @IsString()
+    @IsNotEmpty()
+    numeroInventaire: string;
+
     @IsInt()
     categorieId: number;
 
     @IsInt()
-    departmentId: number;
+    serviceId: number;
 
     @IsUUID()
     proprietaireId: string;

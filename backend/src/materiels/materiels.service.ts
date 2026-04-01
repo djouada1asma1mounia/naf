@@ -1,11 +1,11 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { CreateMaterielDto } from './dto/create-materiel.dto';
 import { UpdateMaterielDto } from './dto/update-materiel.dto';
 import { Repository } from 'typeorm';
 import { Materiel } from './entities/materiel.entity';
 import { Category } from '../categories/entities/category.entity';
-import { Department } from '../departments/entities/department.entity';
+import { ServiceEntity } from '../services/entities/service.entity';
 import { User } from '../users/entities/user.entity';
 
 @Injectable()
@@ -15,17 +15,18 @@ export class MaterielsService {
     private readonly materielsRepository: Repository<Materiel>,
     @InjectRepository(Category)
     private readonly categoriesRepository: Repository<Category>,
-    @InjectRepository(Department)
-    private readonly departmentsRepository: Repository<Department>,
+    @InjectRepository(ServiceEntity)
+    private readonly servicesRepository: Repository<ServiceEntity>,
     @InjectRepository(User)
     private readonly usersRepository: Repository<User>,
-  ) {}
+  ) { }
 
   private baseQuery() {
     return this.materielsRepository
       .createQueryBuilder('materiel')
       .leftJoinAndSelect('materiel.categorie', 'categorie')
-      .leftJoinAndSelect('materiel.department', 'department')
+      .leftJoinAndSelect('materiel.service', 'service')
+      .leftJoinAndSelect('service.department', 'department')
       .leftJoinAndSelect('materiel.proprietaire', 'proprietaire')
       .addSelect([
         'proprietaire.id',
@@ -49,9 +50,35 @@ export class MaterielsService {
     return materiel;
   }
 
+  private async ensureNumeroInventaireIsUnique(
+    numeroInventaire: string,
+    excludeNumeroSerie?: string,
+  ): Promise<void> {
+    const query = this.materielsRepository
+      .createQueryBuilder('materiel')
+      .where('materiel.numeroInventaire = :numeroInventaire', {
+        numeroInventaire,
+      });
+
+    if (excludeNumeroSerie) {
+      query.andWhere('materiel.numeroSerie != :excludeNumeroSerie', {
+        excludeNumeroSerie,
+      });
+    }
+
+    const existing = await query.getOne();
+    if (existing) {
+      throw new ConflictException(
+        `Le numéro d'inventaire "${numeroInventaire}" existe déjà`,
+      );
+    }
+  }
+
   async create(createMaterielDto: CreateMaterielDto) {
-    const { categorieId, departmentId, proprietaireId, ...fields } =
+    const { categorieId, serviceId, proprietaireId, ...fields } =
       createMaterielDto;
+
+    await this.ensureNumeroInventaireIsUnique(createMaterielDto.numeroInventaire);
 
     const categorie = await this.categoriesRepository.findOne({
       where: { id: categorieId },
@@ -62,12 +89,12 @@ export class MaterielsService {
       );
     }
 
-    const department = await this.departmentsRepository.findOne({
-      where: { id: departmentId },
+    const service = await this.servicesRepository.findOne({
+      where: { id: serviceId },
     });
-    if (!department) {
+    if (!service) {
       throw new NotFoundException(
-        `Département avec l'id "${departmentId}" introuvable`,
+        `Service avec l'id "${serviceId}" introuvable`,
       );
     }
 
@@ -83,7 +110,7 @@ export class MaterielsService {
     const materiel = this.materielsRepository.create({
       ...fields,
       categorie,
-      department,
+      service,
       proprietaire,
     });
 
@@ -120,8 +147,9 @@ export class MaterielsService {
 
     const {
       numeroSerie: _,
+      numeroInventaire,
       categorieId,
-      departmentId,
+      serviceId,
       proprietaireId,
       ...fields
     } = updateMaterielDto;
@@ -140,16 +168,16 @@ export class MaterielsService {
       materiel.categorie = categorie;
     }
 
-    if (departmentId !== undefined) {
-      const department = await this.departmentsRepository.findOne({
-        where: { id: departmentId },
+    if (serviceId !== undefined) {
+      const service = await this.servicesRepository.findOne({
+        where: { id: serviceId },
       });
-      if (!department) {
+      if (!service) {
         throw new NotFoundException(
-          `Département avec l'id "${departmentId}" introuvable`,
+          `Service avec l'id "${serviceId}" introuvable`,
         );
       }
-      materiel.department = department;
+      materiel.service = service;
     }
 
     if (proprietaireId !== undefined) {
@@ -162,6 +190,14 @@ export class MaterielsService {
         );
       }
       materiel.proprietaire = proprietaire;
+    }
+
+    if (
+      numeroInventaire !== undefined &&
+      numeroInventaire !== materiel.numeroInventaire
+    ) {
+      await this.ensureNumeroInventaireIsUnique(numeroInventaire, numeroSerie);
+      materiel.numeroInventaire = numeroInventaire;
     }
 
     await this.materielsRepository.save(materiel);

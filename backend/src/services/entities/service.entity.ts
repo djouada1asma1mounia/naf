@@ -1,5 +1,6 @@
-import { Column, Entity, Index, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, Entity, Index, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
 import { Department } from '../../departments/entities/department.entity';
+import { Materiel } from '../../materiels/entities/materiel.entity';
 
 @Entity('services')
 @Index(['department', 'name'], { unique: true })
@@ -20,4 +21,7 @@ export class ServiceEntity {
     })
     @JoinColumn({ name: 'departmentId' })
     department: Department;
+
+    @OneToMany(() => Materiel, (materiel) => materiel.service)
+    materiels: Materiel[];
 }

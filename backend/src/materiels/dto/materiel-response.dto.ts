@@ -7,11 +7,12 @@ export class ProprietaireResponseDto {
 
 export class MaterielResponseDto {
     numeroSerie: string;
+    numeroInventaire: string;
     etat: string;
     proprietaire: ProprietaireResponseDto;
     marque?: string;
     modele?: string;
     dateEntree?: string;
     categorie?: any;
-    department?: any;
+    service?: any;
 }

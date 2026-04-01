@@ -1,6 +1,5 @@
 import { Column, Entity, JoinColumn, OneToMany, OneToOne, PrimaryGeneratedColumn } from "typeorm";
 import { User } from "../../users/entities/user.entity";
-import { Materiel } from "../../materiels/entities/materiel.entity";
 import { ServiceEntity } from "../../services/entities/service.entity";
 
 @Entity('departments')
@@ -17,9 +16,6 @@ export class Department {
 
     @OneToMany(() => User, user => user.department)
     users: User[];
-
-    @OneToMany(() => Materiel, materiel => materiel.department)
-    materiels: Materiel[];
 
     @OneToMany(() => ServiceEntity, service => service.department)
     services: ServiceEntity[];
