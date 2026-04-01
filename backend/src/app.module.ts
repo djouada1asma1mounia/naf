@@ -10,6 +10,7 @@ import { RolesModule } from './roles/roles.module';
 import { DepartmentsModule } from './departments/departments.module';
 import { CategoriesModule } from './categories/categories.module';
 import { MaterielsModule } from './materiels/materiels.module';
+import { ServicesModule } from './services/services.module';
 
 @Module({
   imports: [
@@ -40,7 +41,9 @@ import { MaterielsModule } from './materiels/materiels.module';
     RolesModule,
     DepartmentsModule,
     CategoriesModule,
-    MaterielsModule],
+    MaterielsModule,
+    ServicesModule,
+  ],
   controllers: [AppController],
   providers: [AppService],
 })
