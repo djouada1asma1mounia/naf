@@ -13,6 +13,7 @@ export class MaterielResponseDto {
     marque?: string;
     modele?: string;
     dateEntree?: string;
+    finGarontie?: string;
     categorie?: any;
     service?: any;
 }

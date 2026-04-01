@@ -23,6 +23,10 @@ export class CreateMaterielDto {
     @IsDateString()
     dateEntree?: string;
 
+    @IsOptional()
+    @IsDateString()
+    finGarontie?: string;
+
     @IsEnum(MaterielEtat)
     etat: MaterielEtat;
 

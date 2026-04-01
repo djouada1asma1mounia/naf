@@ -20,6 +20,9 @@ export class Materiel {
     @Column({ type: 'date', nullable: true })
     dateEntree?: string;
 
+    @Column({ type: 'date', nullable: true })
+    finGarontie?: string;
+
     @Column({
         type: 'enum',
         enum: MaterielEtat,

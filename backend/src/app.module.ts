@@ -11,6 +11,7 @@ import { DepartmentsModule } from './departments/departments.module';
 import { CategoriesModule } from './categories/categories.module';
 import { MaterielsModule } from './materiels/materiels.module';
 import { ServicesModule } from './services/services.module';
+import { SubsidiariesModule } from './subsidiaries/subsidiaries.module';
 
 @Module({
   imports: [
@@ -43,6 +44,7 @@ import { ServicesModule } from './services/services.module';
     CategoriesModule,
     MaterielsModule,
     ServicesModule,
+    SubsidiariesModule,
   ],
   controllers: [AppController],
   providers: [AppService],
