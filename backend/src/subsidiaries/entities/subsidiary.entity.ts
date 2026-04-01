@@ -1,4 +1,5 @@
-import { Column, Entity, PrimaryColumn } from 'typeorm';
+import { Column, Entity, OneToMany, PrimaryColumn } from 'typeorm';
+import { Materiel } from '../../materiels/entities/materiel.entity';
 
 @Entity('subsidiaries')
 export class Subsidiary {
@@ -7,4 +8,7 @@ export class Subsidiary {
 
     @Column({ unique: true })
     name: string;
+
+    @OneToMany(() => Materiel, (materiel) => materiel.subsidiary)
+    materiels: Materiel[];
 }

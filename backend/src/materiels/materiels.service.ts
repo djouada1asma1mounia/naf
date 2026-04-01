@@ -6,6 +6,7 @@ import { Repository } from 'typeorm';
 import { Materiel } from './entities/materiel.entity';
 import { Category } from '../categories/entities/category.entity';
 import { ServiceEntity } from '../services/entities/service.entity';
+import { Subsidiary } from '../subsidiaries/entities/subsidiary.entity';
 import { User } from '../users/entities/user.entity';
 
 @Injectable()
@@ -17,6 +18,8 @@ export class MaterielsService {
     private readonly categoriesRepository: Repository<Category>,
     @InjectRepository(ServiceEntity)
     private readonly servicesRepository: Repository<ServiceEntity>,
+    @InjectRepository(Subsidiary)
+    private readonly subsidiariesRepository: Repository<Subsidiary>,
     @InjectRepository(User)
     private readonly usersRepository: Repository<User>,
   ) { }
@@ -27,6 +30,7 @@ export class MaterielsService {
       .leftJoinAndSelect('materiel.categorie', 'categorie')
       .leftJoinAndSelect('materiel.service', 'service')
       .leftJoinAndSelect('service.department', 'department')
+      .leftJoinAndSelect('materiel.subsidiary', 'subsidiary')
       .leftJoinAndSelect('materiel.proprietaire', 'proprietaire')
       .addSelect([
         'proprietaire.id',
@@ -34,6 +38,20 @@ export class MaterielsService {
         'proprietaire.prenom',
         'proprietaire.email',
       ]);
+  }
+
+  private async findSubsidiaryOrThrow(code: string): Promise<Subsidiary> {
+    const subsidiary = await this.subsidiariesRepository.findOne({
+      where: { code },
+    });
+
+    if (!subsidiary) {
+      throw new NotFoundException(
+        `Filiale avec le code "${code}" introuvable`,
+      );
+    }
+
+    return subsidiary;
   }
 
   private async findOneOrThrow(numeroSerie: string): Promise<Materiel> {
@@ -75,7 +93,7 @@ export class MaterielsService {
   }
 
   async create(createMaterielDto: CreateMaterielDto) {
-    const { categorieId, serviceId, proprietaireId, ...fields } =
+    const { categorieId, serviceId, proprietaireId, subsidiaryCode, ...fields } =
       createMaterielDto;
 
     await this.ensureNumeroInventaireIsUnique(createMaterielDto.numeroInventaire);
@@ -89,29 +107,42 @@ export class MaterielsService {
       );
     }
 
-    const service = await this.servicesRepository.findOne({
-      where: { id: serviceId },
-    });
-    if (!service) {
-      throw new NotFoundException(
-        `Service avec l'id "${serviceId}" introuvable`,
-      );
+    let service: ServiceEntity | undefined;
+    if (serviceId !== undefined && serviceId !== null) {
+      const foundService = await this.servicesRepository.findOne({
+        where: { id: serviceId },
+      });
+      if (!foundService) {
+        throw new NotFoundException(
+          `Service avec l'id "${serviceId}" introuvable`,
+        );
+      }
+      service = foundService;
     }
 
-    const proprietaire = await this.usersRepository.findOne({
-      where: { id: proprietaireId },
-    });
-    if (!proprietaire) {
-      throw new NotFoundException(
-        `Utilisateur avec l'id "${proprietaireId}" introuvable`,
-      );
+    let proprietaire: User | undefined;
+    if (proprietaireId) {
+      const foundProprietaire = await this.usersRepository.findOne({
+        where: { id: proprietaireId },
+      });
+      if (!foundProprietaire) {
+        throw new NotFoundException(
+          `Utilisateur avec l'id "${proprietaireId}" introuvable`,
+        );
+      }
+      proprietaire = foundProprietaire;
     }
+
+    const subsidiary = subsidiaryCode
+      ? await this.findSubsidiaryOrThrow(subsidiaryCode)
+      : null;
 
     const materiel = this.materielsRepository.create({
       ...fields,
       categorie,
       service,
       proprietaire,
+      subsidiary: subsidiary ?? undefined,
     });
 
     await this.materielsRepository.save(materiel);
@@ -125,12 +156,33 @@ export class MaterielsService {
 
   async findAll() {
     const data = await this.baseQuery()
+      .where('materiel.subsidiaryCode IS NULL')
       .orderBy('materiel.numeroSerie', 'ASC')
       .getMany();
 
     return {
       data,
-      message: 'Liste des matériels récupérée avec succès',
+      message: 'Liste des matériels sans filiale récupérée avec succès',
+    };
+  }
+
+  async findBySubsidiary(subsidiaryCode?: string) {
+    const query = this.baseQuery();
+
+    if (subsidiaryCode) {
+      await this.findSubsidiaryOrThrow(subsidiaryCode);
+      query.where('subsidiary.code = :subsidiaryCode', { subsidiaryCode });
+    } else {
+      query.where('materiel.subsidiaryCode IS NULL');
+    }
+
+    const data = await query.orderBy('materiel.numeroSerie', 'ASC').getMany();
+
+    return {
+      data,
+      message: subsidiaryCode
+        ? 'Liste des matériels de la filiale récupérée avec succès'
+        : 'Liste des matériels sans filiale récupérée avec succès',
     };
   }
 
@@ -151,6 +203,7 @@ export class MaterielsService {
       categorieId,
       serviceId,
       proprietaireId,
+      subsidiaryCode,
       ...fields
     } = updateMaterielDto;
 
@@ -169,27 +222,43 @@ export class MaterielsService {
     }
 
     if (serviceId !== undefined) {
-      const service = await this.servicesRepository.findOne({
-        where: { id: serviceId },
-      });
-      if (!service) {
-        throw new NotFoundException(
-          `Service avec l'id "${serviceId}" introuvable`,
-        );
+      if (serviceId === null) {
+        materiel.service = undefined;
+      } else {
+        const service = await this.servicesRepository.findOne({
+          where: { id: serviceId },
+        });
+        if (!service) {
+          throw new NotFoundException(
+            `Service avec l'id "${serviceId}" introuvable`,
+          );
+        }
+        materiel.service = service;
       }
-      materiel.service = service;
     }
 
     if (proprietaireId !== undefined) {
-      const proprietaire = await this.usersRepository.findOne({
-        where: { id: proprietaireId },
-      });
-      if (!proprietaire) {
-        throw new NotFoundException(
-          `Utilisateur avec l'id "${proprietaireId}" introuvable`,
-        );
+      if (proprietaireId === null || proprietaireId === '') {
+        materiel.proprietaire = undefined;
+      } else {
+        const proprietaire = await this.usersRepository.findOne({
+          where: { id: proprietaireId },
+        });
+        if (!proprietaire) {
+          throw new NotFoundException(
+            `Utilisateur avec l'id "${proprietaireId}" introuvable`,
+          );
+        }
+        materiel.proprietaire = proprietaire;
       }
-      materiel.proprietaire = proprietaire;
+    }
+
+    if (subsidiaryCode !== undefined) {
+      if (subsidiaryCode === null || subsidiaryCode === '') {
+        materiel.subsidiary = undefined;
+      } else {
+        materiel.subsidiary = await this.findSubsidiaryOrThrow(subsidiaryCode);
+      }
     }
 
     if (

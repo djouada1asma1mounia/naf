@@ -1,6 +1,7 @@
 import { Column, Entity, JoinColumn, ManyToOne, PrimaryColumn } from 'typeorm';
 import { Category } from '../../categories/entities/category.entity';
 import { ServiceEntity } from '../../services/entities/service.entity';
+import { Subsidiary } from '../../subsidiaries/entities/subsidiary.entity';
 import { User } from '../../users/entities/user.entity';
 
 export enum MaterielEtat {
@@ -39,11 +40,17 @@ export class Materiel {
     @JoinColumn({ name: 'categorieId' })
     categorie: Category;
 
-    @ManyToOne(() => ServiceEntity, (service) => service.materiels, { nullable: false })
+    @ManyToOne(() => ServiceEntity, (service) => service.materiels, { nullable: true })
     @JoinColumn({ name: 'serviceId' })
-    service: ServiceEntity;
+    service?: ServiceEntity;
 
-    @ManyToOne(() => User, (user) => user.materiels, { nullable: false })
+    @ManyToOne(() => User, (user) => user.materiels, { nullable: true })
     @JoinColumn({ name: 'proprietaireId' })
-    proprietaire: User;
+    proprietaire?: User;
+
+    @ManyToOne(() => Subsidiary, (subsidiary) => subsidiary.materiels, {
+        nullable: true,
+    })
+    @JoinColumn({ name: 'subsidiaryCode' })
+    subsidiary?: Subsidiary;
 }

@@ -13,11 +13,17 @@ export class CreateMaterielDto {
     @IsInt()
     categorieId: number;
 
+    @IsOptional()
     @IsInt()
-    serviceId: number;
+    serviceId?: number | null;
 
+    @IsOptional()
     @IsUUID()
-    proprietaireId: string;
+    proprietaireId?: string;
+
+    @IsOptional()
+    @IsString()
+    subsidiaryCode?: string;
 
     @IsOptional()
     @IsDateString()

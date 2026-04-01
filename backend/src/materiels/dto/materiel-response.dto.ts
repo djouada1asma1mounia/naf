@@ -9,11 +9,12 @@ export class MaterielResponseDto {
     numeroSerie: string;
     numeroInventaire: string;
     etat: string;
-    proprietaire: ProprietaireResponseDto;
+    proprietaire?: ProprietaireResponseDto;
     marque?: string;
     modele?: string;
     dateEntree?: string;
     finGarontie?: string;
     categorie?: any;
     service?: any;
+    subsidiary?: any;
 }
