@@ -1,34 +1,40 @@
 import React, { useEffect, useState } from 'react';
 import {
   Box, Card, CardContent, Grid, Typography, TextField, Button,
-  Avatar, Divider, Alert, Tab, Tabs, InputAdornment, IconButton,
+  Alert, Tab, Tabs, InputAdornment, IconButton, Switch,
 } from '@mui/material';
 import PersonIcon from '@mui/icons-material/Person';
 import LockIcon from '@mui/icons-material/Lock';
+import PaletteIcon from '@mui/icons-material/Palette';
+import LightModeIcon from '@mui/icons-material/LightMode';
+import DarkModeIcon from '@mui/icons-material/DarkMode';
 import EditIcon from '@mui/icons-material/Edit';
 import SaveIcon from '@mui/icons-material/Save';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 import { useAuth } from '../../context/AuthContext';
+import { useThemeMode } from '../../context/ThemeContext';
 import { authAPI } from '../../api/auth';
 import PageHeader from '../../components/common/PageHeader';
-import { RoleChip } from '../../components/common/StatusChip';
 import { useSnackbar } from 'notistack';
 
 const TabPanel = ({ children, value, index }) => value === index && <Box pt={3}>{children}</Box>;
 
-const getDepartmentLabel = (department) => {
-  if (!department) return '';
-  if (typeof department === 'object') return department.name || '';
-  return String(department);
-};
-
 const Profile = () => {
   const { user, updateUser } = useAuth();
+  const {
+    mode,
+    toggleTheme,
+    secondaryColor,
+    setSecondaryColor,
+    resetSecondaryColor,
+    defaultSecondaryColor,
+  } = useThemeMode();
   const { enqueueSnackbar } = useSnackbar();
   const [tab, setTab] = useState(0);
   const [editMode, setEditMode] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [customColor, setCustomColor] = useState(secondaryColor);
 
   const [profileForm, setProfileForm] = useState({
     firstName: user?.firstName || '',
@@ -43,6 +49,10 @@ const Profile = () => {
       email: user?.email || '',
     });
   }, [user]);
+
+  useEffect(() => {
+    setCustomColor(secondaryColor);
+  }, [secondaryColor]);
 
   const [pwForm, setPwForm] = useState({ old: '', new1: '', new2: '' });
   const [showPw, setShowPw] = useState({ old: false, new1: false, new2: false });
@@ -86,154 +96,181 @@ const Profile = () => {
   return (
     <Box>
       <PageHeader
-        title="Mon Profil"
+        title="Parametres"
         breadcrumbs={[{ label: 'Accueil', path: '/dashboard' }, { label: 'Profil' }]}
       />
 
-      <Grid container spacing={3} alignItems="flex-start">
-        {/* Profile Card */}
-        <Grid item xs={12} sm={4}>
-          <Card>
-            <CardContent sx={{ textAlign: 'center', pt: 4, pb: 3 }}>
-              <Avatar
-                sx={{
-                  width: 90,
-                  height: 90,
-                  background: 'linear-gradient(135deg, #1565C0, #1976D2)',
-                  fontSize: '2rem',
-                  fontWeight: 700,
-                  margin: '0 auto',
-                  mb: 2,
-                }}
-              >
-                {user?.firstName?.[0]}{user?.lastName?.[0]}
-              </Avatar>
-              <Typography variant="h5" fontWeight={700}>
-                {user?.firstName} {user?.lastName}
-              </Typography>
-              <Typography variant="body2" color="text.secondary" mb={1}>
-                {user?.email}
-              </Typography>
-              <RoleChip role={user?.role} />
-              <Divider sx={{ my: 2 }} />
-              <Box textAlign="left">
+      <Card>
+        <CardContent>
+          <Tabs value={tab} onChange={(_, v) => setTab(v)} variant="scrollable" allowScrollButtonsMobile>
+            <Tab icon={<PersonIcon />} iconPosition="start" label="Informations" />
+            <Tab icon={<LockIcon />} iconPosition="start" label="Securite" />
+            <Tab icon={<PaletteIcon />} iconPosition="start" label="Couleur" />
+          </Tabs>
+
+          <TabPanel value={tab} index={0}>
+            <Box display="flex" justifyContent="flex-end" mb={2}>
+              {!editMode ? (
+                <Button startIcon={<EditIcon />} variant="outlined" onClick={() => setEditMode(true)}>
+                  Modifier
+                </Button>
+              ) : (
+                <Box display="flex" gap={1}>
+                  <Button variant="outlined" onClick={() => setEditMode(false)} disabled={loading}>Annuler</Button>
+                  <Button startIcon={<SaveIcon />} variant="contained" onClick={handleProfileSave} disabled={loading}>
+                    Sauvegarder
+                  </Button>
+                </Box>
+              )}
+            </Box>
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Prenom"
+                  value={profileForm.firstName}
+                  onChange={(e) => setProfileForm((f) => ({ ...f, firstName: e.target.value }))}
+                  disabled={!editMode}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Nom"
+                  value={profileForm.lastName}
+                  onChange={(e) => setProfileForm((f) => ({ ...f, lastName: e.target.value }))}
+                  disabled={!editMode}
+                />
+              </Grid>
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Email"
+                  value={profileForm.email}
+                  onChange={(e) => setProfileForm((f) => ({ ...f, email: e.target.value }))}
+                  disabled={!editMode}
+                />
+              </Grid>
+            </Grid>
+          </TabPanel>
+
+          <TabPanel value={tab} index={1}>
+            {pwError && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setPwError('')}>{pwError}</Alert>}
+            <Box component="form" onSubmit={handlePasswordChange}>
+              <Grid container spacing={2}>
                 {[
-                  { label: "Nom d'utilisateur", value: user?.username },
-                  { label: 'Département', value: getDepartmentLabel(user?.department) },
-                  { label: 'Membre depuis', value: user?.createdAt },
-                ].map(({ label, value }) => (
-                  <Box key={label} mb={1.5}>
-                    <Typography variant="caption" color="text.secondary" fontWeight={600} textTransform="uppercase" letterSpacing="0.05em">
-                      {label}
-                    </Typography>
-                    <Typography variant="body2" fontWeight={500}>{value || '—'}</Typography>
-                  </Box>
+                  { field: 'old', label: 'Mot de passe actuel' },
+                  { field: 'new1', label: 'Nouveau mot de passe' },
+                  { field: 'new2', label: 'Confirmer le nouveau mot de passe' },
+                ].map(({ field, label }) => (
+                  <Grid item xs={12} key={field}>
+                    <TextField
+                      fullWidth
+                      label={label}
+                      type={showPw[field] ? 'text' : 'password'}
+                      value={pwForm[field]}
+                      onChange={(e) => setPwForm((f) => ({ ...f, [field]: e.target.value }))}
+                      InputProps={{
+                        endAdornment: (
+                          <InputAdornment position="end">
+                            <IconButton onClick={() => setShowPw((s) => ({ ...s, [field]: !s[field] }))}>
+                              {showPw[field] ? <VisibilityOffIcon /> : <VisibilityIcon />}
+                            </IconButton>
+                          </InputAdornment>
+                        ),
+                      }}
+                    />
+                  </Grid>
                 ))}
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
-
-        {/* Tabs */}
-        <Grid item xs={12} sm={8}>
-          <Card>
-            <CardContent>
-              <Tabs value={tab} onChange={(_, v) => setTab(v)}>
-                <Tab icon={<PersonIcon />} iconPosition="start" label="Informations" />
-                <Tab icon={<LockIcon />} iconPosition="start" label="Sécurité" />
-              </Tabs>
-
-              {/* Profile Info */}
-              <TabPanel value={tab} index={0}>
-                <Box display="flex" justifyContent="flex-end" mb={2}>
-                  {!editMode ? (
-                    <Button startIcon={<EditIcon />} variant="outlined" onClick={() => setEditMode(true)}>
-                      Modifier
-                    </Button>
-                  ) : (
-                    <Box display="flex" gap={1}>
-                      <Button variant="outlined" onClick={() => setEditMode(false)} disabled={loading}>Annuler</Button>
-                      <Button startIcon={<SaveIcon />} variant="contained" onClick={handleProfileSave} disabled={loading}>
-                        Sauvegarder
-                      </Button>
-                    </Box>
-                  )}
-                </Box>
-                <Grid container spacing={2}>
-                  <Grid item xs={12} sm={6}>
-                    <TextField
-                      fullWidth
-                      label="Prénom"
-                      value={profileForm.firstName}
-                      onChange={(e) => setProfileForm((f) => ({ ...f, firstName: e.target.value }))}
-                      disabled={!editMode}
-                    />
-                  </Grid>
-                  <Grid item xs={12} sm={6}>
-                    <TextField
-                      fullWidth
-                      label="Nom"
-                      value={profileForm.lastName}
-                      onChange={(e) => setProfileForm((f) => ({ ...f, lastName: e.target.value }))}
-                      disabled={!editMode}
-                    />
-                  </Grid>
-                  <Grid item xs={12}>
-                    <TextField
-                      fullWidth
-                      label="Email"
-                      value={profileForm.email}
-                      onChange={(e) => setProfileForm((f) => ({ ...f, email: e.target.value }))}
-                      disabled={!editMode}
-                    />
-                  </Grid>
+                <Grid item xs={12}>
+                  <Button type="submit" variant="contained" disabled={loading}>
+                    Changer le mot de passe
+                  </Button>
                 </Grid>
-              </TabPanel>
+              </Grid>
+            </Box>
+          </TabPanel>
 
-              {/* Security */}
-              <TabPanel value={tab} index={1}>
-                <Typography variant="subtitle2" color="text.secondary" mb={3}>
-                  Pour votre sécurité, utilisez un mot de passe fort d'au moins 8 caractères.
-                </Typography>
-                {pwError && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setPwError('')}>{pwError}</Alert>}
-                <Box component="form" onSubmit={handlePasswordChange}>
-                  <Grid container spacing={2}>
-                    {[
-                      { field: 'old', label: 'Mot de passe actuel' },
-                      { field: 'new1', label: 'Nouveau mot de passe' },
-                      { field: 'new2', label: 'Confirmer le nouveau mot de passe' },
-                    ].map(({ field, label }) => (
-                      <Grid item xs={12} key={field}>
-                        <TextField
-                          fullWidth
-                          label={label}
-                          type={showPw[field] ? 'text' : 'password'}
-                          value={pwForm[field]}
-                          onChange={(e) => setPwForm((f) => ({ ...f, [field]: e.target.value }))}
-                          InputProps={{
-                            endAdornment: (
-                              <InputAdornment position="end">
-                                <IconButton onClick={() => setShowPw((s) => ({ ...s, [field]: !s[field] }))}>
-                                  {showPw[field] ? <VisibilityOffIcon /> : <VisibilityIcon />}
-                                </IconButton>
-                              </InputAdornment>
-                            ),
-                          }}
-                        />
-                      </Grid>
-                    ))}
-                    <Grid item xs={12}>
-                      <Button type="submit" variant="contained" disabled={loading}>
-                        Changer le mot de passe
-                      </Button>
-                    </Grid>
-                  </Grid>
+          <TabPanel value={tab} index={2}>
+            <Grid container spacing={2}>
+              <Grid item xs={12}>
+                <Box display="flex" justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={1}>
+                  <Typography variant="body2" color="text.secondary">
+                    Le mode et la couleur sont appliques a toute l'application.
+                  </Typography>
+                  <Box display="flex" alignItems="center" gap={1}>
+                    <LightModeIcon fontSize="small" color={mode === 'light' ? 'primary' : 'disabled'} />
+                    <Switch checked={mode === 'dark'} onChange={toggleTheme} color="primary" />
+                    <DarkModeIcon fontSize="small" color={mode === 'dark' ? 'primary' : 'disabled'} />
+                  </Box>
                 </Box>
-              </TabPanel>
-            </CardContent>
-          </Card>
-        </Grid>
-      </Grid>
+              </Grid>
+
+              <Grid item xs={12} sm={3}>
+                <TextField
+                  fullWidth
+                  label="Couleur"
+                  type="color"
+                  value={customColor}
+                  onChange={(e) => setCustomColor(e.target.value)}
+                  InputLabelProps={{ shrink: true }}
+                  sx={{
+                    '& .MuiInputBase-input': {
+                      p: 0.6,
+                      height: 42,
+                    },
+                  }}
+                />
+              </Grid>
+              <Grid item xs={12} sm={5}>
+                <TextField
+                  fullWidth
+                  label="Code HEX"
+                  value={customColor}
+                  onChange={(e) => setCustomColor(e.target.value)}
+                  placeholder="#1976D2"
+                />
+              </Grid>
+              <Grid item xs={12} sm={4}>
+                <Box display="flex" gap={1}>
+                  <Button
+                    fullWidth
+                    variant="contained"
+                    onClick={() => {
+                      setSecondaryColor(customColor);
+                      enqueueSnackbar('Couleur appliquee a l\'application', { variant: 'success' });
+                    }}
+                  >
+                    Appliquer
+                  </Button>
+                  <Button fullWidth variant="outlined" onClick={resetSecondaryColor}>
+                    Defaut
+                  </Button>
+                </Box>
+              </Grid>
+
+              <Grid item xs={12}>
+                <Box
+                  sx={{
+                    p: 1.5,
+                    border: 1,
+                    borderColor: 'divider',
+                    borderRadius: 1.5,
+                    background: `linear-gradient(135deg, ${secondaryColor}22, transparent)`,
+                  }}
+                >
+                  <Typography variant="body2" fontWeight={700} sx={{ color: secondaryColor }}>
+                    Couleur active: {secondaryColor}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Couleur par defaut: {defaultSecondaryColor}
+                  </Typography>
+                </Box>
+              </Grid>
+            </Grid>
+          </TabPanel>
+        </CardContent>
+      </Card>
     </Box>
   );
 };

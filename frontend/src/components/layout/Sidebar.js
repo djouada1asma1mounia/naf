@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   Drawer, List, ListItem, ListItemButton, ListItemIcon, ListItemText,
-  Box, Typography, Divider, Collapse, Tooltip, Avatar, Chip,
+  Box, Typography, Avatar, Chip,
 } from '@mui/material';
+import { alpha, useTheme } from '@mui/material/styles';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth, ROLES } from '../../context/AuthContext';
 import { useThemeMode } from '../../context/ThemeContext';
@@ -17,8 +18,6 @@ import AssessmentIcon from '@mui/icons-material/Assessment';
 import SettingsIcon from '@mui/icons-material/Settings';
 import PeopleIcon from '@mui/icons-material/People';
 import BadgeIcon from '@mui/icons-material/Badge';
-import ExpandLessIcon from '@mui/icons-material/ExpandLess';
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 
 const navItems = [
   {
@@ -81,6 +80,8 @@ const Sidebar = ({ open, onClose, variant = 'permanent' }) => {
   const { user } = useAuth();
   const { mode } = useThemeMode();
   const isDark = mode === 'dark';
+  const theme = useTheme();
+  const accent = theme.palette.secondary.main;
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -94,9 +95,9 @@ const Sidebar = ({ open, onClose, variant = 'permanent' }) => {
   const userNameColor = isDark ? '#fff' : '#1a1a2e';
   const inactiveIconColor = isDark ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)';
   const inactiveTextColor = isDark ? 'rgba(255,255,255,0.75)' : 'rgba(0,0,0,0.75)';
-  const activeColor = '#1565C0';
-  const activeBg = isDark ? 'rgba(66,165,245,0.15)' : 'rgba(21,101,192,0.1)';
-  const hoverBg = isDark ? 'rgba(66,165,245,0.08)' : 'rgba(21,101,192,0.07)';
+  const activeColor = accent;
+  const activeBg = alpha(accent, isDark ? 0.2 : 0.12);
+  const hoverBg = alpha(accent, isDark ? 0.2 : 0.12);
   const footerColor = isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.35)';
   const borderColorLight = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)';
 

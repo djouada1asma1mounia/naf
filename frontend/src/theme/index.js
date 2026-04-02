@@ -1,6 +1,6 @@
-import { createTheme } from '@mui/material/styles';
+import { createTheme, darken, lighten } from '@mui/material/styles';
 
-const getTheme = (mode) =>
+const getTheme = (mode, secondaryMain = '#1976D2') =>
   createTheme({
     palette: {
       mode,
@@ -11,10 +11,10 @@ const getTheme = (mode) =>
         contrastText: '#ffffff',
       },
       secondary: {
-        main: '#FFC107',
-        light: '#FFF350',
-        dark: '#C79100',
-        contrastText: '#000000',
+        main: secondaryMain,
+        light: lighten(secondaryMain, 0.2),
+        dark: darken(secondaryMain, 0.2),
+        contrastText: '#ffffff',
       },
       background: {
         default: mode === 'light' ? '#F4F6F9' : '#0A0E1A',
@@ -82,9 +82,9 @@ const getTheme = (mode) =>
             fontWeight: 600,
           },
           containedPrimary: {
-            background: 'linear-gradient(135deg, #1565C0 0%, #1976D2 100%)',
+            background: `linear-gradient(135deg, ${darken(secondaryMain, 0.22)} 0%, ${secondaryMain} 100%)`,
             '&:hover': {
-              background: 'linear-gradient(135deg, #0D47A1 0%, #1565C0 100%)',
+              background: `linear-gradient(135deg, ${darken(secondaryMain, 0.3)} 0%, ${darken(secondaryMain, 0.12)} 100%)`,
             },
           },
         },
@@ -103,7 +103,7 @@ const getTheme = (mode) =>
         styleOverrides: {
           root: {
             '& .MuiTableCell-head': {
-              backgroundColor: mode === 'light' ? '#1565C0' : '#1A237E',
+              backgroundColor: mode === 'light' ? secondaryMain : darken(secondaryMain, 0.25),
               color: '#fff',
               fontWeight: 700,
               fontSize: '0.8rem',
@@ -118,12 +118,12 @@ const getTheme = (mode) =>
           root: {
             '&:nth-of-type(even)': {
               backgroundColor: mode === 'light'
-                ? 'rgba(21,101,192,0.025)'
+                ? `${secondaryMain}0A`
                 : 'rgba(255,255,255,0.025)',
             },
             '&:hover': {
               backgroundColor: mode === 'light'
-                ? 'rgba(21,101,192,0.05)'
+                ? `${secondaryMain}14`
                 : 'rgba(255,255,255,0.05)',
             },
           },
@@ -136,7 +136,7 @@ const getTheme = (mode) =>
         styleOverrides: {
           paper: {
             backgroundImage: mode === 'light'
-              ? 'linear-gradient(180deg, #0D47A1 0%, #1565C0 60%, #1976D2 100%)'
+              ? `linear-gradient(180deg, ${darken(secondaryMain, 0.35)} 0%, ${darken(secondaryMain, 0.2)} 60%, ${secondaryMain} 100%)`
               : 'linear-gradient(180deg, #0D0D2B 0%, #111827 100%)',
           },
         },
