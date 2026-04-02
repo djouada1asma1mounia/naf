@@ -9,17 +9,20 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import BusinessIcon from '@mui/icons-material/Business';
 import PersonIcon from '@mui/icons-material/Person';
 import ComputerIcon from '@mui/icons-material/Computer';
+import DesignServicesIcon from '@mui/icons-material/DesignServices';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { structuresAPI } from '../../api/structures';
 import { materialsAPI } from '../../api/materials';
+import { servicesAPI } from '../../api/services';
 import PageHeader from '../../components/common/PageHeader';
 import { RoleChip } from '../../components/common/StatusChip';
 import { useAuth } from '../../context/AuthContext';
 import { useSnackbar } from 'notistack';
 
 const emptyForm = { name: '', code: '', managerId: '' };
+const emptyServiceForm = { name: '', code: '', departmentId: '' };
 
 const StructuresList = () => {
   const { isAdmin } = useAuth();
@@ -28,6 +31,7 @@ const StructuresList = () => {
   const [departments, setDepartments] = useState([]);
   const [staff, setStaff] = useState([]);
   const [materials, setMaterials] = useState([]);
+  const [services, setServices] = useState([]);
   const [loading, setLoading] = useState(true);
 
   // Dialog state
@@ -40,11 +44,20 @@ const StructuresList = () => {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
 
+  // Service dialogs state
+  const [serviceDialogOpen, setServiceDialogOpen] = useState(false);
+  const [serviceEditTarget, setServiceEditTarget] = useState(null);
+  const [serviceForm, setServiceForm] = useState(emptyServiceForm);
+  const [serviceSaving, setServiceSaving] = useState(false);
+  const [serviceDeleteTarget, setServiceDeleteTarget] = useState(null);
+  const [serviceDeleting, setServiceDeleting] = useState(false);
+
   const refreshData = useCallback(async ({ showGlobalError = true } = {}) => {
-    const [deptsResult, staffResult, matsResult] = await Promise.allSettled([
+    const [deptsResult, staffResult, matsResult, servicesResult] = await Promise.allSettled([
       structuresAPI.getDepartments(),
       structuresAPI.getStaff(),
       materialsAPI.getAll(),
+      servicesAPI.getAll(),
     ]);
 
     if (deptsResult.status === 'fulfilled') {
@@ -67,6 +80,15 @@ const StructuresList = () => {
     } else {
       setMaterials([]);
     }
+
+    if (servicesResult.status === 'fulfilled') {
+      setServices(servicesResult.value || []);
+    } else {
+      setServices([]);
+      if (showGlobalError) {
+        enqueueSnackbar('Erreur lors du chargement des services', { variant: 'error' });
+      }
+    }
   }, [enqueueSnackbar]);
 
   useEffect(() => {
@@ -80,6 +102,8 @@ const StructuresList = () => {
 
   const getDeptStaff = (deptId) => staff.filter((s) => String(s.departmentId) === String(deptId));
   const getDeptMaterials = (deptId) => materials.filter((m) => String(m.departmentId) === String(deptId));
+  const getDeptServices = (deptId) => services.filter((s) => String(s.departmentId) === String(deptId));
+  const getServiceMaterials = (serviceId) => materials.filter((m) => String(m.serviceId) === String(serviceId));
   const getUserMaterials = (userId) => materials.filter((m) => String(m.ownerId) === String(userId));
 
   // ── Dialog helpers ──────────────────────────────────────────────
@@ -138,6 +162,25 @@ const StructuresList = () => {
   };
 
   const handleDelete = async () => {
+    if (!deleteTarget) return;
+
+    const deptStaff = getDeptStaff(deleteTarget.id);
+    const deptServices = getDeptServices(deleteTarget.id);
+    const deptMats = getDeptMaterials(deleteTarget.id);
+
+    if (deptStaff.length > 0 || deptServices.length > 0 || deptMats.length > 0) {
+      const blockers = [];
+      if (deptStaff.length > 0) blockers.push(`${deptStaff.length} agent(s)`);
+      if (deptServices.length > 0) blockers.push(`${deptServices.length} service(s)`);
+      if (deptMats.length > 0) blockers.push(`${deptMats.length} matériel(s)`);
+
+      enqueueSnackbar(
+        `Suppression impossible. Le département contient encore: ${blockers.join(', ')}.`,
+        { variant: 'warning' }
+      );
+      return;
+    }
+
     setDeleting(true);
     try {
       await structuresAPI.deleteDepartment(deleteTarget.id);
@@ -148,6 +191,92 @@ const StructuresList = () => {
       enqueueSnackbar(error.message || 'Erreur lors de la suppression', { variant: 'error' });
     }
     setDeleting(false);
+  };
+
+  const openAddService = (dept, e) => {
+    e.stopPropagation();
+    setServiceEditTarget(null);
+    setServiceForm({ ...emptyServiceForm, departmentId: dept.id });
+    setServiceDialogOpen(true);
+  };
+
+  const openEditService = (service, e) => {
+    e.stopPropagation();
+    setServiceEditTarget(service);
+    setServiceForm({
+      name: service.name || '',
+      code: service.code || '',
+      departmentId: service.departmentId || '',
+    });
+    setServiceDialogOpen(true);
+  };
+
+  const closeServiceDialog = () => {
+    if (serviceSaving) return;
+    setServiceDialogOpen(false);
+  };
+
+  const handleServiceFormChange = (field) => (e) => {
+    setServiceForm((current) => ({ ...current, [field]: e.target.value }));
+  };
+
+  const handleSaveService = async () => {
+    if (!serviceForm.name.trim() || !serviceForm.code.trim() || !serviceForm.departmentId) {
+      enqueueSnackbar('Nom, code et département du service sont obligatoires', { variant: 'warning' });
+      return;
+    }
+
+    setServiceSaving(true);
+    try {
+      const payload = {
+        name: serviceForm.name.trim(),
+        code: serviceForm.code.trim().toUpperCase(),
+        departmentId: serviceForm.departmentId,
+      };
+
+      if (serviceEditTarget) {
+        await servicesAPI.update(serviceEditTarget.id, payload);
+        enqueueSnackbar('Service modifié avec succès', { variant: 'success' });
+      } else {
+        await servicesAPI.create(payload);
+        enqueueSnackbar('Service ajouté avec succès', { variant: 'success' });
+      }
+
+      await refreshData({ showGlobalError: false });
+      setServiceDialogOpen(false);
+    } catch (error) {
+      enqueueSnackbar(error.message || 'Erreur lors de la sauvegarde du service', { variant: 'error' });
+    }
+    setServiceSaving(false);
+  };
+
+  const openDeleteService = (service, e) => {
+    e.stopPropagation();
+    setServiceDeleteTarget(service);
+  };
+
+  const handleDeleteService = async () => {
+    if (!serviceDeleteTarget) return;
+
+    const linkedMaterials = getServiceMaterials(serviceDeleteTarget.id);
+    if (linkedMaterials.length > 0) {
+      enqueueSnackbar(
+        `Suppression impossible. Ce service est lié à ${linkedMaterials.length} matériel(s).`,
+        { variant: 'warning' }
+      );
+      return;
+    }
+
+    setServiceDeleting(true);
+    try {
+      await servicesAPI.delete(serviceDeleteTarget.id);
+      await refreshData({ showGlobalError: false });
+      enqueueSnackbar('Service supprimé', { variant: 'success' });
+      setServiceDeleteTarget(null);
+    } catch (error) {
+      enqueueSnackbar(error.message || 'Erreur lors de la suppression du service', { variant: 'error' });
+    }
+    setServiceDeleting(false);
   };
 
   if (loading) {
@@ -165,7 +294,7 @@ const StructuresList = () => {
     <Box>
       <PageHeader
         title="Structures"
-        subtitle={`${departments.length} département(s) · ${staff.length} agent(s)`}
+        subtitle={`${departments.length} département(s) · ${staff.length} agent(s) · ${services.length} service(s)`}
         breadcrumbs={[{ label: 'Accueil', path: '/dashboard' }, { label: 'Structures' }]}
         action={
           isAdminUser && (
@@ -178,7 +307,7 @@ const StructuresList = () => {
 
       {/* Stats Row */}
       <Grid container spacing={2.5} mb={3}>
-        <Grid item xs={12} sm={4}>
+        <Grid item xs={12} sm={6} md={3}>
           <Card>
             <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
               <Avatar sx={{ bgcolor: 'primary.main', width: 48, height: 48, borderRadius: 2 }}>
@@ -191,7 +320,7 @@ const StructuresList = () => {
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={12} sm={4}>
+        <Grid item xs={12} sm={6} md={3}>
           <Card>
             <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
               <Avatar sx={{ bgcolor: 'success.main', width: 48, height: 48, borderRadius: 2 }}>
@@ -204,7 +333,20 @@ const StructuresList = () => {
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={12} sm={4}>
+        <Grid item xs={12} sm={6} md={3}>
+          <Card>
+            <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <Avatar sx={{ bgcolor: 'warning.main', width: 48, height: 48, borderRadius: 2 }}>
+                <DesignServicesIcon />
+              </Avatar>
+              <Box>
+                <Typography variant="h4" fontWeight={800}>{services.length}</Typography>
+                <Typography variant="caption" color="text.secondary">Services</Typography>
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
           <Card>
             <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
               <Avatar sx={{ bgcolor: 'info.main', width: 48, height: 48, borderRadius: 2 }}>
@@ -226,6 +368,7 @@ const StructuresList = () => {
       {departments.map((dept) => {
         const deptStaff = getDeptStaff(dept.id);
         const deptMats = getDeptMaterials(dept.id);
+        const deptServices = getDeptServices(dept.id);
         return (
           <Accordion key={dept.id} sx={{ mb: 1, '&:before': { display: 'none' } }}>
             <AccordionSummary expandIcon={<ExpandMoreIcon />}>
@@ -241,6 +384,7 @@ const StructuresList = () => {
                 </Box>
                 <Box display="flex" gap={1} mr={2}>
                   <Chip label={`${deptStaff.length} agents`} size="small" color="primary" variant="outlined" />
+                  <Chip label={`${deptServices.length} services`} size="small" color="warning" variant="outlined" />
                   <Chip label={`${deptMats.length} matériels`} size="small" color="info" variant="outlined" />
                 </Box>
                 {isAdminUser && (
@@ -262,7 +406,7 @@ const StructuresList = () => {
             <AccordionDetails sx={{ pt: 0 }}>
               <Divider sx={{ mb: 2 }} />
               <Grid container spacing={2}>
-                <Grid item xs={12} md={5}>
+                <Grid item xs={12} md={4}>
                   <Typography variant="subtitle2" fontWeight={700} mb={1} color="text.secondary">
                     Personnel ({deptStaff.length})
                   </Typography>
@@ -297,7 +441,60 @@ const StructuresList = () => {
                     )}
                   </List>
                 </Grid>
-                <Grid item xs={12} md={7}>
+                <Grid item xs={12} md={4}>
+                  <Box display="flex" alignItems="center" justifyContent="space-between" mb={1}>
+                    <Typography variant="subtitle2" fontWeight={700} color="text.secondary">
+                      Services ({deptServices.length})
+                    </Typography>
+                    {isAdminUser && (
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        startIcon={<AddIcon />}
+                        onClick={(e) => openAddService(dept, e)}
+                      >
+                        Ajouter
+                      </Button>
+                    )}
+                  </Box>
+                  <List dense disablePadding>
+                    {deptServices.length === 0 ? (
+                      <Typography variant="caption" color="text.secondary">Aucun service</Typography>
+                    ) : (
+                      deptServices.map((service) => (
+                        <ListItem key={service.id} disablePadding sx={{ py: 0.6 }}>
+                          <ListItemText
+                            primary={
+                              <Typography variant="body2" fontWeight={600}>
+                                {service.name}
+                              </Typography>
+                            }
+                            secondary={
+                              <Typography variant="caption" color="text.secondary">
+                                Code: {service.code}
+                              </Typography>
+                            }
+                          />
+                          {isAdminUser && (
+                            <Box display="flex" gap={0.5}>
+                              <Tooltip title="Modifier service">
+                                <IconButton size="small" color="primary" onClick={(e) => openEditService(service, e)}>
+                                  <EditIcon fontSize="small" />
+                                </IconButton>
+                              </Tooltip>
+                              <Tooltip title="Supprimer service">
+                                <IconButton size="small" color="error" onClick={(e) => openDeleteService(service, e)}>
+                                  <DeleteIcon fontSize="small" />
+                                </IconButton>
+                              </Tooltip>
+                            </Box>
+                          )}
+                        </ListItem>
+                      ))
+                    )}
+                  </List>
+                </Grid>
+                <Grid item xs={12} md={4}>
                   <Typography variant="subtitle2" fontWeight={700} mb={1} color="text.secondary">
                     Matériels du département ({deptMats.length})
                   </Typography>
@@ -405,6 +602,73 @@ const StructuresList = () => {
           <Button onClick={() => setDeleteTarget(null)} disabled={deleting}>Annuler</Button>
           <Button variant="contained" color="error" onClick={handleDelete} disabled={deleting}>
             {deleting ? 'Suppression...' : 'Supprimer'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* ── Service Add / Edit Dialog ─────────────────────────── */}
+      <Dialog open={serviceDialogOpen} onClose={closeServiceDialog} maxWidth="sm" fullWidth>
+        <DialogTitle>{serviceEditTarget ? 'Modifier le service' : 'Ajouter un service'}</DialogTitle>
+        <DialogContent>
+          <Box display="flex" flexDirection="column" gap={2} mt={1}>
+            <TextField
+              label="Nom du service"
+              value={serviceForm.name}
+              onChange={handleServiceFormChange('name')}
+              fullWidth
+              required
+              disabled={serviceSaving}
+            />
+            <TextField
+              label="Code"
+              value={serviceForm.code}
+              onChange={handleServiceFormChange('code')}
+              fullWidth
+              required
+              disabled={serviceSaving}
+              inputProps={{ style: { textTransform: 'uppercase' } }}
+            />
+            <TextField
+              label="Département"
+              value={serviceForm.departmentId}
+              onChange={handleServiceFormChange('departmentId')}
+              select
+              fullWidth
+              required
+              disabled={serviceSaving}
+            >
+              {departments.map((dept) => (
+                <MenuItem key={dept.id} value={dept.id}>{dept.name}</MenuItem>
+              ))}
+            </TextField>
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={closeServiceDialog} disabled={serviceSaving}>Annuler</Button>
+          <Button variant="contained" onClick={handleSaveService} disabled={serviceSaving}>
+            {serviceSaving ? 'Enregistrement...' : serviceEditTarget ? 'Modifier' : 'Ajouter'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* ── Service Delete Confirmation Dialog ────────────────── */}
+      <Dialog
+        open={Boolean(serviceDeleteTarget)}
+        onClose={() => !serviceDeleting && setServiceDeleteTarget(null)}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle>Confirmer la suppression</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Voulez-vous vraiment supprimer le service{' '}
+            <strong>{serviceDeleteTarget?.name}</strong> ? Cette action est irréversible.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setServiceDeleteTarget(null)} disabled={serviceDeleting}>Annuler</Button>
+          <Button variant="contained" color="error" onClick={handleDeleteService} disabled={serviceDeleting}>
+            {serviceDeleting ? 'Suppression...' : 'Supprimer'}
           </Button>
         </DialogActions>
       </Dialog>

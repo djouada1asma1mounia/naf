@@ -24,6 +24,8 @@ const normalizeMaterial = (item = {}) => {
   const ownerLastName = item?.proprietaire?.nom || '';
   const ownerLabel = `${ownerFirstName} ${ownerLastName}`.trim() || item?.proprietaire?.email || '';
   const name = `${item?.marque || ''} ${item?.modele || ''}`.trim() || item?.numeroSerie || 'Matériel';
+  const service = item?.service || null;
+  const department = service?.department || item?.department || null;
 
   return {
     id: item?.numeroSerie,
@@ -34,10 +36,12 @@ const normalizeMaterial = (item = {}) => {
     model: item?.modele || '',
     categoryId: item?.categorie?.id || '',
     category: item?.categorie?.name || '',
+    serviceId: service?.id || null,
+    serviceName: service?.name || '',
     ownerId: item?.proprietaire?.id || '',
     owner: ownerLabel,
-    departmentId: item?.department?.id || '',
-    department: item?.department?.name || '',
+    departmentId: department?.id || '',
+    department: department?.name || '',
     status: toUiStatus(item?.etat),
     purchaseDate: item?.dateEntree || '',
     warrantyExpiry: '',
@@ -52,9 +56,18 @@ const toIntOrUndefined = (value) => {
   return Number.isNaN(parsed) ? undefined : parsed;
 };
 
+const toIntOrNull = (value) => {
+  if (value === null || value === undefined || value === '') return null;
+  const parsed = Number(value);
+  return Number.isNaN(parsed) ? null : parsed;
+};
+
 const buildPayload = (data = {}) => ({
   numeroSerie: String(data?.serialNumber || '').trim(),
   categorieId: toIntOrUndefined(data?.categoryId),
+  serviceId: Object.prototype.hasOwnProperty.call(data, 'serviceId')
+    ? toIntOrNull(data?.serviceId)
+    : undefined,
   departmentId: toIntOrUndefined(data?.departmentId),
   proprietaireId: data?.ownerId || undefined,
   dateEntree: data?.purchaseDate || undefined,
