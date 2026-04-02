@@ -15,6 +15,7 @@ import LocalGasStationIcon from '@mui/icons-material/LocalGasStation';
 import BuildIcon from '@mui/icons-material/Build';
 import BusinessIcon from '@mui/icons-material/Business';
 import CategoryIcon from '@mui/icons-material/Category';
+import RuleIcon from '@mui/icons-material/Rule';
 import AssessmentIcon from '@mui/icons-material/Assessment';
 import SettingsIcon from '@mui/icons-material/Settings';
 import PeopleIcon from '@mui/icons-material/People';
@@ -56,6 +57,12 @@ const navItems = [
     icon: <CategoryIcon />,
     path: '/categories',
     roles: [ROLES.ADMIN],
+  },
+  {
+    label: 'Raisons',
+    icon: <RuleIcon />,
+    path: '/reasons',
+    roles: [ROLES.ADMIN, ROLES.USER],
   },
   {
     label: 'Utilisateurs',

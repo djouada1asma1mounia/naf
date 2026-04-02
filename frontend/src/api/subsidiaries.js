@@ -23,7 +23,7 @@ export const subsidiariesAPI = {
       const rawItems = response?.data?.data || [];
       return rawItems.map(normalizeSubsidiary);
     } catch (error) {
-      throw new Error(getErrorMessage(error, 'Erreur lors du chargement des name raison.'));
+      throw new Error(getErrorMessage(error, 'Erreur lors du chargement des raisons.'));
     }
   },
 
@@ -32,7 +32,7 @@ export const subsidiariesAPI = {
       const response = await axiosInstance.get(`/subsidiaries/${code}`);
       return normalizeSubsidiary(response?.data?.data || response?.data);
     } catch (error) {
-      throw new Error(getErrorMessage(error, 'Name raison introuvable.'));
+      throw new Error(getErrorMessage(error, 'Raison introuvable.'));
     }
   },
 
@@ -41,7 +41,7 @@ export const subsidiariesAPI = {
       const response = await axiosInstance.post('/subsidiaries', buildPayload(data));
       return normalizeSubsidiary(response?.data?.data || response?.data);
     } catch (error) {
-      throw new Error(getErrorMessage(error, 'Erreur lors de la creation du name raison.'));
+      throw new Error(getErrorMessage(error, 'Erreur lors de la création de la raison.'));
     }
   },
 
@@ -50,7 +50,7 @@ export const subsidiariesAPI = {
       const response = await axiosInstance.patch(`/subsidiaries/${code}`, buildPayload(data));
       return normalizeSubsidiary(response?.data?.data || response?.data);
     } catch (error) {
-      throw new Error(getErrorMessage(error, 'Erreur lors de la modification du name raison.'));
+      throw new Error(getErrorMessage(error, 'Erreur lors de la modification de la raison.'));
     }
   },
 
@@ -59,7 +59,7 @@ export const subsidiariesAPI = {
       const response = await axiosInstance.delete(`/subsidiaries/${code}`);
       return response?.data || { success: true };
     } catch (error) {
-      throw new Error(getErrorMessage(error, 'Erreur lors de la suppression du name raison.'));
+      throw new Error(getErrorMessage(error, 'Erreur lors de la suppression de la raison.'));
     }
   },
 };

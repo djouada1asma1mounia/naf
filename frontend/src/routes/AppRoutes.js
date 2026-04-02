@@ -14,6 +14,7 @@ const GdMaterialsList = lazy(() => import('../pages/gd-materials/GdMaterialsList
 const MaintenanceList = lazy(() => import('../pages/maintenance/MaintenanceList'));
 const StructuresList = lazy(() => import('../pages/structures/StructuresList'));
 const CategoriesList = lazy(() => import('../pages/categories/CategoriesList'));
+const ReasonsList = lazy(() => import('../pages/reasons/ReasonsList'));
 const UserManagement = lazy(() => import('../pages/parameters/UserManagement'));
 const RolesList = lazy(() => import('../pages/roles/RolesList'));
 const Profile = lazy(() => import('../pages/parameters/Profile'));
@@ -83,6 +84,15 @@ const AppRoutes = () => (
           element={
             <RoleGuard allowedRoles={[ROLES.ADMIN]}>
               <CategoriesList />
+            </RoleGuard>
+          }
+        />
+
+        <Route
+          path="reasons"
+          element={
+            <RoleGuard allowedRoles={[ROLES.ADMIN, ROLES.USER]}>
+              <ReasonsList />
             </RoleGuard>
           }
         />
