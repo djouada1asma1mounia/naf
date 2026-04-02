@@ -10,6 +10,7 @@ import { ROLES } from '../context/AuthContext';
 const Login = lazy(() => import('../pages/auth/Login'));
 const Dashboard = lazy(() => import('../pages/dashboard/Dashboard'));
 const MaterialsList = lazy(() => import('../pages/materials/MaterialsList'));
+const GdMaterialsList = lazy(() => import('../pages/gd-materials/GdMaterialsList'));
 const MaintenanceList = lazy(() => import('../pages/maintenance/MaintenanceList'));
 const StructuresList = lazy(() => import('../pages/structures/StructuresList'));
 const CategoriesList = lazy(() => import('../pages/categories/CategoriesList'));
@@ -46,6 +47,15 @@ const AppRoutes = () => (
           element={
             <RoleGuard allowedRoles={[ROLES.ADMIN, ROLES.USER]}>
               <MaterialsList />
+            </RoleGuard>
+          }
+        />
+
+        <Route
+          path="gd-materials"
+          element={
+            <RoleGuard allowedRoles={[ROLES.ADMIN, ROLES.USER]}>
+              <GdMaterialsList />
             </RoleGuard>
           }
         />

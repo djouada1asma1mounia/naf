@@ -25,6 +25,7 @@ const normalizeMaterial = (item = {}) => {
   const ownerLabel = `${ownerFirstName} ${ownerLastName}`.trim() || item?.proprietaire?.email || '';
   const name = `${item?.marque || ''} ${item?.modele || ''}`.trim() || item?.numeroSerie || 'Matériel';
   const service = item?.service || null;
+  const subsidiary = item?.subsidiary || null;
   const department = service?.department || item?.department || null;
 
   return {
@@ -39,6 +40,8 @@ const normalizeMaterial = (item = {}) => {
     category: item?.categorie?.name || '',
     serviceId: service?.id || null,
     serviceName: service?.name || '',
+    subsidiaryCode: subsidiary?.code || '',
+    subsidiaryName: subsidiary?.name || '',
     ownerId: item?.proprietaire?.id || '',
     owner: ownerLabel,
     departmentId: department?.id || '',
@@ -70,6 +73,9 @@ const buildPayload = (data = {}) => ({
   serviceId: Object.prototype.hasOwnProperty.call(data, 'serviceId')
     ? toIntOrNull(data?.serviceId)
     : undefined,
+  subsidiaryCode: Object.prototype.hasOwnProperty.call(data, 'subsidiaryCode')
+    ? (data?.subsidiaryCode ? String(data.subsidiaryCode).trim() : null)
+    : undefined,
   departmentId: toIntOrUndefined(data?.departmentId),
   proprietaireId: data?.ownerId || undefined,
   dateEntree: data?.purchaseDate || undefined,
@@ -93,6 +99,9 @@ const applyFilters = (materials, filters = {}) => {
   }
   if (filters.serviceId) {
     result = result.filter((m) => String(m.serviceId) === String(filters.serviceId));
+  }
+  if (filters.subsidiaryCode) {
+    result = result.filter((m) => String(m.subsidiaryCode) === String(filters.subsidiaryCode));
   }
   if (filters.status) {
     result = result.filter((m) => m.status === filters.status);
@@ -130,6 +139,18 @@ export const materialsAPI = {
       return normalizeMaterial(rawItem);
     } catch (error) {
       throw new Error(getErrorMessage(error, 'Matériel non trouvé.'));
+    }
+  },
+
+  getBySubsidiary: async (subsidiaryCode, filters = {}) => {
+    try {
+      const params = subsidiaryCode ? { subsidiaryCode } : {};
+      const response = await axiosInstance.get('/materiels/by-subsidiary', { params });
+      const rawItems = response?.data?.data || [];
+      const normalized = rawItems.map(normalizeMaterial);
+      return applyFilters(normalized, { ...filters, subsidiaryCode });
+    } catch (error) {
+      throw new Error(getErrorMessage(error, 'Erreur lors du chargement des matériels GD.'));
     }
   },
 

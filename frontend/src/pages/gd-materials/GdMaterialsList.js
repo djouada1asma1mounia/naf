@@ -9,17 +9,16 @@ import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import SearchIcon from '@mui/icons-material/Search';
-import ComputerIcon from '@mui/icons-material/Computer';
+import LocalGasStationIcon from '@mui/icons-material/LocalGasStation';
 import { useAuth } from '../../context/AuthContext';
 import { materialsAPI } from '../../api/materials';
 import { categoriesAPI } from '../../api/categories';
-import { structuresAPI } from '../../api/structures';
-import { servicesAPI } from '../../api/services';
+import { subsidiariesAPI } from '../../api/subsidiaries';
 import { authAPI } from '../../api/auth';
 import PageHeader from '../../components/common/PageHeader';
 import { StatusChip } from '../../components/common/StatusChip';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
-import MaterialForm from './MaterialForm';
+import GdMaterialForm from './GdMaterialForm';
 import { MATERIAL_STATUSES } from '../../utils/constants';
 import { useSnackbar } from 'notistack';
 
@@ -34,20 +33,19 @@ const MATERIAL_PERMISSIONS = {
   deleteAll: ['delete-materiels', 'delete materiels', 'delete materials'],
 };
 
-const MaterialsList = () => {
+const GdMaterialsList = () => {
   const { user, hasPermissionAny } = useAuth();
   const { enqueueSnackbar } = useSnackbar();
 
   const [materials, setMaterials] = useState([]);
   const [categories, setCategories] = useState([]);
-  const [services, setServices] = useState([]);
-  const [departments, setDepartments] = useState([]);
+  const [subsidiaries, setSubsidiaries] = useState([]);
   const [owners, setOwners] = useState([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
 
-  const [filters, setFilters] = useState({ search: '', status: '', categoryId: '', serviceId: '', departmentId: '' });
+  const [filters, setFilters] = useState({ search: '', status: '', categoryId: '', subsidiaryCode: '', ownerId: '' });
   const [formOpen, setFormOpen] = useState(false);
   const [editItem, setEditItem] = useState(null);
   const [deleteDialog, setDeleteDialog] = useState({ open: false, id: null, name: '' });
@@ -77,32 +75,50 @@ const MaterialsList = () => {
     if (!canReadAny) {
       setMaterials([]);
       setCategories([]);
-      setServices([]);
-      setDepartments([]);
+      setSubsidiaries([]);
       setOwners([]);
-      enqueueSnackbar('Vous n\'avez pas la permission de lire les matériels.', { variant: 'warning' });
+      enqueueSnackbar('Vous n\'avez pas la permission de lire les matériels GD.', { variant: 'warning' });
       setLoading(false);
       return;
     }
 
-    const apiFilters = { ...filters };
-    if (!canReadAll) apiFilters.ownerId = user?.id;
+    const apiFilters = {
+      status: filters.status,
+      categoryId: filters.categoryId,
+      ownerId: canReadAll ? (filters.ownerId || undefined) : user?.id,
+    };
 
     const loaders = [
-      materialsAPI.getAll(apiFilters),
       categoriesAPI.getAll(),
-      servicesAPI.getAll(),
-      structuresAPI.getDepartments(),
-      canCreateAll || canUpdateAll ? authAPI.getUsers() : Promise.resolve([]),
+      subsidiariesAPI.getAll(),
+      canReadAll || canCreateAll || canUpdateAll ? authAPI.getUsers() : Promise.resolve([]),
     ];
 
-    const [matsResult, catsResult, servicesResult, deptsResult, ownersResult] = await Promise.allSettled(loaders);
+    const [catsResult, subsResult, ownersResult] = await Promise.allSettled(loaders);
 
-    if (matsResult.status === 'fulfilled') {
-      setMaterials(matsResult.value || []);
-    } else {
+    let materialsResult = [];
+    try {
+      if (filters.subsidiaryCode) {
+        materialsResult = await materialsAPI.getBySubsidiary(filters.subsidiaryCode, apiFilters);
+      } else if (subsResult.status === 'fulfilled' && (subsResult.value || []).length > 0) {
+        const subsidiaryMaterials = await Promise.allSettled(
+          (subsResult.value || []).map((s) => materialsAPI.getBySubsidiary(s.code, apiFilters)),
+        );
+
+        const merged = subsidiaryMaterials
+          .filter((result) => result.status === 'fulfilled')
+          .flatMap((result) => result.value || []);
+
+        const unique = Array.from(new Map(merged.map((item) => [item.id, item])).values());
+        materialsResult = unique;
+      } else {
+        materialsResult = [];
+      }
+
+      setMaterials(materialsResult);
+    } catch (_error) {
       setMaterials([]);
-      enqueueSnackbar('Impossible de charger les matériels.', { variant: 'warning' });
+      enqueueSnackbar('Impossible de charger les matériels GD.', { variant: 'warning' });
     }
 
     if (catsResult.status === 'fulfilled') {
@@ -112,18 +128,11 @@ const MaterialsList = () => {
       enqueueSnackbar('Impossible de charger les catégories.', { variant: 'warning' });
     }
 
-    if (servicesResult.status === 'fulfilled') {
-      setServices(servicesResult.value || []);
+    if (subsResult.status === 'fulfilled') {
+      setSubsidiaries(subsResult.value || []);
     } else {
-      setServices([]);
-      enqueueSnackbar('Impossible de charger les services.', { variant: 'warning' });
-    }
-
-    if (deptsResult.status === 'fulfilled') {
-      setDepartments(deptsResult.value || []);
-    } else {
-      setDepartments([]);
-      enqueueSnackbar('Impossible de charger les départements.', { variant: 'warning' });
+      setSubsidiaries([]);
+      enqueueSnackbar('Impossible de charger les name raison.', { variant: 'warning' });
     }
 
     if (ownersResult.status === 'fulfilled') {
@@ -134,7 +143,7 @@ const MaterialsList = () => {
       })));
     } else {
       setOwners([]);
-      if (canCreateAll || canUpdateAll) {
+      if (canReadAll || canCreateAll || canUpdateAll) {
         enqueueSnackbar('Impossible de charger la liste des propriétaires.', { variant: 'warning' });
       }
     }
@@ -145,6 +154,7 @@ const MaterialsList = () => {
     user,
     canReadAny,
     canReadAll,
+    canReadOwn,
     canCreateAll,
     canUpdateAll,
     enqueueSnackbar,
@@ -172,16 +182,19 @@ const MaterialsList = () => {
   const handleFormSubmit = async (data) => {
     try {
       if (editItem && !canUpdateMaterial(editItem)) {
-        throw new Error('Vous ne pouvez modifier que vos propres matériels.');
+        throw new Error('Vous ne pouvez modifier que vos propres matériels GD.');
       }
 
-      const payload = { ...data };
+      const payload = {
+        ...data,
+        serviceId: null,
+      };
 
       if (editItem) {
         payload.ownerId = canUpdateAll ? (data?.ownerId || editItem.ownerId || user?.id) : user?.id;
       } else {
         if (!canCreateAny) {
-          throw new Error('Vous n\'avez pas la permission de créer des matériels.');
+          throw new Error('Vous n\'avez pas la permission de créer des matériels GD.');
         }
         payload.ownerId = canCreateAll ? (data?.ownerId || user?.id) : user?.id;
       }
@@ -190,12 +203,16 @@ const MaterialsList = () => {
         throw new Error('Utilisateur introuvable. Reconnectez-vous puis réessayez.');
       }
 
+      if (!payload.subsidiaryCode) {
+        throw new Error('Le champ name raison est obligatoire.');
+      }
+
       if (editItem) {
         await materialsAPI.update(editItem.id, payload);
-        enqueueSnackbar('Matériel modifié avec succès', { variant: 'success' });
+        enqueueSnackbar('GD Material modifié avec succès', { variant: 'success' });
       } else {
         await materialsAPI.create(payload);
-        enqueueSnackbar('Matériel créé avec succès', { variant: 'success' });
+        enqueueSnackbar('GD Material créé avec succès', { variant: 'success' });
       }
       setFormOpen(false);
       loadData();
@@ -209,10 +226,10 @@ const MaterialsList = () => {
     try {
       const target = materials.find((item) => String(item.id) === String(deleteDialog.id));
       if (!target || !canDeleteMaterial(target)) {
-        throw new Error('Vous ne pouvez supprimer que vos propres matériels.');
+        throw new Error('Vous ne pouvez supprimer que vos propres matériels GD.');
       }
       await materialsAPI.delete(deleteDialog.id);
-      enqueueSnackbar('Matériel supprimé', { variant: 'success' });
+      enqueueSnackbar('GD Material supprimé', { variant: 'success' });
       setDeleteDialog({ open: false, id: null, name: '' });
       loadData();
     } catch (err) {
@@ -221,31 +238,51 @@ const MaterialsList = () => {
     setDeleteLoading(false);
   };
 
-  const displayedMaterials = materials.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
+  const filteredMaterials = materials.filter((mat) => {
+    if (!filters.search) return true;
+    const s = String(filters.search).toLowerCase();
+    const haystack = [
+      mat.subsidiaryName,
+      mat.subsidiaryCode,
+      mat.owner,
+      mat.ownerId,
+      mat.brand,
+      mat.model,
+      mat.name,
+      mat.serialNumber,
+      mat.inventoryNumber,
+      mat.category,
+    ]
+      .map((value) => String(value || '').toLowerCase())
+      .join(' ');
+
+    return haystack.includes(s);
+  });
+
+  const displayedMaterials = filteredMaterials.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
 
   return (
     <Box>
       <PageHeader
-        title="Matériels"
-        subtitle={`${materials.length} matériel(s) trouvé(s)`}
-        breadcrumbs={[{ label: 'Accueil', path: '/dashboard' }, { label: 'Matériels' }]}
+        title="GD Material"
+        subtitle={`${materials.length} matériel(s) GD trouvé(s)`}
+        breadcrumbs={[{ label: 'Accueil', path: '/dashboard' }, { label: 'GD Material' }]}
         action={
           canCreateAny && (
             <Button variant="contained" startIcon={<AddIcon />} onClick={handleAdd}>
-              Nouveau Matériel
+              Nouveau GD Material
             </Button>
           )
         }
       />
 
-      {/* Filters */}
       <Card sx={{ mb: 2 }}>
         <CardContent sx={{ py: 2 }}>
           <Grid container spacing={2} alignItems="center">
             <Grid item xs={12} sm={4} md={5}>
               <TextField
                 fullWidth
-                placeholder="Rechercher par utilisateur, N° série ou N° inventaire..."
+                placeholder="Rechercher par raison, code, utilisateur, désignation, N° série, N° inv..."
                 value={filters.search}
                 onChange={handleFilterChange('search')}
                 InputProps={{
@@ -281,11 +318,11 @@ const MaterialsList = () => {
             </Grid>
             <Grid item xs={6} sm={3} md={2}>
               <FormControl fullWidth size="small">
-                <InputLabel>Service</InputLabel>
-                <Select value={filters.serviceId} onChange={handleFilterChange('serviceId')} label="Service">
+                <InputLabel>RAISON</InputLabel>
+                <Select value={filters.subsidiaryCode} onChange={handleFilterChange('subsidiaryCode')} label="RAISON">
                   <MenuItem value="">Tous</MenuItem>
-                  {services.map((s) => (
-                    <MenuItem key={s.id} value={s.id}>{s.name}</MenuItem>
+                  {subsidiaries.map((s) => (
+                    <MenuItem key={s.code} value={s.code}>{s.name}</MenuItem>
                   ))}
                 </Select>
               </FormControl>
@@ -293,11 +330,11 @@ const MaterialsList = () => {
             {canReadAll && (
               <Grid item xs={6} sm={3} md={3}>
                 <FormControl fullWidth size="small">
-                  <InputLabel>Département</InputLabel>
-                  <Select value={filters.departmentId} onChange={handleFilterChange('departmentId')} label="Département">
+                  <InputLabel>Utilisateur</InputLabel>
+                  <Select value={filters.ownerId} onChange={handleFilterChange('ownerId')} label="Utilisateur">
                     <MenuItem value="">Tous</MenuItem>
-                    {departments.map((d) => (
-                      <MenuItem key={d.id} value={d.id}>{d.name}</MenuItem>
+                    {owners.map((o) => (
+                      <MenuItem key={o.id} value={o.id}>{o.label}</MenuItem>
                     ))}
                   </Select>
                 </FormControl>
@@ -307,20 +344,20 @@ const MaterialsList = () => {
         </CardContent>
       </Card>
 
-      {/* Table */}
       <Card>
         <TableContainer>
           <Table size="small">
             <TableHead>
               <TableRow>
+                <TableCell>RAISON</TableCell>
+                <TableCell>Code</TableCell>
                 <TableCell>Utilisateur</TableCell>
                 <TableCell>Désignation</TableCell>
-                <TableCell>N° INV</TableCell>
                 <TableCell>N° Série</TableCell>
+                <TableCell>N° INV</TableCell>
                 <TableCell>Catégorie</TableCell>
-                <TableCell>Service</TableCell>
-                <TableCell>Statut</TableCell>
                 <TableCell>Date</TableCell>
+                <TableCell>Statut</TableCell>
                 {canMutateAny && <TableCell align="center">Actions</TableCell>}
               </TableRow>
             </TableHead>
@@ -328,23 +365,29 @@ const MaterialsList = () => {
               {loading ? (
                 Array.from({ length: 6 }).map((_, i) => (
                   <TableRow key={i}>
-                    {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((j) => (
+                    {Array.from({ length: canMutateAny ? 10 : 9 }).map((_, j) => (
                       <TableCell key={j}><Skeleton /></TableCell>
                     ))}
                   </TableRow>
                 ))
               ) : displayedMaterials.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={canMutateAny ? 9 : 8} align="center" sx={{ py: 4 }}>
+                  <TableCell colSpan={canMutateAny ? 10 : 9} align="center" sx={{ py: 4 }}>
                     <Box display="flex" flexDirection="column" alignItems="center" gap={1} color="text.secondary">
-                      <ComputerIcon sx={{ fontSize: 40, opacity: 0.3 }} />
-                      <Typography variant="body2">Aucun matériel trouvé</Typography>
+                      <LocalGasStationIcon sx={{ fontSize: 40, opacity: 0.3 }} />
+                      <Typography variant="body2">Aucun matériel GD trouvé</Typography>
                     </Box>
                   </TableCell>
                 </TableRow>
               ) : (
                 displayedMaterials.map((mat) => (
                   <TableRow key={mat.id}>
+                    <TableCell>
+                      <Typography variant="body2">{mat.subsidiaryName || '—'}</Typography>
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="body2">{mat.subsidiaryCode || '—'}</Typography>
+                    </TableCell>
                     <TableCell>
                       <Typography variant="body2">{mat.owner || '—'}</Typography>
                     </TableCell>
@@ -355,24 +398,21 @@ const MaterialsList = () => {
                       </Box>
                     </TableCell>
                     <TableCell>
-                      <Typography variant="body2">{mat.inventoryNumber || '—'}</Typography>
+                      <Chip label={mat.serialNumber || '—'} size="small" variant="outlined" color="primary" sx={{ fontWeight: 700, fontSize: '0.7rem' }} />
                     </TableCell>
                     <TableCell>
-                      <Chip label={mat.serialNumber || '—'} size="small" variant="outlined" color="primary" sx={{ fontWeight: 700, fontSize: '0.7rem' }} />
+                      <Typography variant="body2">{mat.inventoryNumber || '—'}</Typography>
                     </TableCell>
                     <TableCell>
                       <Typography variant="body2">{mat.category || '—'}</Typography>
                     </TableCell>
-                    <TableCell>
-                      <Typography variant="body2">{mat.serviceName || '—'}</Typography>
-                    </TableCell>
-                    <TableCell><StatusChip status={mat.status} /></TableCell>
                     <TableCell>
                       <Box>
                         <Typography variant="body2" fontWeight={600}>{formatDate(mat.purchaseDate)}</Typography>
                         <Typography variant="caption" color="text.secondary">{formatDate(mat.warrantyExpiry)}</Typography>
                       </Box>
                     </TableCell>
+                    <TableCell><StatusChip status={mat.status} /></TableCell>
                     {canMutateAny && (
                       <TableCell align="center">
                         <Box display="flex" gap={0.5} justifyContent="center">
@@ -406,7 +446,7 @@ const MaterialsList = () => {
         <TablePagination
           rowsPerPageOptions={[5, 10, 25, 50]}
           component="div"
-          count={materials.length}
+          count={filteredMaterials.length}
           rowsPerPage={rowsPerPage}
           page={page}
           onPageChange={(_, np) => setPage(np)}
@@ -416,22 +456,20 @@ const MaterialsList = () => {
         />
       </Card>
 
-      {/* Material Form Modal */}
-      <MaterialForm
+      <GdMaterialForm
         open={formOpen}
         onClose={() => setFormOpen(false)}
         onSubmit={handleFormSubmit}
         editItem={editItem}
         categories={categories}
-        services={services}
+        subsidiaries={subsidiaries}
         owners={owners}
         canSelectOwner={editItem ? canUpdateAll : canCreateAll}
       />
 
-      {/* Delete Confirm */}
       <ConfirmDialog
         open={deleteDialog.open}
-        title="Supprimer le Matériel"
+        title="Supprimer le GD Material"
         message={`Êtes-vous sûr de vouloir supprimer "${deleteDialog.name}" ? Cette action est irréversible.`}
         onConfirm={handleDeleteConfirm}
         onClose={() => setDeleteDialog({ open: false, id: null, name: '' })}
@@ -441,4 +479,4 @@ const MaterialsList = () => {
   );
 };
 
-export default MaterialsList;
+export default GdMaterialsList;

@@ -11,6 +11,7 @@ import { SIDEBAR_WIDTH, ROLE_LABELS, ROLE_COLORS, FULL_ACCESS_MODE } from '../..
 
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import ComputerIcon from '@mui/icons-material/Computer';
+import LocalGasStationIcon from '@mui/icons-material/LocalGasStation';
 import BuildIcon from '@mui/icons-material/Build';
 import BusinessIcon from '@mui/icons-material/Business';
 import CategoryIcon from '@mui/icons-material/Category';
@@ -30,6 +31,12 @@ const navItems = [
     label: 'Matériels',
     icon: <ComputerIcon />,
     path: '/materials',
+    roles: [ROLES.ADMIN, ROLES.USER],
+  },
+  {
+    label: 'GD Material',
+    icon: <LocalGasStationIcon />,
+    path: '/gd-materials',
     roles: [ROLES.ADMIN, ROLES.USER],
   },
   {
