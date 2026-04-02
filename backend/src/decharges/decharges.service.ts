@@ -143,7 +143,7 @@ export class DechargesService {
                             text-underline-offset: 6px;
                             text-decoration-thickness: 2px;
                         }
-                        .ref { text-align: center; font-size: 24px; margin-bottom: 10px; }
+                        .ref { text-align: center; font-size: 24px; margin-bottom: 40px; }
                         .line {
                             margin: 8px 0;
                             font-size: 15px;
