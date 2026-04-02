@@ -7,9 +7,9 @@ import { useAuth } from '../../context/AuthContext';
 import { MATERIAL_STATUSES } from '../../utils/constants';
 
 const initialForm = {
-  name: '', serialNumber: '',
+  name: '', brand: '', model: '', serialNumber: '', inventoryNumber: '',
   category: '', categoryId: '', status: 'Actif',
-  owner: '', ownerId: '', department: '', departmentId: '',
+  owner: '', ownerId: '', serviceName: '', serviceId: '', department: '', departmentId: '',
   purchaseDate: '', warrantyExpiry: '', description: '',
 };
 
@@ -19,7 +19,7 @@ const MaterialForm = ({
   onSubmit,
   editItem,
   categories = [],
-  departments = [],
+  services = [],
   owners = [],
   canSelectOwner = false,
 }) => {
@@ -36,8 +36,6 @@ const MaterialForm = ({
         ...initialForm,
         owner: `${user?.firstName} ${user?.lastName}`,
         ownerId: user?.id,
-        department: user?.department,
-        departmentId: user?.departmentId,
       });
     }
     setErrors({});
@@ -54,10 +52,17 @@ const MaterialForm = ({
     setForm((f) => ({ ...f, categoryId: selectedId, category: cat?.name || '' }));
   };
 
-  const handleDeptChange = (e) => {
+  const handleServiceChange = (e) => {
     const selectedId = e.target.value;
-    const dept = departments.find((d) => String(d.id) === String(selectedId));
-    setForm((f) => ({ ...f, departmentId: selectedId, department: dept?.name || '' }));
+    const service = services.find((s) => String(s.id) === String(selectedId));
+    setForm((f) => ({
+      ...f,
+      serviceId: selectedId,
+      serviceName: service?.name || '',
+      departmentId: service?.departmentId || '',
+      department: service?.departmentName || '',
+    }));
+    if (errors.serviceId) setErrors((err) => ({ ...err, serviceId: '' }));
   };
 
   const handleOwnerChange = (e) => {
@@ -68,11 +73,13 @@ const MaterialForm = ({
 
   const validate = () => {
     const newErrors = {};
-    if (!form.name.trim()) newErrors.name = 'Champ requis';
+    if (!form.brand || !form.brand.trim()) newErrors.brand = 'Champ requis';
+    if (!form.model || !form.model.trim()) newErrors.model = 'Champ requis';
+    if (!form.inventoryNumber || !form.inventoryNumber.trim()) newErrors.inventoryNumber = 'Champ requis';
     if (!form.serialNumber || !form.serialNumber.trim()) newErrors.serialNumber = 'Champ requis';
     if (!form.categoryId) newErrors.categoryId = 'Champ requis';
+    if (!form.serviceId) newErrors.serviceId = 'Champ requis';
     if (!form.status) newErrors.status = 'Champ requis';
-    if (!form.departmentId) newErrors.departmentId = 'Champ requis';
     if (!form.ownerId) newErrors.ownerId = 'Propriétaire introuvable';
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -107,11 +114,31 @@ const MaterialForm = ({
             <Grid item xs={12} sm={6}>
               <TextField
                 fullWidth
-                label="Désignation *"
-                value={form.name}
-                onChange={handleChange('name')}
-                error={!!errors.name}
-                helperText={errors.name}
+                label="Marque *"
+                value={form.brand}
+                onChange={handleChange('brand')}
+                error={!!errors.brand}
+                helperText={errors.brand}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Modèle *"
+                value={form.model}
+                onChange={handleChange('model')}
+                error={!!errors.model}
+                helperText={errors.model}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Numéro d'Inventaire *"
+                value={form.inventoryNumber}
+                onChange={handleChange('inventoryNumber')}
+                error={!!errors.inventoryNumber}
+                helperText={errors.inventoryNumber}
               />
             </Grid>
             <Grid item xs={12} sm={6}>
@@ -159,14 +186,14 @@ const MaterialForm = ({
               <TextField
                 fullWidth
                 select
-                label="Département *"
-                value={form.departmentId || ''}
-                onChange={handleDeptChange}
-                error={!!errors.departmentId}
-                helperText={errors.departmentId}
+                label="Service *"
+                value={form.serviceId || ''}
+                onChange={handleServiceChange}
+                error={!!errors.serviceId}
+                helperText={errors.serviceId}
               >
-                {departments.map((d) => (
-                  <MenuItem key={d.id} value={d.id}>{d.name}</MenuItem>
+                {services.map((s) => (
+                  <MenuItem key={s.id} value={s.id}>{s.name}</MenuItem>
                 ))}
               </TextField>
             </Grid>
@@ -175,7 +202,7 @@ const MaterialForm = ({
                 <TextField
                   fullWidth
                   select
-                  label="Propriétaire *"
+                  label="Utilisateur *"
                   value={form.ownerId || ''}
                   onChange={handleOwnerChange}
                   error={!!errors.ownerId}
@@ -191,7 +218,7 @@ const MaterialForm = ({
               ) : (
                 <TextField
                   fullWidth
-                  label="Propriétaire"
+                  label="Utilisateur"
                   value={form.owner}
                   disabled
                   error={!!errors.ownerId}

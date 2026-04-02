@@ -14,6 +14,7 @@ import { useAuth } from '../../context/AuthContext';
 import { materialsAPI } from '../../api/materials';
 import { categoriesAPI } from '../../api/categories';
 import { structuresAPI } from '../../api/structures';
+import { servicesAPI } from '../../api/services';
 import { authAPI } from '../../api/auth';
 import PageHeader from '../../components/common/PageHeader';
 import { StatusChip } from '../../components/common/StatusChip';
@@ -39,13 +40,14 @@ const MaterialsList = () => {
 
   const [materials, setMaterials] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [services, setServices] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [owners, setOwners] = useState([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
 
-  const [filters, setFilters] = useState({ search: '', status: '', categoryId: '', departmentId: '' });
+  const [filters, setFilters] = useState({ search: '', status: '', categoryId: '', serviceId: '', departmentId: '' });
   const [formOpen, setFormOpen] = useState(false);
   const [editItem, setEditItem] = useState(null);
   const [deleteDialog, setDeleteDialog] = useState({ open: false, id: null, name: '' });
@@ -64,6 +66,8 @@ const MaterialsList = () => {
   const canCreateAny = canCreateOwn || canCreateAll;
   const canMutateAny = canUpdateOwn || canUpdateAll || canDeleteOwn || canDeleteAll;
 
+  const formatDate = (value) => (value ? new Date(value).toLocaleDateString('fr-FR') : '—');
+
   const isOwnMaterial = (material) => String(material?.ownerId || '') === String(user?.id || '');
   const canUpdateMaterial = (material) => canUpdateAll || (canUpdateOwn && isOwnMaterial(material));
   const canDeleteMaterial = (material) => canDeleteAll || (canDeleteOwn && isOwnMaterial(material));
@@ -73,6 +77,7 @@ const MaterialsList = () => {
     if (!canReadAny) {
       setMaterials([]);
       setCategories([]);
+      setServices([]);
       setDepartments([]);
       setOwners([]);
       enqueueSnackbar('Vous n\'avez pas la permission de lire les matériels.', { variant: 'warning' });
@@ -86,11 +91,12 @@ const MaterialsList = () => {
     const loaders = [
       materialsAPI.getAll(apiFilters),
       categoriesAPI.getAll(),
+      servicesAPI.getAll(),
       structuresAPI.getDepartments(),
       canCreateAll || canUpdateAll ? authAPI.getUsers() : Promise.resolve([]),
     ];
 
-    const [matsResult, catsResult, deptsResult, ownersResult] = await Promise.allSettled(loaders);
+    const [matsResult, catsResult, servicesResult, deptsResult, ownersResult] = await Promise.allSettled(loaders);
 
     if (matsResult.status === 'fulfilled') {
       setMaterials(matsResult.value || []);
@@ -104,6 +110,13 @@ const MaterialsList = () => {
     } else {
       setCategories([]);
       enqueueSnackbar('Impossible de charger les catégories.', { variant: 'warning' });
+    }
+
+    if (servicesResult.status === 'fulfilled') {
+      setServices(servicesResult.value || []);
+    } else {
+      setServices([]);
+      enqueueSnackbar('Impossible de charger les services.', { variant: 'warning' });
     }
 
     if (deptsResult.status === 'fulfilled') {
@@ -232,7 +245,7 @@ const MaterialsList = () => {
             <Grid item xs={12} sm={4} md={5}>
               <TextField
                 fullWidth
-                placeholder="Rechercher par nom ou numéro de série..."
+                placeholder="Rechercher par utilisateur, N° série ou N° inventaire..."
                 value={filters.search}
                 onChange={handleFilterChange('search')}
                 InputProps={{
@@ -266,6 +279,17 @@ const MaterialsList = () => {
                 </Select>
               </FormControl>
             </Grid>
+            <Grid item xs={6} sm={3} md={2}>
+              <FormControl fullWidth size="small">
+                <InputLabel>Service</InputLabel>
+                <Select value={filters.serviceId} onChange={handleFilterChange('serviceId')} label="Service">
+                  <MenuItem value="">Tous</MenuItem>
+                  {services.map((s) => (
+                    <MenuItem key={s.id} value={s.id}>{s.name}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
             {canReadAll && (
               <Grid item xs={6} sm={3} md={3}>
                 <FormControl fullWidth size="small">
@@ -289,11 +313,12 @@ const MaterialsList = () => {
           <Table size="small">
             <TableHead>
               <TableRow>
-                <TableCell>N° Série</TableCell>
+                <TableCell>Utilisateur</TableCell>
                 <TableCell>Désignation</TableCell>
+                <TableCell>N° Inventaire</TableCell>
+                <TableCell>N° Série</TableCell>
                 <TableCell>Catégorie</TableCell>
-                <TableCell>Propriétaire</TableCell>
-                <TableCell>Département</TableCell>
+                <TableCell>Service</TableCell>
                 <TableCell>Statut</TableCell>
                 <TableCell>Date</TableCell>
                 {canMutateAny && <TableCell align="center">Actions</TableCell>}
@@ -303,14 +328,14 @@ const MaterialsList = () => {
               {loading ? (
                 Array.from({ length: 6 }).map((_, i) => (
                   <TableRow key={i}>
-                    {[1, 2, 3, 4, 5, 6, 7].map((j) => (
+                    {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((j) => (
                       <TableCell key={j}><Skeleton /></TableCell>
                     ))}
                   </TableRow>
                 ))
               ) : displayedMaterials.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} align="center" sx={{ py: 4 }}>
+                  <TableCell colSpan={canMutateAny ? 9 : 8} align="center" sx={{ py: 4 }}>
                     <Box display="flex" flexDirection="column" alignItems="center" gap={1} color="text.secondary">
                       <ComputerIcon sx={{ fontSize: 40, opacity: 0.3 }} />
                       <Typography variant="body2">Aucun matériel trouvé</Typography>
@@ -321,28 +346,32 @@ const MaterialsList = () => {
                 displayedMaterials.map((mat) => (
                   <TableRow key={mat.id}>
                     <TableCell>
-                      <Chip label={mat.serialNumber || '—'} size="small" variant="outlined" color="primary" sx={{ fontWeight: 700, fontSize: '0.7rem' }} />
+                      <Typography variant="body2">{mat.owner || '—'}</Typography>
                     </TableCell>
                     <TableCell>
                       <Box>
-                        <Typography variant="body2" fontWeight={600}>{mat.name}</Typography>
-                        <Typography variant="caption" color="text.secondary">{mat.brand} {mat.model}</Typography>
+                        <Typography variant="body2" fontWeight={600}>{mat.brand || mat.name || '—'}</Typography>
+                        <Typography variant="caption" color="text.secondary">{mat.model || '—'}</Typography>
                       </Box>
                     </TableCell>
                     <TableCell>
-                      <Typography variant="body2">{mat.category}</Typography>
+                      <Typography variant="body2">{mat.inventoryNumber || '—'}</Typography>
                     </TableCell>
                     <TableCell>
-                      <Typography variant="body2">{mat.owner}</Typography>
+                      <Chip label={mat.serialNumber || '—'} size="small" variant="outlined" color="primary" sx={{ fontWeight: 700, fontSize: '0.7rem' }} />
                     </TableCell>
                     <TableCell>
-                      <Typography variant="body2">{mat.department}</Typography>
+                      <Typography variant="body2">{mat.category || '—'}</Typography>
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="body2">{mat.serviceName || '—'}</Typography>
                     </TableCell>
                     <TableCell><StatusChip status={mat.status} /></TableCell>
                     <TableCell>
-                      <Typography variant="caption" color="text.secondary">
-                        {mat.purchaseDate ? new Date(mat.purchaseDate).toLocaleDateString('fr-FR') : '—'}
-                      </Typography>
+                      <Box>
+                        <Typography variant="body2" fontWeight={600}>{formatDate(mat.purchaseDate)}</Typography>
+                        <Typography variant="caption" color="text.secondary">{formatDate(mat.warrantyExpiry)}</Typography>
+                      </Box>
                     </TableCell>
                     {canMutateAny && (
                       <TableCell align="center">
@@ -394,7 +423,7 @@ const MaterialsList = () => {
         onSubmit={handleFormSubmit}
         editItem={editItem}
         categories={categories}
-        departments={departments}
+        services={services}
         owners={owners}
         canSelectOwner={editItem ? canUpdateAll : canCreateAll}
       />

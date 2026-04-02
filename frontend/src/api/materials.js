@@ -30,6 +30,7 @@ const normalizeMaterial = (item = {}) => {
   return {
     id: item?.numeroSerie,
     serialNumber: item?.numeroSerie,
+    inventoryNumber: item?.numeroInventaire || '',
     code: item?.numeroSerie,
     name,
     brand: item?.marque || '',
@@ -44,7 +45,7 @@ const normalizeMaterial = (item = {}) => {
     department: department?.name || '',
     status: toUiStatus(item?.etat),
     purchaseDate: item?.dateEntree || '',
-    warrantyExpiry: '',
+    warrantyExpiry: item?.finGarontie || '',
     description: '',
     createdAt: item?.dateEntree || '',
   };
@@ -64,6 +65,7 @@ const toIntOrNull = (value) => {
 
 const buildPayload = (data = {}) => ({
   numeroSerie: String(data?.serialNumber || '').trim(),
+  numeroInventaire: String(data?.inventoryNumber || '').trim() || undefined,
   categorieId: toIntOrUndefined(data?.categoryId),
   serviceId: Object.prototype.hasOwnProperty.call(data, 'serviceId')
     ? toIntOrNull(data?.serviceId)
@@ -71,6 +73,7 @@ const buildPayload = (data = {}) => ({
   departmentId: toIntOrUndefined(data?.departmentId),
   proprietaireId: data?.ownerId || undefined,
   dateEntree: data?.purchaseDate || undefined,
+  finGarontie: data?.warrantyExpiry || undefined,
   etat: toBackendEtat(data?.status),
   marque: String(data?.brand || data?.name || '').trim() || undefined,
   modele: String(data?.model || '').trim() || undefined,
@@ -88,15 +91,20 @@ const applyFilters = (materials, filters = {}) => {
   if (filters.categoryId) {
     result = result.filter((m) => String(m.categoryId) === String(filters.categoryId));
   }
+  if (filters.serviceId) {
+    result = result.filter((m) => String(m.serviceId) === String(filters.serviceId));
+  }
   if (filters.status) {
     result = result.filter((m) => m.status === filters.status);
   }
   if (filters.search) {
     const s = String(filters.search).toLowerCase();
     result = result.filter((m) => {
-      const nameMatch = String(m.name || '').toLowerCase().includes(s);
+      const userNameMatch = String(m.owner || '').toLowerCase().includes(s);
+      const userIdMatch = String(m.ownerId || '').toLowerCase().includes(s);
       const serialMatch = String(m.serialNumber || '').toLowerCase().includes(s);
-      return nameMatch || serialMatch;
+      const inventoryMatch = String(m.inventoryNumber || '').toLowerCase().includes(s);
+      return userNameMatch || userIdMatch || serialMatch || inventoryMatch;
     });
   }
 
