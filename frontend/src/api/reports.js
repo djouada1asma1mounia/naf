@@ -1,26 +1,32 @@
-import { materialsAPI } from './materials';
-import { maintenanceAPI } from './maintenance';
-import { authAPI } from './auth';
-import { structuresAPI } from './structures';
+import { materialsAPI } from "./materials";
+import { maintenanceAPI } from "./maintenance";
+import { authAPI } from "./auth";
+import { structuresAPI } from "./structures";
 
 const emptyInterventionsByMonth = [
-  { month: 'Jan', corrective: 0, preventive: 0 },
-  { month: 'Fév', corrective: 0, preventive: 0 },
-  { month: 'Mar', corrective: 0, preventive: 0 },
-  { month: 'Avr', corrective: 0, preventive: 0 },
-  { month: 'Mai', corrective: 0, preventive: 0 },
-  { month: 'Juin', corrective: 0, preventive: 0 },
+  { month: "Jan", corrective: 0, preventive: 0 },
+  { month: "Fév", corrective: 0, preventive: 0 },
+  { month: "Mar", corrective: 0, preventive: 0 },
+  { month: "Avr", corrective: 0, preventive: 0 },
+  { month: "Mai", corrective: 0, preventive: 0 },
+  { month: "Juin", corrective: 0, preventive: 0 },
 ];
 
 const buildMaterialsStats = (materials = [], departments = []) => {
   const totalMaterials = materials.length;
-  const activeMaterials = materials.filter((m) => m.status === 'Actif').length;
-  const maintenanceMaterials = materials.filter((m) => m.status === 'En Maintenance').length;
-  const panneMaterials = materials.filter((m) => m.status === 'En Panne').length;
+  const activeMaterials = materials.filter(
+    (m) => m.status === "En Service",
+  ).length;
+  const maintenanceMaterials = materials.filter(
+    (m) => m.status === "Reforme",
+  ).length;
+  const panneMaterials = materials.filter(
+    (m) => m.status === "En Panne",
+  ).length;
 
   const byCategoryMap = new Map();
   materials.forEach((m) => {
-    const key = m.category || 'Non classé';
+    const key = m.category || "Non classé";
     byCategoryMap.set(key, (byCategoryMap.get(key) || 0) + 1);
   });
 
@@ -29,15 +35,17 @@ const buildMaterialsStats = (materials = [], departments = []) => {
     .sort((a, b) => b.value - a.value);
 
   const materialsByStatus = [
-    { name: 'Actif', value: activeMaterials },
-    { name: 'En Maintenance', value: maintenanceMaterials },
-    { name: 'En Panne', value: panneMaterials },
+    { name: "En Service", value: activeMaterials },
+    { name: "Reforme", value: maintenanceMaterials },
+    { name: "En Panne", value: panneMaterials },
   ];
 
   const materialsByDept = departments.map((department) => ({
     name: department.code || department.name,
     fullName: department.name,
-    count: materials.filter((m) => String(m.departmentId) === String(department.id)).length,
+    count: materials.filter(
+      (m) => String(m.departmentId) === String(department.id),
+    ).length,
   }));
 
   return {
@@ -56,10 +64,14 @@ const buildInterventionsByMonth = (interventions = []) => {
     return emptyInterventionsByMonth;
   }
 
-  const monthLabels = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin'];
+  const monthLabels = ["Jan", "Fév", "Mar", "Avr", "Mai", "Juin"];
   const now = new Date();
   const buckets = monthLabels.map((label, index) => {
-    const date = new Date(now.getFullYear(), now.getMonth() - (monthLabels.length - 1 - index), 1);
+    const date = new Date(
+      now.getFullYear(),
+      now.getMonth() - (monthLabels.length - 1 - index),
+      1,
+    );
     return {
       year: date.getFullYear(),
       monthIndex: date.getMonth(),
@@ -74,17 +86,23 @@ const buildInterventionsByMonth = (interventions = []) => {
     const date = dateValue ? new Date(dateValue) : null;
     if (!date || Number.isNaN(date.getTime())) return;
 
-    const bucket = buckets.find((b) => b.year === date.getFullYear() && b.monthIndex === date.getMonth());
+    const bucket = buckets.find(
+      (b) => b.year === date.getFullYear() && b.monthIndex === date.getMonth(),
+    );
     if (!bucket) return;
 
-    if (intervention.type === 'Préventive') {
+    if (intervention.type === "Préventive") {
       bucket.preventive += 1;
     } else {
       bucket.corrective += 1;
     }
   });
 
-  return buckets.map(({ month, corrective, preventive }) => ({ month, corrective, preventive }));
+  return buckets.map(({ month, corrective, preventive }) => ({
+    month,
+    corrective,
+    preventive,
+  }));
 };
 
 export const reportsAPI = {
@@ -97,7 +115,9 @@ export const reportsAPI = {
     ]);
 
     const materialStats = buildMaterialsStats(materials, departments);
-    const ongoingInterventions = interventions.filter((m) => m.status === 'En cours').length;
+    const ongoingInterventions = interventions.filter(
+      (m) => m.status === "En cours",
+    ).length;
 
     return {
       ...materialStats,

@@ -1,4 +1,4 @@
-import axiosInstance from './axios';
+import axiosInstance from "./axios";
 
 const getErrorMessage = (error, fallback) => {
   const apiMessage = error?.response?.data?.message;
@@ -7,23 +7,30 @@ const getErrorMessage = (error, fallback) => {
 };
 
 const toUiStatus = (etat) => {
-  const normalized = String(etat || '').toLowerCase();
-  if (normalized.includes('maintenance')) return 'En Maintenance';
-  if (normalized.includes('panne')) return 'En Panne';
-  return 'Actif';
+  const normalized = String(etat || "").toLowerCase();
+  if (normalized.includes("reforme") || normalized.includes("maintenance"))
+    return "Reforme";
+  if (normalized.includes("panne")) return "En Panne";
+  return "En Service";
 };
 
 const toBackendEtat = (status) => {
-  if (status === 'En Maintenance') return 'en Maintenance';
-  if (status === 'En Panne') return 'en Panne';
-  return 'Active';
+  if (status === "Reforme") return "Reforme";
+  if (status === "En Panne") return "En Panne";
+  return "En Service";
 };
 
 const normalizeMaterial = (item = {}) => {
-  const ownerFirstName = item?.proprietaire?.prenom || '';
-  const ownerLastName = item?.proprietaire?.nom || '';
-  const ownerLabel = `${ownerFirstName} ${ownerLastName}`.trim() || item?.proprietaire?.email || '';
-  const name = `${item?.marque || ''} ${item?.modele || ''}`.trim() || item?.numeroSerie || 'Matériel';
+  const ownerFirstName = item?.proprietaire?.prenom || "";
+  const ownerLastName = item?.proprietaire?.nom || "";
+  const ownerLabel =
+    `${ownerFirstName} ${ownerLastName}`.trim() ||
+    item?.proprietaire?.email ||
+    "";
+  const name =
+    `${item?.marque || ""} ${item?.modele || ""}`.trim() ||
+    item?.numeroSerie ||
+    "Matériel";
   const service = item?.service || null;
   const subsidiary = item?.subsidiary || null;
   const department = service?.department || item?.department || null;
@@ -31,77 +38,89 @@ const normalizeMaterial = (item = {}) => {
   return {
     id: item?.numeroSerie,
     serialNumber: item?.numeroSerie,
-    inventoryNumber: item?.numeroInventaire || '',
+    inventoryNumber: item?.numeroInventaire || "",
     code: item?.numeroSerie,
     name,
-    brand: item?.marque || '',
-    model: item?.modele || '',
-    categoryId: item?.categorie?.id || '',
-    category: item?.categorie?.name || '',
+    brand: item?.marque || "",
+    model: item?.modele || "",
+    categoryId: item?.categorie?.id || "",
+    category: item?.categorie?.name || "",
     serviceId: service?.id || null,
-    serviceName: service?.name || '',
-    subsidiaryCode: subsidiary?.code || '',
-    subsidiaryName: subsidiary?.name || '',
-    ownerId: item?.proprietaire?.id || '',
+    serviceName: service?.name || "",
+    subsidiaryCode: subsidiary?.code || "",
+    subsidiaryName: subsidiary?.name || "",
+    ownerId: item?.proprietaire?.id || "",
     owner: ownerLabel,
-    departmentId: department?.id || '',
-    department: department?.name || '',
+    departmentId: department?.id || "",
+    department: department?.name || "",
     status: toUiStatus(item?.etat),
-    purchaseDate: item?.dateEntree || '',
-    warrantyExpiry: item?.finGarontie || '',
-    description: '',
-    createdAt: item?.dateEntree || '',
+    purchaseDate: item?.dateEntree || "",
+    warrantyExpiry: item?.finGarontie || "",
+    description: "",
+    createdAt: item?.dateEntree || "",
   };
 };
 
 const toIntOrUndefined = (value) => {
-  if (value === null || value === undefined || value === '') return undefined;
+  if (value === null || value === undefined || value === "") return undefined;
   const parsed = Number(value);
   return Number.isNaN(parsed) ? undefined : parsed;
 };
 
 const toIntOrNull = (value) => {
-  if (value === null || value === undefined || value === '') return null;
+  if (value === null || value === undefined || value === "") return null;
   const parsed = Number(value);
   return Number.isNaN(parsed) ? null : parsed;
 };
 
 const buildPayload = (data = {}) => ({
-  numeroSerie: String(data?.serialNumber || '').trim(),
-  numeroInventaire: String(data?.inventoryNumber || '').trim() || undefined,
+  numeroSerie: String(data?.serialNumber || "").trim(),
+  numeroInventaire: String(data?.inventoryNumber || "").trim() || undefined,
   categorieId: toIntOrUndefined(data?.categoryId),
-  serviceId: Object.prototype.hasOwnProperty.call(data, 'serviceId')
+  serviceId: Object.prototype.hasOwnProperty.call(data, "serviceId")
     ? toIntOrNull(data?.serviceId)
     : undefined,
-  subsidiaryCode: Object.prototype.hasOwnProperty.call(data, 'subsidiaryCode')
-    ? (data?.subsidiaryCode ? String(data.subsidiaryCode).trim() : null)
+  subsidiaryCode: Object.prototype.hasOwnProperty.call(data, "subsidiaryCode")
+    ? data?.subsidiaryCode
+      ? String(data.subsidiaryCode).trim()
+      : null
     : undefined,
   departmentId: toIntOrUndefined(data?.departmentId),
   proprietaireId: data?.ownerId || undefined,
   dateEntree: data?.purchaseDate || undefined,
   finGarontie: data?.warrantyExpiry || undefined,
   etat: toBackendEtat(data?.status),
-  marque: String(data?.brand || data?.name || '').trim() || undefined,
-  modele: String(data?.model || '').trim() || undefined,
+  marque: String(data?.brand || data?.name || "").trim() || undefined,
+  modele: String(data?.model || "").trim() || undefined,
 });
 
 const applyFilters = (materials, filters = {}) => {
   let result = [...materials];
 
   if (filters.ownerId) {
-    result = result.filter((m) => String(m.ownerId) === String(filters.ownerId));
+    result = result.filter(
+      (m) => String(m.ownerId) === String(filters.ownerId),
+    );
   }
   if (filters.departmentId) {
-    result = result.filter((m) => String(m.departmentId) === String(filters.departmentId));
+    result = result.filter(
+      (m) => String(m.departmentId) === String(filters.departmentId),
+    );
   }
   if (filters.categoryId) {
-    result = result.filter((m) => String(m.categoryId) === String(filters.categoryId));
+    result = result.filter(
+      (m) => String(m.categoryId) === String(filters.categoryId),
+    );
   }
   if (filters.serviceId) {
-    result = result.filter((m) => String(m.serviceId) === String(filters.serviceId));
+    result = result.filter(
+      (m) => String(m.serviceId) === String(filters.serviceId),
+    );
   }
   if (filters.subsidiaryCode) {
-    result = result.filter((m) => String(m.subsidiaryCode) === String(filters.subsidiaryCode));
+    result = result.filter(
+      (m) => String(m.subsidiaryCode) === String(filters.subsidiaryCode),
+    );
   }
   if (filters.status) {
     result = result.filter((m) => m.status === filters.status);
@@ -109,10 +128,18 @@ const applyFilters = (materials, filters = {}) => {
   if (filters.search) {
     const s = String(filters.search).toLowerCase();
     result = result.filter((m) => {
-      const userNameMatch = String(m.owner || '').toLowerCase().includes(s);
-      const userIdMatch = String(m.ownerId || '').toLowerCase().includes(s);
-      const serialMatch = String(m.serialNumber || '').toLowerCase().includes(s);
-      const inventoryMatch = String(m.inventoryNumber || '').toLowerCase().includes(s);
+      const userNameMatch = String(m.owner || "")
+        .toLowerCase()
+        .includes(s);
+      const userIdMatch = String(m.ownerId || "")
+        .toLowerCase()
+        .includes(s);
+      const serialMatch = String(m.serialNumber || "")
+        .toLowerCase()
+        .includes(s);
+      const inventoryMatch = String(m.inventoryNumber || "")
+        .toLowerCase()
+        .includes(s);
       return userNameMatch || userIdMatch || serialMatch || inventoryMatch;
     });
   }
@@ -123,12 +150,14 @@ const applyFilters = (materials, filters = {}) => {
 export const materialsAPI = {
   getAll: async (filters = {}) => {
     try {
-      const response = await axiosInstance.get('/materiels');
+      const response = await axiosInstance.get("/materiels");
       const rawItems = response?.data?.data || [];
       const normalized = rawItems.map(normalizeMaterial);
       return applyFilters(normalized, filters);
     } catch (error) {
-      throw new Error(getErrorMessage(error, 'Erreur lors du chargement des matériels.'));
+      throw new Error(
+        getErrorMessage(error, "Erreur lors du chargement des matériels."),
+      );
     }
   },
 
@@ -138,29 +167,35 @@ export const materialsAPI = {
       const rawItem = response?.data?.data || response?.data;
       return normalizeMaterial(rawItem);
     } catch (error) {
-      throw new Error(getErrorMessage(error, 'Matériel non trouvé.'));
+      throw new Error(getErrorMessage(error, "Matériel non trouvé."));
     }
   },
 
   getBySubsidiary: async (subsidiaryCode, filters = {}) => {
     try {
       const params = subsidiaryCode ? { subsidiaryCode } : {};
-      const response = await axiosInstance.get('/materiels/by-subsidiary', { params });
+      const response = await axiosInstance.get("/materiels/by-subsidiary", {
+        params,
+      });
       const rawItems = response?.data?.data || [];
       const normalized = rawItems.map(normalizeMaterial);
       return applyFilters(normalized, { ...filters, subsidiaryCode });
     } catch (error) {
-      throw new Error(getErrorMessage(error, 'Erreur lors du chargement des matériels GD.'));
+      throw new Error(
+        getErrorMessage(error, "Erreur lors du chargement des matériels GD."),
+      );
     }
   },
 
   create: async (data) => {
     try {
       const payload = buildPayload(data);
-      const response = await axiosInstance.post('/materiels', payload);
+      const response = await axiosInstance.post("/materiels", payload);
       return normalizeMaterial(response?.data?.data || response?.data);
     } catch (error) {
-      throw new Error(getErrorMessage(error, 'Erreur lors de la création du matériel.'));
+      throw new Error(
+        getErrorMessage(error, "Erreur lors de la création du matériel."),
+      );
     }
   },
 
@@ -171,7 +206,9 @@ export const materialsAPI = {
       const response = await axiosInstance.patch(`/materiels/${id}`, payload);
       return normalizeMaterial(response?.data?.data || response?.data);
     } catch (error) {
-      throw new Error(getErrorMessage(error, 'Erreur lors de la mise à jour du matériel.'));
+      throw new Error(
+        getErrorMessage(error, "Erreur lors de la mise à jour du matériel."),
+      );
     }
   },
 
@@ -180,17 +217,26 @@ export const materialsAPI = {
       const response = await axiosInstance.delete(`/materiels/${id}`);
       return response?.data || { success: true };
     } catch (error) {
-      throw new Error(getErrorMessage(error, 'Erreur lors de la suppression du matériel.'));
+      throw new Error(
+        getErrorMessage(error, "Erreur lors de la suppression du matériel."),
+      );
     }
   },
 
   deleteByOwner: async (ownerId) => {
     try {
       const ownerMaterials = await materialsAPI.getAll({ ownerId });
-      await Promise.all(ownerMaterials.map((m) => materialsAPI.delete(m.serialNumber)));
+      await Promise.all(
+        ownerMaterials.map((m) => materialsAPI.delete(m.serialNumber)),
+      );
       return { success: true };
     } catch (error) {
-      throw new Error(getErrorMessage(error, 'Erreur lors de la suppression des matériels de l’utilisateur.'));
+      throw new Error(
+        getErrorMessage(
+          error,
+          "Erreur lors de la suppression des matériels de l’utilisateur.",
+        ),
+      );
     }
   },
 };

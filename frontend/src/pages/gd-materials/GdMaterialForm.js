@@ -1,16 +1,36 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
-  Dialog, DialogTitle, DialogContent, DialogActions, Grid,
-  TextField, Button, MenuItem, Box, Typography, Divider,
-} from '@mui/material';
-import { useAuth } from '../../context/AuthContext';
-import { MATERIAL_STATUSES } from '../../utils/constants';
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Grid,
+  TextField,
+  Button,
+  MenuItem,
+  Box,
+  Typography,
+  Divider,
+} from "@mui/material";
+import { useAuth } from "../../context/AuthContext";
+import { MATERIAL_STATUSES } from "../../utils/constants";
 
 const initialForm = {
-  name: '', brand: '', model: '', serialNumber: '', inventoryNumber: '',
-  category: '', categoryId: '', status: 'Actif',
-  owner: '', ownerId: '', subsidiaryName: '', subsidiaryCode: '',
-  purchaseDate: '', warrantyExpiry: '', description: '',
+  name: "",
+  brand: "",
+  model: "",
+  serialNumber: "",
+  inventoryNumber: "",
+  category: "",
+  categoryId: "",
+  status: "En Service",
+  owner: "",
+  ownerId: "",
+  subsidiaryName: "",
+  subsidiaryCode: "",
+  purchaseDate: "",
+  warrantyExpiry: "",
+  description: "",
 };
 
 const GdMaterialForm = ({
@@ -43,44 +63,53 @@ const GdMaterialForm = ({
 
   const handleChange = (field) => (e) => {
     setForm((f) => ({ ...f, [field]: e.target.value }));
-    if (errors[field]) setErrors((err) => ({ ...err, [field]: '' }));
+    if (errors[field]) setErrors((err) => ({ ...err, [field]: "" }));
   };
 
   const handleCategoryChange = (e) => {
     const selectedId = e.target.value;
     const cat = categories.find((c) => String(c.id) === String(selectedId));
-    setForm((f) => ({ ...f, categoryId: selectedId, category: cat?.name || '' }));
+    setForm((f) => ({
+      ...f,
+      categoryId: selectedId,
+      category: cat?.name || "",
+    }));
   };
 
   const handleSubsidiaryChange = (e) => {
     const selectedCode = e.target.value;
-    const subsidiary = subsidiaries.find((s) => String(s.code) === String(selectedCode));
+    const subsidiary = subsidiaries.find(
+      (s) => String(s.code) === String(selectedCode),
+    );
     setForm((f) => ({
       ...f,
       subsidiaryCode: selectedCode,
-      subsidiaryName: subsidiary?.name || '',
+      subsidiaryName: subsidiary?.name || "",
       serviceId: null,
-      serviceName: '',
+      serviceName: "",
     }));
-    if (errors.subsidiaryCode) setErrors((err) => ({ ...err, subsidiaryCode: '' }));
+    if (errors.subsidiaryCode)
+      setErrors((err) => ({ ...err, subsidiaryCode: "" }));
   };
 
   const handleOwnerChange = (e) => {
     const selectedId = e.target.value;
     const owner = owners.find((o) => String(o.id) === String(selectedId));
-    setForm((f) => ({ ...f, ownerId: selectedId, owner: owner?.label || '' }));
+    setForm((f) => ({ ...f, ownerId: selectedId, owner: owner?.label || "" }));
   };
 
   const validate = () => {
     const newErrors = {};
-    if (!form.brand || !form.brand.trim()) newErrors.brand = 'Champ requis';
-    if (!form.model || !form.model.trim()) newErrors.model = 'Champ requis';
-    if (!form.inventoryNumber || !form.inventoryNumber.trim()) newErrors.inventoryNumber = 'Champ requis';
-    if (!form.serialNumber || !form.serialNumber.trim()) newErrors.serialNumber = 'Champ requis';
-    if (!form.categoryId) newErrors.categoryId = 'Champ requis';
-    if (!form.subsidiaryCode) newErrors.subsidiaryCode = 'Champ requis';
-    if (!form.status) newErrors.status = 'Champ requis';
-    if (!form.ownerId) newErrors.ownerId = 'Propriétaire introuvable';
+    if (!form.brand || !form.brand.trim()) newErrors.brand = "Champ requis";
+    if (!form.model || !form.model.trim()) newErrors.model = "Champ requis";
+    if (!form.inventoryNumber || !form.inventoryNumber.trim())
+      newErrors.inventoryNumber = "Champ requis";
+    if (!form.serialNumber || !form.serialNumber.trim())
+      newErrors.serialNumber = "Champ requis";
+    if (!form.categoryId) newErrors.categoryId = "Champ requis";
+    if (!form.subsidiaryCode) newErrors.subsidiaryCode = "Champ requis";
+    if (!form.status) newErrors.status = "Champ requis";
+    if (!form.ownerId) newErrors.ownerId = "Propriétaire introuvable";
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -98,7 +127,7 @@ const GdMaterialForm = ({
       <DialogTitle>
         <Box>
           <Typography variant="h6" fontWeight={700}>
-            {editItem ? 'Modifier le GD Material' : 'Nouveau GD Material'}
+            {editItem ? "Modifier le GD Material" : "Nouveau GD Material"}
           </Typography>
           {editItem && editItem.serialNumber && (
             <Typography variant="caption" color="text.secondary">
@@ -116,7 +145,7 @@ const GdMaterialForm = ({
                 fullWidth
                 label="Marque *"
                 value={form.brand}
-                onChange={handleChange('brand')}
+                onChange={handleChange("brand")}
                 error={!!errors.brand}
                 helperText={errors.brand}
               />
@@ -126,7 +155,7 @@ const GdMaterialForm = ({
                 fullWidth
                 label="Modèle *"
                 value={form.model}
-                onChange={handleChange('model')}
+                onChange={handleChange("model")}
                 error={!!errors.model}
                 helperText={errors.model}
               />
@@ -136,7 +165,7 @@ const GdMaterialForm = ({
                 fullWidth
                 label="Numéro d'Inventaire *"
                 value={form.inventoryNumber}
-                onChange={handleChange('inventoryNumber')}
+                onChange={handleChange("inventoryNumber")}
                 error={!!errors.inventoryNumber}
                 helperText={errors.inventoryNumber}
               />
@@ -146,7 +175,7 @@ const GdMaterialForm = ({
                 fullWidth
                 label="Numéro de Série *"
                 value={form.serialNumber}
-                onChange={handleChange('serialNumber')}
+                onChange={handleChange("serialNumber")}
                 disabled={!!editItem}
                 error={!!errors.serialNumber}
                 helperText={errors.serialNumber}
@@ -163,7 +192,9 @@ const GdMaterialForm = ({
                 helperText={errors.categoryId}
               >
                 {categories.map((c) => (
-                  <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>
+                  <MenuItem key={c.id} value={c.id}>
+                    {c.name}
+                  </MenuItem>
                 ))}
               </TextField>
             </Grid>
@@ -173,12 +204,14 @@ const GdMaterialForm = ({
                 select
                 label="Statut *"
                 value={form.status}
-                onChange={handleChange('status')}
+                onChange={handleChange("status")}
                 error={!!errors.status}
                 helperText={errors.status}
               >
                 {MATERIAL_STATUSES.map((s) => (
-                  <MenuItem key={s} value={s}>{s}</MenuItem>
+                  <MenuItem key={s} value={s}>
+                    {s}
+                  </MenuItem>
                 ))}
               </TextField>
             </Grid>
@@ -187,13 +220,15 @@ const GdMaterialForm = ({
                 fullWidth
                 select
                 label="Name Raison *"
-                value={form.subsidiaryCode || ''}
+                value={form.subsidiaryCode || ""}
                 onChange={handleSubsidiaryChange}
                 error={!!errors.subsidiaryCode}
                 helperText={errors.subsidiaryCode}
               >
                 {subsidiaries.map((s) => (
-                  <MenuItem key={s.code} value={s.code}>{s.name}</MenuItem>
+                  <MenuItem key={s.code} value={s.code}>
+                    {s.name}
+                  </MenuItem>
                 ))}
               </TextField>
             </Grid>
@@ -201,7 +236,7 @@ const GdMaterialForm = ({
               <TextField
                 fullWidth
                 label="Code"
-                value={form.subsidiaryCode || ''}
+                value={form.subsidiaryCode || ""}
                 disabled
                 helperText="Code lié au name raison"
               />
@@ -212,16 +247,25 @@ const GdMaterialForm = ({
                   fullWidth
                   select
                   label="Utilisateur *"
-                  value={form.ownerId || ''}
+                  value={form.ownerId || ""}
                   onChange={handleOwnerChange}
                   error={!!errors.ownerId}
-                  helperText={errors.ownerId || 'Choisissez le propriétaire du matériel'}
+                  helperText={
+                    errors.ownerId || "Choisissez le propriétaire du matériel"
+                  }
                 >
-                  {form.ownerId && !owners.some((o) => String(o.id) === String(form.ownerId)) && (
-                    <MenuItem value={form.ownerId}>{form.owner || form.ownerId}</MenuItem>
-                  )}
+                  {form.ownerId &&
+                    !owners.some(
+                      (o) => String(o.id) === String(form.ownerId),
+                    ) && (
+                      <MenuItem value={form.ownerId}>
+                        {form.owner || form.ownerId}
+                      </MenuItem>
+                    )}
                   {owners.map((o) => (
-                    <MenuItem key={o.id} value={o.id}>{o.label}</MenuItem>
+                    <MenuItem key={o.id} value={o.id}>
+                      {o.label}
+                    </MenuItem>
                   ))}
                 </TextField>
               ) : (
@@ -231,7 +275,9 @@ const GdMaterialForm = ({
                   value={form.owner}
                   disabled
                   error={!!errors.ownerId}
-                  helperText={errors.ownerId || 'Attribué via l’utilisateur connecté'}
+                  helperText={
+                    errors.ownerId || "Attribué via l’utilisateur connecté"
+                  }
                 />
               )}
             </Grid>
@@ -241,7 +287,7 @@ const GdMaterialForm = ({
                 label="Date"
                 type="date"
                 value={form.purchaseDate}
-                onChange={handleChange('purchaseDate')}
+                onChange={handleChange("purchaseDate")}
                 InputLabelProps={{ shrink: true }}
               />
             </Grid>
@@ -251,7 +297,7 @@ const GdMaterialForm = ({
                 label="Fin de Garantie"
                 type="date"
                 value={form.warrantyExpiry}
-                onChange={handleChange('warrantyExpiry')}
+                onChange={handleChange("warrantyExpiry")}
                 InputLabelProps={{ shrink: true }}
               />
             </Grid>
@@ -262,7 +308,7 @@ const GdMaterialForm = ({
                 rows={3}
                 label="Description"
                 value={form.description}
-                onChange={handleChange('description')}
+                onChange={handleChange("description")}
               />
             </Grid>
           </Grid>
@@ -273,8 +319,13 @@ const GdMaterialForm = ({
         <Button onClick={onClose} variant="outlined" disabled={loading}>
           Annuler
         </Button>
-        <Button type="submit" form="gd-material-form" variant="contained" disabled={loading}>
-          {editItem ? 'Modifier' : 'Créer'}
+        <Button
+          type="submit"
+          form="gd-material-form"
+          variant="contained"
+          disabled={loading}
+        >
+          {editItem ? "Modifier" : "Créer"}
         </Button>
       </DialogActions>
     </Dialog>

@@ -5,9 +5,9 @@ import { Subsidiary } from '../../subsidiaries/entities/subsidiary.entity';
 import { User } from '../../users/entities/user.entity';
 
 export enum MaterielEtat {
-    ACTIVE = 'Active',
-    EN_PANNE = 'en Panne',
-    EN_MAINTENANCE = 'en Maintenance',
+    EN_SERVICE = 'En Service',
+    EN_PANNE = 'En Panne',
+    REFORME = 'Reforme',
 }
 
 @Entity('materiels')

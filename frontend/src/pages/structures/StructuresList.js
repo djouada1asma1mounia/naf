@@ -1,28 +1,49 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from "react";
 import {
-  Box, Grid, Card, CardContent, Typography, Avatar, Divider,
-  List, ListItem, ListItemAvatar, ListItemText, Chip, Button,
-  TextField, Dialog, DialogTitle, DialogContent, DialogActions,
-  IconButton, Tooltip, Skeleton, Accordion, AccordionSummary, AccordionDetails, MenuItem,
-} from '@mui/material';
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import BusinessIcon from '@mui/icons-material/Business';
-import PersonIcon from '@mui/icons-material/Person';
-import ComputerIcon from '@mui/icons-material/Computer';
-import DesignServicesIcon from '@mui/icons-material/DesignServices';
-import AddIcon from '@mui/icons-material/Add';
-import EditIcon from '@mui/icons-material/Edit';
-import DeleteIcon from '@mui/icons-material/Delete';
-import { structuresAPI } from '../../api/structures';
-import { materialsAPI } from '../../api/materials';
-import { servicesAPI } from '../../api/services';
-import PageHeader from '../../components/common/PageHeader';
-import { RoleChip } from '../../components/common/StatusChip';
-import { useAuth } from '../../context/AuthContext';
-import { useSnackbar } from 'notistack';
+  Box,
+  Grid,
+  Card,
+  CardContent,
+  Typography,
+  Avatar,
+  Divider,
+  List,
+  ListItem,
+  ListItemAvatar,
+  ListItemText,
+  Chip,
+  Button,
+  TextField,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  IconButton,
+  Tooltip,
+  Skeleton,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
+  MenuItem,
+} from "@mui/material";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import BusinessIcon from "@mui/icons-material/Business";
+import PersonIcon from "@mui/icons-material/Person";
+import ComputerIcon from "@mui/icons-material/Computer";
+import DesignServicesIcon from "@mui/icons-material/DesignServices";
+import AddIcon from "@mui/icons-material/Add";
+import EditIcon from "@mui/icons-material/Edit";
+import DeleteIcon from "@mui/icons-material/Delete";
+import { structuresAPI } from "../../api/structures";
+import { materialsAPI } from "../../api/materials";
+import { servicesAPI } from "../../api/services";
+import PageHeader from "../../components/common/PageHeader";
+import { RoleChip } from "../../components/common/StatusChip";
+import { useAuth } from "../../context/AuthContext";
+import { useSnackbar } from "notistack";
 
-const emptyForm = { name: '', code: '', managerId: '' };
-const emptyServiceForm = { name: '', code: '', departmentId: '' };
+const emptyForm = { name: "", code: "", managerId: "" };
+const emptyServiceForm = { name: "", code: "", departmentId: "" };
 
 const StructuresList = () => {
   const { isAdmin } = useAuth();
@@ -52,44 +73,52 @@ const StructuresList = () => {
   const [serviceDeleteTarget, setServiceDeleteTarget] = useState(null);
   const [serviceDeleting, setServiceDeleting] = useState(false);
 
-  const refreshData = useCallback(async ({ showGlobalError = true } = {}) => {
-    const [deptsResult, staffResult, matsResult, servicesResult] = await Promise.allSettled([
-      structuresAPI.getDepartments(),
-      structuresAPI.getStaff(),
-      materialsAPI.getAll(),
-      servicesAPI.getAll(),
-    ]);
+  const refreshData = useCallback(
+    async ({ showGlobalError = true } = {}) => {
+      const [deptsResult, staffResult, matsResult, servicesResult] =
+        await Promise.allSettled([
+          structuresAPI.getDepartments(),
+          structuresAPI.getStaff(),
+          materialsAPI.getAll(),
+          servicesAPI.getAll(),
+        ]);
 
-    if (deptsResult.status === 'fulfilled') {
-      setDepartments(deptsResult.value || []);
-    } else {
-      setDepartments([]);
-      if (showGlobalError) {
-        enqueueSnackbar('Erreur lors du chargement des départements', { variant: 'error' });
+      if (deptsResult.status === "fulfilled") {
+        setDepartments(deptsResult.value || []);
+      } else {
+        setDepartments([]);
+        if (showGlobalError) {
+          enqueueSnackbar("Erreur lors du chargement des départements", {
+            variant: "error",
+          });
+        }
       }
-    }
 
-    if (staffResult.status === 'fulfilled') {
-      setStaff(staffResult.value || []);
-    } else {
-      setStaff([]);
-    }
-
-    if (matsResult.status === 'fulfilled') {
-      setMaterials(matsResult.value || []);
-    } else {
-      setMaterials([]);
-    }
-
-    if (servicesResult.status === 'fulfilled') {
-      setServices(servicesResult.value || []);
-    } else {
-      setServices([]);
-      if (showGlobalError) {
-        enqueueSnackbar('Erreur lors du chargement des services', { variant: 'error' });
+      if (staffResult.status === "fulfilled") {
+        setStaff(staffResult.value || []);
+      } else {
+        setStaff([]);
       }
-    }
-  }, [enqueueSnackbar]);
+
+      if (matsResult.status === "fulfilled") {
+        setMaterials(matsResult.value || []);
+      } else {
+        setMaterials([]);
+      }
+
+      if (servicesResult.status === "fulfilled") {
+        setServices(servicesResult.value || []);
+      } else {
+        setServices([]);
+        if (showGlobalError) {
+          enqueueSnackbar("Erreur lors du chargement des services", {
+            variant: "error",
+          });
+        }
+      }
+    },
+    [enqueueSnackbar],
+  );
 
   useEffect(() => {
     const loadData = async () => {
@@ -100,11 +129,16 @@ const StructuresList = () => {
     loadData();
   }, [refreshData]);
 
-  const getDeptStaff = (deptId) => staff.filter((s) => String(s.departmentId) === String(deptId));
-  const getDeptMaterials = (deptId) => materials.filter((m) => String(m.departmentId) === String(deptId));
-  const getDeptServices = (deptId) => services.filter((s) => String(s.departmentId) === String(deptId));
-  const getServiceMaterials = (serviceId) => materials.filter((m) => String(m.serviceId) === String(serviceId));
-  const getUserMaterials = (userId) => materials.filter((m) => String(m.ownerId) === String(userId));
+  const getDeptStaff = (deptId) =>
+    staff.filter((s) => String(s.departmentId) === String(deptId));
+  const getDeptMaterials = (deptId) =>
+    materials.filter((m) => String(m.departmentId) === String(deptId));
+  const getDeptServices = (deptId) =>
+    services.filter((s) => String(s.departmentId) === String(deptId));
+  const getServiceMaterials = (serviceId) =>
+    materials.filter((m) => String(m.serviceId) === String(serviceId));
+  const getUserMaterials = (userId) =>
+    materials.filter((m) => String(m.ownerId) === String(userId));
 
   // ── Dialog helpers ──────────────────────────────────────────────
   const openAdd = () => {
@@ -116,7 +150,11 @@ const StructuresList = () => {
   const openEdit = (dept, e) => {
     e.stopPropagation();
     setEditTarget(dept);
-    setForm({ name: dept.name || '', code: dept.code || '', managerId: dept.manager?.id || '' });
+    setForm({
+      name: dept.name || "",
+      code: dept.code || "",
+      managerId: dept.manager?.id || "",
+    });
     setDialogOpen(true);
   };
 
@@ -125,11 +163,14 @@ const StructuresList = () => {
     setDialogOpen(false);
   };
 
-  const handleFormChange = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target.value }));
+  const handleFormChange = (field) => (e) =>
+    setForm((f) => ({ ...f, [field]: e.target.value }));
 
   const handleSave = async () => {
     if (!form.name.trim() || !form.code.trim()) {
-      enqueueSnackbar('Le nom et le code sont obligatoires', { variant: 'warning' });
+      enqueueSnackbar("Le nom et le code sont obligatoires", {
+        variant: "warning",
+      });
       return;
     }
     setSaving(true);
@@ -142,15 +183,21 @@ const StructuresList = () => {
 
       if (editTarget) {
         await structuresAPI.updateDepartment(editTarget.id, payload);
-        enqueueSnackbar('Département modifié avec succès', { variant: 'success' });
+        enqueueSnackbar("Département modifié avec succès", {
+          variant: "success",
+        });
       } else {
         await structuresAPI.createDepartment(payload);
-        enqueueSnackbar('Département ajouté avec succès', { variant: 'success' });
+        enqueueSnackbar("Département ajouté avec succès", {
+          variant: "success",
+        });
       }
       await refreshData({ showGlobalError: false });
       setDialogOpen(false);
     } catch (error) {
-      enqueueSnackbar(error.message || 'Erreur lors de la sauvegarde', { variant: 'error' });
+      enqueueSnackbar(error.message || "Erreur lors de la sauvegarde", {
+        variant: "error",
+      });
     }
     setSaving(false);
   };
@@ -168,15 +215,20 @@ const StructuresList = () => {
     const deptServices = getDeptServices(deleteTarget.id);
     const deptMats = getDeptMaterials(deleteTarget.id);
 
-    if (deptStaff.length > 0 || deptServices.length > 0 || deptMats.length > 0) {
+    if (
+      deptStaff.length > 0 ||
+      deptServices.length > 0 ||
+      deptMats.length > 0
+    ) {
       const blockers = [];
       if (deptStaff.length > 0) blockers.push(`${deptStaff.length} agent(s)`);
-      if (deptServices.length > 0) blockers.push(`${deptServices.length} service(s)`);
+      if (deptServices.length > 0)
+        blockers.push(`${deptServices.length} service(s)`);
       if (deptMats.length > 0) blockers.push(`${deptMats.length} matériel(s)`);
 
       enqueueSnackbar(
-        `Suppression impossible. Le département contient encore: ${blockers.join(', ')}.`,
-        { variant: 'warning' }
+        `Suppression impossible. Le département contient encore: ${blockers.join(", ")}.`,
+        { variant: "warning" },
       );
       return;
     }
@@ -185,10 +237,12 @@ const StructuresList = () => {
     try {
       await structuresAPI.deleteDepartment(deleteTarget.id);
       await refreshData({ showGlobalError: false });
-      enqueueSnackbar('Département supprimé', { variant: 'success' });
+      enqueueSnackbar("Département supprimé", { variant: "success" });
       setDeleteTarget(null);
     } catch (error) {
-      enqueueSnackbar(error.message || 'Erreur lors de la suppression', { variant: 'error' });
+      enqueueSnackbar(error.message || "Erreur lors de la suppression", {
+        variant: "error",
+      });
     }
     setDeleting(false);
   };
@@ -204,9 +258,9 @@ const StructuresList = () => {
     e.stopPropagation();
     setServiceEditTarget(service);
     setServiceForm({
-      name: service.name || '',
-      code: service.code || '',
-      departmentId: service.departmentId || '',
+      name: service.name || "",
+      code: service.code || "",
+      departmentId: service.departmentId || "",
     });
     setServiceDialogOpen(true);
   };
@@ -221,8 +275,14 @@ const StructuresList = () => {
   };
 
   const handleSaveService = async () => {
-    if (!serviceForm.name.trim() || !serviceForm.code.trim() || !serviceForm.departmentId) {
-      enqueueSnackbar('Nom, code et département du service sont obligatoires', { variant: 'warning' });
+    if (
+      !serviceForm.name.trim() ||
+      !serviceForm.code.trim() ||
+      !serviceForm.departmentId
+    ) {
+      enqueueSnackbar("Nom, code et département du service sont obligatoires", {
+        variant: "warning",
+      });
       return;
     }
 
@@ -236,16 +296,19 @@ const StructuresList = () => {
 
       if (serviceEditTarget) {
         await servicesAPI.update(serviceEditTarget.id, payload);
-        enqueueSnackbar('Service modifié avec succès', { variant: 'success' });
+        enqueueSnackbar("Service modifié avec succès", { variant: "success" });
       } else {
         await servicesAPI.create(payload);
-        enqueueSnackbar('Service ajouté avec succès', { variant: 'success' });
+        enqueueSnackbar("Service ajouté avec succès", { variant: "success" });
       }
 
       await refreshData({ showGlobalError: false });
       setServiceDialogOpen(false);
     } catch (error) {
-      enqueueSnackbar(error.message || 'Erreur lors de la sauvegarde du service', { variant: 'error' });
+      enqueueSnackbar(
+        error.message || "Erreur lors de la sauvegarde du service",
+        { variant: "error" },
+      );
     }
     setServiceSaving(false);
   };
@@ -262,7 +325,7 @@ const StructuresList = () => {
     if (linkedMaterials.length > 0) {
       enqueueSnackbar(
         `Suppression impossible. Ce service est lié à ${linkedMaterials.length} matériel(s).`,
-        { variant: 'warning' }
+        { variant: "warning" },
       );
       return;
     }
@@ -271,10 +334,13 @@ const StructuresList = () => {
     try {
       await servicesAPI.delete(serviceDeleteTarget.id);
       await refreshData({ showGlobalError: false });
-      enqueueSnackbar('Service supprimé', { variant: 'success' });
+      enqueueSnackbar("Service supprimé", { variant: "success" });
       setServiceDeleteTarget(null);
     } catch (error) {
-      enqueueSnackbar(error.message || 'Erreur lors de la suppression du service', { variant: 'error' });
+      enqueueSnackbar(
+        error.message || "Erreur lors de la suppression du service",
+        { variant: "error" },
+      );
     }
     setServiceDeleting(false);
   };
@@ -284,7 +350,11 @@ const StructuresList = () => {
       <Box>
         <Skeleton variant="text" width={200} height={40} sx={{ mb: 2 }} />
         <Grid container spacing={2.5}>
-          {[1, 2, 3].map((i) => <Grid item xs={12} key={i}><Skeleton variant="rounded" height={80} /></Grid>)}
+          {[1, 2, 3].map((i) => (
+            <Grid item xs={12} key={i}>
+              <Skeleton variant="rounded" height={80} />
+            </Grid>
+          ))}
         </Grid>
       </Box>
     );
@@ -295,10 +365,17 @@ const StructuresList = () => {
       <PageHeader
         title="Structures"
         subtitle={`${departments.length} département(s) · ${staff.length} agent(s) · ${services.length} service(s)`}
-        breadcrumbs={[{ label: 'Accueil', path: '/dashboard' }, { label: 'Structures' }]}
+        breadcrumbs={[
+          { label: "Accueil", path: "/dashboard" },
+          { label: "Structures" },
+        ]}
         action={
           isAdminUser && (
-            <Button variant="contained" startIcon={<AddIcon />} onClick={openAdd}>
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={openAdd}
+            >
               Ajouter département
             </Button>
           )
@@ -309,52 +386,96 @@ const StructuresList = () => {
       <Grid container spacing={2.5} mb={3}>
         <Grid item xs={12} sm={6} md={3}>
           <Card>
-            <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              <Avatar sx={{ bgcolor: 'primary.main', width: 48, height: 48, borderRadius: 2 }}>
+            <CardContent sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+              <Avatar
+                sx={{
+                  bgcolor: "primary.main",
+                  width: 48,
+                  height: 48,
+                  borderRadius: 2,
+                }}
+              >
                 <BusinessIcon />
               </Avatar>
               <Box>
-                <Typography variant="h4" fontWeight={800}>{departments.length}</Typography>
-                <Typography variant="caption" color="text.secondary">Départements</Typography>
+                <Typography variant="h4" fontWeight={800}>
+                  {departments.length}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  Départements
+                </Typography>
               </Box>
             </CardContent>
           </Card>
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
           <Card>
-            <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              <Avatar sx={{ bgcolor: 'success.main', width: 48, height: 48, borderRadius: 2 }}>
+            <CardContent sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+              <Avatar
+                sx={{
+                  bgcolor: "success.main",
+                  width: 48,
+                  height: 48,
+                  borderRadius: 2,
+                }}
+              >
                 <PersonIcon />
               </Avatar>
               <Box>
-                <Typography variant="h4" fontWeight={800}>{staff.length}</Typography>
-                <Typography variant="caption" color="text.secondary">Agents</Typography>
+                <Typography variant="h4" fontWeight={800}>
+                  {staff.length}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  Agents
+                </Typography>
               </Box>
             </CardContent>
           </Card>
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
           <Card>
-            <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              <Avatar sx={{ bgcolor: 'warning.main', width: 48, height: 48, borderRadius: 2 }}>
+            <CardContent sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+              <Avatar
+                sx={{
+                  bgcolor: "warning.main",
+                  width: 48,
+                  height: 48,
+                  borderRadius: 2,
+                }}
+              >
                 <DesignServicesIcon />
               </Avatar>
               <Box>
-                <Typography variant="h4" fontWeight={800}>{services.length}</Typography>
-                <Typography variant="caption" color="text.secondary">Services</Typography>
+                <Typography variant="h4" fontWeight={800}>
+                  {services.length}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  Services
+                </Typography>
               </Box>
             </CardContent>
           </Card>
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
           <Card>
-            <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              <Avatar sx={{ bgcolor: 'info.main', width: 48, height: 48, borderRadius: 2 }}>
+            <CardContent sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+              <Avatar
+                sx={{
+                  bgcolor: "info.main",
+                  width: 48,
+                  height: 48,
+                  borderRadius: 2,
+                }}
+              >
                 <ComputerIcon />
               </Avatar>
               <Box>
-                <Typography variant="h4" fontWeight={800}>{materials.length}</Typography>
-                <Typography variant="caption" color="text.secondary">Matériels</Typography>
+                <Typography variant="h4" fontWeight={800}>
+                  {materials.length}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  Matériels
+                </Typography>
               </Box>
             </CardContent>
           </Card>
@@ -370,32 +491,72 @@ const StructuresList = () => {
         const deptMats = getDeptMaterials(dept.id);
         const deptServices = getDeptServices(dept.id);
         return (
-          <Accordion key={dept.id} sx={{ mb: 1, '&:before': { display: 'none' } }}>
+          <Accordion
+            key={dept.id}
+            sx={{ mb: 1, "&:before": { display: "none" } }}
+          >
             <AccordionSummary expandIcon={<ExpandMoreIcon />}>
               <Box display="flex" alignItems="center" gap={2} width="100%">
-                <Avatar sx={{ bgcolor: 'primary.main', width: 40, height: 40, fontSize: '0.9rem', fontWeight: 700 }}>
+                <Avatar
+                  sx={{
+                    bgcolor: "primary.main",
+                    width: 40,
+                    height: 40,
+                    fontSize: "0.9rem",
+                    fontWeight: 700,
+                  }}
+                >
                   {dept.code}
                 </Avatar>
                 <Box flex={1}>
-                  <Typography variant="subtitle1" fontWeight={700}>{dept.name}</Typography>
+                  <Typography variant="subtitle1" fontWeight={700}>
+                    {dept.name}
+                  </Typography>
                   <Typography variant="caption" color="text.secondary">
-                    Chef: {dept.manager?.fullName || '—'}
+                    Chef: {dept.manager?.fullName || "—"}
                   </Typography>
                 </Box>
                 <Box display="flex" gap={1} mr={2}>
-                  <Chip label={`${deptStaff.length} agents`} size="small" color="primary" variant="outlined" />
-                  <Chip label={`${deptServices.length} services`} size="small" color="warning" variant="outlined" />
-                  <Chip label={`${deptMats.length} matériels`} size="small" color="info" variant="outlined" />
+                  <Chip
+                    label={`${deptStaff.length} agents`}
+                    size="small"
+                    color="primary"
+                    variant="outlined"
+                  />
+                  <Chip
+                    label={`${deptServices.length} services`}
+                    size="small"
+                    color="warning"
+                    variant="outlined"
+                  />
+                  <Chip
+                    label={`${deptMats.length} matériels`}
+                    size="small"
+                    color="info"
+                    variant="outlined"
+                  />
                 </Box>
                 {isAdminUser && (
-                  <Box display="flex" gap={0.5} onClick={(e) => e.stopPropagation()}>
+                  <Box
+                    display="flex"
+                    gap={0.5}
+                    onClick={(e) => e.stopPropagation()}
+                  >
                     <Tooltip title="Modifier">
-                      <IconButton size="small" color="primary" onClick={(e) => openEdit(dept, e)}>
+                      <IconButton
+                        size="small"
+                        color="primary"
+                        onClick={(e) => openEdit(dept, e)}
+                      >
                         <EditIcon fontSize="small" />
                       </IconButton>
                     </Tooltip>
                     <Tooltip title="Supprimer">
-                      <IconButton size="small" color="error" onClick={(e) => openDelete(dept, e)}>
+                      <IconButton
+                        size="small"
+                        color="error"
+                        onClick={(e) => openDelete(dept, e)}
+                      >
                         <DeleteIcon fontSize="small" />
                       </IconButton>
                     </Tooltip>
@@ -407,18 +568,38 @@ const StructuresList = () => {
               <Divider sx={{ mb: 2 }} />
               <Grid container spacing={2}>
                 <Grid item xs={12} md={4}>
-                  <Typography variant="subtitle2" fontWeight={700} mb={1} color="text.secondary">
+                  <Typography
+                    variant="subtitle2"
+                    fontWeight={700}
+                    mb={1}
+                    color="text.secondary"
+                  >
                     Personnel ({deptStaff.length})
                   </Typography>
                   <List dense disablePadding>
                     {deptStaff.length === 0 ? (
-                      <Typography variant="caption" color="text.secondary">Aucun agent</Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Aucun agent
+                      </Typography>
                     ) : (
                       deptStaff.map((person) => (
-                        <ListItem key={person.id} disablePadding sx={{ py: 0.5 }}>
+                        <ListItem
+                          key={person.id}
+                          disablePadding
+                          sx={{ py: 0.5 }}
+                        >
                           <ListItemAvatar>
-                            <Avatar sx={{ width: 32, height: 32, fontSize: '0.75rem', bgcolor: 'secondary.main', color: 'secondary.contrastText' }}>
-                              {`${person.firstName?.[0] || ''}${person.lastName?.[0] || ''}` || 'U'}
+                            <Avatar
+                              sx={{
+                                width: 32,
+                                height: 32,
+                                fontSize: "0.75rem",
+                                bgcolor: "secondary.main",
+                                color: "secondary.contrastText",
+                              }}
+                            >
+                              {`${person.firstName?.[0] || ""}${person.lastName?.[0] || ""}` ||
+                                "U"}
                             </Avatar>
                           </ListItemAvatar>
                           <ListItemText
@@ -431,8 +612,12 @@ const StructuresList = () => {
                               </Box>
                             }
                             secondary={
-                              <Typography variant="caption" color="text.secondary">
-                                {person.email} · {getUserMaterials(person.id).length} matériel(s)
+                              <Typography
+                                variant="caption"
+                                color="text.secondary"
+                              >
+                                {person.email} ·{" "}
+                                {getUserMaterials(person.id).length} matériel(s)
                               </Typography>
                             }
                           />
@@ -442,8 +627,17 @@ const StructuresList = () => {
                   </List>
                 </Grid>
                 <Grid item xs={12} md={4}>
-                  <Box display="flex" alignItems="center" justifyContent="space-between" mb={1}>
-                    <Typography variant="subtitle2" fontWeight={700} color="text.secondary">
+                  <Box
+                    display="flex"
+                    alignItems="center"
+                    justifyContent="space-between"
+                    mb={1}
+                  >
+                    <Typography
+                      variant="subtitle2"
+                      fontWeight={700}
+                      color="text.secondary"
+                    >
                       Services ({deptServices.length})
                     </Typography>
                     {isAdminUser && (
@@ -459,10 +653,16 @@ const StructuresList = () => {
                   </Box>
                   <List dense disablePadding>
                     {deptServices.length === 0 ? (
-                      <Typography variant="caption" color="text.secondary">Aucun service</Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Aucun service
+                      </Typography>
                     ) : (
                       deptServices.map((service) => (
-                        <ListItem key={service.id} disablePadding sx={{ py: 0.6 }}>
+                        <ListItem
+                          key={service.id}
+                          disablePadding
+                          sx={{ py: 0.6 }}
+                        >
                           <ListItemText
                             primary={
                               <Typography variant="body2" fontWeight={600}>
@@ -470,7 +670,10 @@ const StructuresList = () => {
                               </Typography>
                             }
                             secondary={
-                              <Typography variant="caption" color="text.secondary">
+                              <Typography
+                                variant="caption"
+                                color="text.secondary"
+                              >
                                 Code: {service.code}
                               </Typography>
                             }
@@ -478,12 +681,20 @@ const StructuresList = () => {
                           {isAdminUser && (
                             <Box display="flex" gap={0.5}>
                               <Tooltip title="Modifier service">
-                                <IconButton size="small" color="primary" onClick={(e) => openEditService(service, e)}>
+                                <IconButton
+                                  size="small"
+                                  color="primary"
+                                  onClick={(e) => openEditService(service, e)}
+                                >
                                   <EditIcon fontSize="small" />
                                 </IconButton>
                               </Tooltip>
                               <Tooltip title="Supprimer service">
-                                <IconButton size="small" color="error" onClick={(e) => openDeleteService(service, e)}>
+                                <IconButton
+                                  size="small"
+                                  color="error"
+                                  onClick={(e) => openDeleteService(service, e)}
+                                >
                                   <DeleteIcon fontSize="small" />
                                 </IconButton>
                               </Tooltip>
@@ -495,13 +706,20 @@ const StructuresList = () => {
                   </List>
                 </Grid>
                 <Grid item xs={12} md={4}>
-                  <Typography variant="subtitle2" fontWeight={700} mb={1} color="text.secondary">
+                  <Typography
+                    variant="subtitle2"
+                    fontWeight={700}
+                    mb={1}
+                    color="text.secondary"
+                  >
                     Matériels du département ({deptMats.length})
                   </Typography>
                   <Grid container spacing={1}>
                     {deptMats.length === 0 ? (
                       <Grid item xs={12}>
-                        <Typography variant="caption" color="text.secondary">Aucun matériel</Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          Aucun matériel
+                        </Typography>
                       </Grid>
                     ) : (
                       deptMats.map((mat) => (
@@ -511,23 +729,40 @@ const StructuresList = () => {
                               p: 1.25,
                               borderRadius: 2,
                               border: 1,
-                              borderColor: 'divider',
+                              borderColor: "divider",
                             }}
                           >
-                            <Box display="flex" justifyContent="space-between" alignItems="flex-start">
+                            <Box
+                              display="flex"
+                              justifyContent="space-between"
+                              alignItems="flex-start"
+                            >
                               <Box>
-                                <Typography variant="body2" fontWeight={600} fontSize="0.8rem">
+                                <Typography
+                                  variant="body2"
+                                  fontWeight={600}
+                                  fontSize="0.8rem"
+                                >
                                   {mat.name}
                                 </Typography>
-                                <Typography variant="caption" color="text.secondary">
+                                <Typography
+                                  variant="caption"
+                                  color="text.secondary"
+                                >
                                   {mat.code} · {mat.owner}
                                 </Typography>
                               </Box>
                               <Chip
                                 label={mat.status}
                                 size="small"
-                                color={mat.status === 'Actif' ? 'success' : mat.status === 'En Maintenance' ? 'warning' : 'error'}
-                                sx={{ fontSize: '0.6rem', height: 18 }}
+                                color={
+                                  mat.status === "En Service"
+                                    ? "success"
+                                    : mat.status === "Reforme"
+                                      ? "warning"
+                                      : "error"
+                                }
+                                sx={{ fontSize: "0.6rem", height: 18 }}
                               />
                             </Box>
                           </Box>
@@ -544,13 +779,15 @@ const StructuresList = () => {
 
       {/* ── Add / Edit Dialog ─────────────────────────────────── */}
       <Dialog open={dialogOpen} onClose={closeDialog} maxWidth="sm" fullWidth>
-        <DialogTitle>{editTarget ? 'Modifier le département' : 'Ajouter un département'}</DialogTitle>
+        <DialogTitle>
+          {editTarget ? "Modifier le département" : "Ajouter un département"}
+        </DialogTitle>
         <DialogContent>
           <Box display="flex" flexDirection="column" gap={2} mt={1}>
             <TextField
               label="Nom du département"
               value={form.name}
-              onChange={handleFormChange('name')}
+              onChange={handleFormChange("name")}
               fullWidth
               required
               disabled={saving}
@@ -558,16 +795,16 @@ const StructuresList = () => {
             <TextField
               label="Code"
               value={form.code}
-              onChange={handleFormChange('code')}
+              onChange={handleFormChange("code")}
               fullWidth
               required
               disabled={saving}
-              inputProps={{ style: { textTransform: 'uppercase' } }}
+              inputProps={{ style: { textTransform: "uppercase" } }}
             />
             <TextField
               label="Chef de département"
               value={form.managerId}
-              onChange={handleFormChange('managerId')}
+              onChange={handleFormChange("managerId")}
               select
               fullWidth
               disabled={saving}
@@ -582,39 +819,61 @@ const StructuresList = () => {
           </Box>
         </DialogContent>
         <DialogActions>
-          <Button onClick={closeDialog} disabled={saving}>Annuler</Button>
+          <Button onClick={closeDialog} disabled={saving}>
+            Annuler
+          </Button>
           <Button variant="contained" onClick={handleSave} disabled={saving}>
-            {saving ? 'Enregistrement...' : editTarget ? 'Modifier' : 'Ajouter'}
+            {saving ? "Enregistrement..." : editTarget ? "Modifier" : "Ajouter"}
           </Button>
         </DialogActions>
       </Dialog>
 
       {/* ── Delete Confirmation Dialog ────────────────────────── */}
-      <Dialog open={Boolean(deleteTarget)} onClose={() => !deleting && setDeleteTarget(null)} maxWidth="xs" fullWidth>
+      <Dialog
+        open={Boolean(deleteTarget)}
+        onClose={() => !deleting && setDeleteTarget(null)}
+        maxWidth="xs"
+        fullWidth
+      >
         <DialogTitle>Confirmer la suppression</DialogTitle>
         <DialogContent>
           <Typography>
-            Voulez-vous vraiment supprimer le département{' '}
-            <strong>{deleteTarget?.name}</strong> ? Cette action est irréversible.
+            Voulez-vous vraiment supprimer le département{" "}
+            <strong>{deleteTarget?.name}</strong> ? Cette action est
+            irréversible.
           </Typography>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setDeleteTarget(null)} disabled={deleting}>Annuler</Button>
-          <Button variant="contained" color="error" onClick={handleDelete} disabled={deleting}>
-            {deleting ? 'Suppression...' : 'Supprimer'}
+          <Button onClick={() => setDeleteTarget(null)} disabled={deleting}>
+            Annuler
+          </Button>
+          <Button
+            variant="contained"
+            color="error"
+            onClick={handleDelete}
+            disabled={deleting}
+          >
+            {deleting ? "Suppression..." : "Supprimer"}
           </Button>
         </DialogActions>
       </Dialog>
 
       {/* ── Service Add / Edit Dialog ─────────────────────────── */}
-      <Dialog open={serviceDialogOpen} onClose={closeServiceDialog} maxWidth="sm" fullWidth>
-        <DialogTitle>{serviceEditTarget ? 'Modifier le service' : 'Ajouter un service'}</DialogTitle>
+      <Dialog
+        open={serviceDialogOpen}
+        onClose={closeServiceDialog}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>
+          {serviceEditTarget ? "Modifier le service" : "Ajouter un service"}
+        </DialogTitle>
         <DialogContent>
           <Box display="flex" flexDirection="column" gap={2} mt={1}>
             <TextField
               label="Nom du service"
               value={serviceForm.name}
-              onChange={handleServiceFormChange('name')}
+              onChange={handleServiceFormChange("name")}
               fullWidth
               required
               disabled={serviceSaving}
@@ -622,31 +881,43 @@ const StructuresList = () => {
             <TextField
               label="Code"
               value={serviceForm.code}
-              onChange={handleServiceFormChange('code')}
+              onChange={handleServiceFormChange("code")}
               fullWidth
               required
               disabled={serviceSaving}
-              inputProps={{ style: { textTransform: 'uppercase' } }}
+              inputProps={{ style: { textTransform: "uppercase" } }}
             />
             <TextField
               label="Département"
               value={serviceForm.departmentId}
-              onChange={handleServiceFormChange('departmentId')}
+              onChange={handleServiceFormChange("departmentId")}
               select
               fullWidth
               required
               disabled={serviceSaving}
             >
               {departments.map((dept) => (
-                <MenuItem key={dept.id} value={dept.id}>{dept.name}</MenuItem>
+                <MenuItem key={dept.id} value={dept.id}>
+                  {dept.name}
+                </MenuItem>
               ))}
             </TextField>
           </Box>
         </DialogContent>
         <DialogActions>
-          <Button onClick={closeServiceDialog} disabled={serviceSaving}>Annuler</Button>
-          <Button variant="contained" onClick={handleSaveService} disabled={serviceSaving}>
-            {serviceSaving ? 'Enregistrement...' : serviceEditTarget ? 'Modifier' : 'Ajouter'}
+          <Button onClick={closeServiceDialog} disabled={serviceSaving}>
+            Annuler
+          </Button>
+          <Button
+            variant="contained"
+            onClick={handleSaveService}
+            disabled={serviceSaving}
+          >
+            {serviceSaving
+              ? "Enregistrement..."
+              : serviceEditTarget
+                ? "Modifier"
+                : "Ajouter"}
           </Button>
         </DialogActions>
       </Dialog>
@@ -661,14 +932,25 @@ const StructuresList = () => {
         <DialogTitle>Confirmer la suppression</DialogTitle>
         <DialogContent>
           <Typography>
-            Voulez-vous vraiment supprimer le service{' '}
-            <strong>{serviceDeleteTarget?.name}</strong> ? Cette action est irréversible.
+            Voulez-vous vraiment supprimer le service{" "}
+            <strong>{serviceDeleteTarget?.name}</strong> ? Cette action est
+            irréversible.
           </Typography>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setServiceDeleteTarget(null)} disabled={serviceDeleting}>Annuler</Button>
-          <Button variant="contained" color="error" onClick={handleDeleteService} disabled={serviceDeleting}>
-            {serviceDeleting ? 'Suppression...' : 'Supprimer'}
+          <Button
+            onClick={() => setServiceDeleteTarget(null)}
+            disabled={serviceDeleting}
+          >
+            Annuler
+          </Button>
+          <Button
+            variant="contained"
+            color="error"
+            onClick={handleDeleteService}
+            disabled={serviceDeleting}
+          >
+            {serviceDeleting ? "Suppression..." : "Supprimer"}
           </Button>
         </DialogActions>
       </Dialog>
