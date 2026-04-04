@@ -13,6 +13,7 @@ import { MaterielsModule } from './materiels/materiels.module';
 import { ServicesModule } from './services/services.module';
 import { SubsidiariesModule } from './subsidiaries/subsidiaries.module';
 import { DechargesModule } from './decharges/decharges.module';
+import { InterventionsModule } from './interventions/interventions.module';
 
 @Module({
   imports: [
@@ -47,6 +48,7 @@ import { DechargesModule } from './decharges/decharges.module';
     ServicesModule,
     SubsidiariesModule,
     DechargesModule,
+    InterventionsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
