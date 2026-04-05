@@ -13,6 +13,7 @@ import DashboardIcon from '@mui/icons-material/Dashboard';
 import ComputerIcon from '@mui/icons-material/Computer';
 import LocalGasStationIcon from '@mui/icons-material/LocalGasStation';
 import BuildIcon from '@mui/icons-material/Build';
+import DescriptionIcon from '@mui/icons-material/Description';
 import BusinessIcon from '@mui/icons-material/Business';
 import CategoryIcon from '@mui/icons-material/Category';
 import RuleIcon from '@mui/icons-material/Rule';
@@ -35,7 +36,7 @@ const navItems = [
     roles: [ROLES.ADMIN, ROLES.USER],
   },
   {
-    label: 'GD Material',
+    label: 'Matériels GD',
     icon: <LocalGasStationIcon />,
     path: '/gd-materials',
     roles: [ROLES.ADMIN, ROLES.USER],
@@ -44,6 +45,12 @@ const navItems = [
     label: 'Interventions',
     icon: <BuildIcon />,
     path: '/maintenance',
+    roles: [ROLES.ADMIN, ROLES.USER],
+  },
+  {
+    label: 'Décharges',
+    icon: <DescriptionIcon />,
+    path: '/decharges',
     roles: [ROLES.ADMIN, ROLES.USER],
   },
   {

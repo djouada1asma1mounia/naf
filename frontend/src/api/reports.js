@@ -4,12 +4,12 @@ import { authAPI } from "./auth";
 import { structuresAPI } from "./structures";
 
 const emptyInterventionsByMonth = [
-  { month: "Jan", corrective: 0, preventive: 0 },
-  { month: "Fév", corrective: 0, preventive: 0 },
-  { month: "Mar", corrective: 0, preventive: 0 },
-  { month: "Avr", corrective: 0, preventive: 0 },
-  { month: "Mai", corrective: 0, preventive: 0 },
-  { month: "Juin", corrective: 0, preventive: 0 },
+  { month: "Jan", hard: 0, soft: 0 },
+  { month: "Fév", hard: 0, soft: 0 },
+  { month: "Mar", hard: 0, soft: 0 },
+  { month: "Avr", hard: 0, soft: 0 },
+  { month: "Mai", hard: 0, soft: 0 },
+  { month: "Juin", hard: 0, soft: 0 },
 ];
 
 const buildMaterialsStats = (materials = [], departments = []) => {
@@ -76,8 +76,8 @@ const buildInterventionsByMonth = (interventions = []) => {
       year: date.getFullYear(),
       monthIndex: date.getMonth(),
       month: label,
-      corrective: 0,
-      preventive: 0,
+      hard: 0,
+      soft: 0,
     };
   });
 
@@ -91,17 +91,17 @@ const buildInterventionsByMonth = (interventions = []) => {
     );
     if (!bucket) return;
 
-    if (intervention.type === "Préventive") {
-      bucket.preventive += 1;
+    if (intervention.type === "SOFT") {
+      bucket.soft += 1;
     } else {
-      bucket.corrective += 1;
+      bucket.hard += 1;
     }
   });
 
-  return buckets.map(({ month, corrective, preventive }) => ({
+  return buckets.map(({ month, hard, soft }) => ({
     month,
-    corrective,
-    preventive,
+    hard,
+    soft,
   }));
 };
 
@@ -115,9 +115,11 @@ export const reportsAPI = {
     ]);
 
     const materialStats = buildMaterialsStats(materials, departments);
-    const ongoingInterventions = interventions.filter(
-      (m) => m.status === "En cours",
-    ).length;
+    const now = Date.now();
+    const ongoingInterventions = interventions.filter((m) => {
+      const date = new Date(m.createdAt || m.startDate);
+      return !Number.isNaN(date.getTime()) && now - date.getTime() < 86400000 * 7;
+    }).length;
 
     return {
       ...materialStats,

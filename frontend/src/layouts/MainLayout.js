@@ -17,11 +17,11 @@ const MainLayout = () => {
   useEffect(() => {
     const fetchNotifications = async () => {
       try {
-        const data = await maintenanceAPI.getAll({ status: 'En cours' });
+        const data = await maintenanceAPI.getAll();
         const notifs = data.slice(0, 5).map((m) => ({
           id: m.id,
-          title: `Intervention ${m.code}`,
-          message: `${m.materialName} — ${m.priority}`,
+          title: `Intervention ${m.code || m.reference}`,
+          message: `${m.materialName} - ${m.type || 'N/A'}`,
         }));
         setNotifications(notifs);
       } catch {}
@@ -32,7 +32,7 @@ const MainLayout = () => {
       try {
         const { count } = await maintenanceAPI.getRecentCount();
         if (count > 0) {
-          enqueueSnackbar(`${count} intervention(s) en cours récentes`, { variant: 'info' });
+          enqueueSnackbar(`${count} intervention(s) récente(s)`, { variant: 'info' });
         }
       } catch {}
     }, 30000);

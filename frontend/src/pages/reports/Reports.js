@@ -163,14 +163,14 @@ const Reports = () => {
                     <Tooltip contentStyle={tooltipStyle} />
                     <Legend />
                     <Bar
-                      dataKey="corrective"
-                      name="Corrective"
+                      dataKey="hard"
+                      name="HARD"
                       fill={theme.palette.error.main}
                       radius={[4, 4, 0, 0]}
                     />
                     <Bar
-                      dataKey="preventive"
-                      name="Préventive"
+                      dataKey="soft"
+                      name="SOFT"
                       fill={theme.palette.success.main}
                       radius={[4, 4, 0, 0]}
                     />
@@ -228,15 +228,15 @@ const Reports = () => {
                     <Legend />
                     <Area
                       type="monotone"
-                      dataKey="corrective"
-                      name="Corrective"
+                      dataKey="hard"
+                      name="HARD"
                       stroke={theme.palette.error.main}
                       fill="url(#colorCorrectif)"
                     />
                     <Area
                       type="monotone"
-                      dataKey="preventive"
-                      name="Préventive"
+                      dataKey="soft"
+                      name="SOFT"
                       stroke={theme.palette.success.main}
                       fill="url(#colorPreventif)"
                     />

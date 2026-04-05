@@ -1,58 +1,113 @@
-import { mockMaintenances } from '../mock/data';
+import axiosInstance from './axios';
 
-const delay = (ms = 400) => new Promise((r) => setTimeout(r, ms));
+const getErrorMessage = (error, fallback) => {
+  const apiMessage = error?.response?.data?.message;
+  if (Array.isArray(apiMessage)) return apiMessage[0] || fallback;
+  return apiMessage || error?.message || fallback;
+};
 
-let maintenancesDB = [...mockMaintenances];
-let nextId = maintenancesDB.length + 1;
+const formatDate = (dateValue) => {
+  if (!dateValue) return '';
+  const date = new Date(dateValue);
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toISOString().split('T')[0];
+};
 
-const generateCode = () => `INT-${String(nextId).padStart(3, '0')}`;
+const normalizeIntervention = (item = {}) => {
+  const items = Array.isArray(item.items) ? item.items : [];
+  const firstItem = items[0] || {};
+  const staffName = `${item?.interventionnaireNom || ''} ${item?.interventionnairePrenom || ''}`.trim();
+
+  return {
+    id: item?.id,
+    code: item?.reference || '',
+    reference: item?.reference || '',
+    type: item?.interventionType || '',
+    status: 'Planifiée',
+    priority: 'Normale',
+    materialName:
+      firstItem?.designation || (items.length > 1 ? `${items.length} element(s)` : 'Element non specifie'),
+    materialCode: firstItem?.numeroSerie || firstItem?.numeroInventaire || '',
+    staff: staffName || 'Non renseigne',
+    department: item?.destinataire || 'Non renseigne',
+    startDate: formatDate(item?.createdAt),
+    createdAt: item?.createdAt || null,
+    observation: item?.observation || '',
+    items,
+    destinataire: item?.destinataire || '',
+    interventionnaireNom: item?.interventionnaireNom || '',
+    interventionnairePrenom: item?.interventionnairePrenom || '',
+    interventionnaireFonction: item?.interventionnaireFonction || '',
+  };
+};
+
+const applyFilters = (interventions = [], filters = {}) => {
+  let result = [...interventions];
+
+  if (filters.type) {
+    result = result.filter((m) => m.type === filters.type);
+  }
+
+  if (filters.search) {
+    const query = String(filters.search).trim().toLowerCase();
+    result = result.filter((m) => {
+      const haystack = [m.code, m.materialName, m.materialCode, m.staff, m.department]
+        .map((value) => String(value || '').toLowerCase())
+        .join(' ');
+      return haystack.includes(query);
+    });
+  }
+
+  return result;
+};
 
 export const maintenanceAPI = {
   getAll: async (filters = {}) => {
-    await delay();
-    let result = [...maintenancesDB];
-    if (filters.staffId) result = result.filter((m) => m.staffId === Number(filters.staffId));
-    if (filters.departmentId) result = result.filter((m) => m.departmentId === Number(filters.departmentId));
-    if (filters.status) result = result.filter((m) => m.status === filters.status);
-    if (filters.materialId) result = result.filter((m) => m.materialId === Number(filters.materialId));
-    return result;
+    try {
+      const response = await axiosInstance.get('/interventions');
+      const rawItems = response?.data?.data || [];
+      const normalized = rawItems.map(normalizeIntervention);
+      return applyFilters(normalized, filters);
+    } catch (error) {
+      throw new Error(getErrorMessage(error, 'Erreur lors du chargement des interventions.'));
+    }
   },
 
   getById: async (id) => {
-    await delay(200);
-    const m = maintenancesDB.find((m) => m.id === Number(id));
-    if (!m) throw new Error('Intervention non trouvée');
-    return m;
+    try {
+      const response = await axiosInstance.get(`/interventions/${id}`);
+      const rawItem = response?.data?.data || response?.data;
+      return normalizeIntervention(rawItem);
+    } catch (error) {
+      throw new Error(getErrorMessage(error, 'Intervention non trouvee.'));
+    }
   },
 
   create: async (data) => {
-    await delay(500);
-    const code = generateCode();
-    const newM = { ...data, id: nextId++, code, createdAt: new Date().toISOString().split('T')[0] };
-    maintenancesDB.push(newM);
-    return newM;
+    try {
+      const response = await axiosInstance.post('/interventions', data);
+      const rawItem = response?.data?.data || response?.data;
+      return normalizeIntervention(rawItem);
+    } catch (error) {
+      throw new Error(getErrorMessage(error, 'Erreur lors de la creation de l intervention.'));
+    }
   },
 
-  update: async (id, data) => {
-    await delay(400);
-    const idx = maintenancesDB.findIndex((m) => m.id === Number(id));
-    if (idx === -1) throw new Error('Intervention non trouvée');
-    maintenancesDB[idx] = { ...maintenancesDB[idx], ...data };
-    return maintenancesDB[idx];
+  update: async () => {
+    throw new Error('La mise a jour d intervention n est pas disponible cote backend.');
   },
 
-  delete: async (id) => {
-    await delay(400);
-    maintenancesDB = maintenancesDB.filter((m) => m.id !== Number(id));
-    return { success: true };
+  delete: async () => {
+    throw new Error('La suppression d intervention n est pas disponible cote backend.');
   },
 
   getRecentCount: async () => {
-    await delay(200);
+    const interventions = await maintenanceAPI.getAll();
     const now = Date.now();
-    const recent = maintenancesDB.filter(
-      (m) => now - new Date(m.createdAt).getTime() < 86400000 * 7
-    ).length;
-    return { count: recent };
+    const count = interventions.filter((m) => {
+      const date = new Date(m.createdAt || m.startDate);
+      return !Number.isNaN(date.getTime()) && now - date.getTime() < 86400000 * 7;
+    }).length;
+    return { count };
   },
 };
