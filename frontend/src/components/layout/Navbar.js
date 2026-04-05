@@ -3,6 +3,7 @@ import {
   AppBar, Toolbar, IconButton, Typography, Box, Avatar, Menu, MenuItem,
   Divider, Badge, Tooltip, Chip, Switch, useTheme,
 } from '@mui/material';
+import { alpha } from '@mui/material/styles';
 import MenuIcon from '@mui/icons-material/Menu';
 import NotificationsIcon from '@mui/icons-material/Notifications';
 import LightModeIcon from '@mui/icons-material/LightMode';
@@ -12,7 +13,7 @@ import PersonIcon from '@mui/icons-material/Person';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useThemeMode } from '../../context/ThemeContext';
-import { ROLE_LABELS, ROLE_COLORS, SIDEBAR_WIDTH } from '../../utils/constants';
+import { SIDEBAR_WIDTH } from '../../utils/constants';
 
 const Navbar = ({ onMenuClick, notifCount = 0, notifications = [] }) => {
   const theme = useTheme();
@@ -156,11 +157,16 @@ const Navbar = ({ onMenuClick, notifCount = 0, notifications = [] }) => {
             gap: 1,
             cursor: 'pointer',
             ml: 1,
-            px: 1,
-            py: 0.5,
-            borderRadius: 2,
-            '&:hover': { backgroundColor: 'action.hover' },
-            transition: 'background 0.15s',
+            px: 1.2,
+            py: 0.7,
+            borderRadius: 2.5,
+            backgroundColor: alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.16 : 0.08),
+            border: `1px solid ${alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.22 : 0.15)}`,
+            '&:hover': {
+              backgroundColor: alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.24 : 0.14),
+              boxShadow: `0 6px 18px ${alpha(theme.palette.primary.main, 0.2)}`,
+            },
+            transition: 'all 0.2s ease',
           }}
         >
           <Avatar
@@ -178,9 +184,6 @@ const Navbar = ({ onMenuClick, notifCount = 0, notifications = [] }) => {
             <Typography variant="body2" fontWeight={600} lineHeight={1.2}>
               {user?.firstName} {user?.lastName}
             </Typography>
-            <Typography variant="caption" color="text.secondary" lineHeight={1}>
-              {ROLE_LABELS[user?.role]}
-            </Typography>
           </Box>
         </Box>
 
@@ -190,29 +193,104 @@ const Navbar = ({ onMenuClick, notifCount = 0, notifications = [] }) => {
           onClose={handleUserClose}
           transformOrigin={{ horizontal: 'right', vertical: 'top' }}
           anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
-          PaperProps={{ sx: { width: 200 } }}
+          PaperProps={{
+            sx: {
+              width: 280,
+              mt: 1,
+              borderRadius: 3,
+              overflow: 'hidden',
+              border: `1px solid ${alpha(theme.palette.divider, 0.7)}`,
+              boxShadow: `0 18px 40px ${alpha('#000000', theme.palette.mode === 'dark' ? 0.5 : 0.18)}`,
+            },
+          }}
         >
-          <Box px={2} py={1.5}>
-            <Typography variant="body2" fontWeight={700}>
-              {user?.firstName} {user?.lastName}
-            </Typography>
-            <Chip
-              label={ROLE_LABELS[user?.role]}
-              size="small"
-              color={ROLE_COLORS[user?.role]}
-              sx={{ mt: 0.5, height: 20, fontSize: '0.65rem' }}
-            />
+          <Box
+            px={2}
+            py={1.6}
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1.25,
+              background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.28 : 0.14)}, ${alpha(theme.palette.info.main, theme.palette.mode === 'dark' ? 0.18 : 0.08)})`,
+              borderBottom: `1px solid ${theme.palette.divider}`,
+            }}
+          >
+            <Avatar
+              sx={{
+                width: 44,
+                height: 44,
+                background: 'linear-gradient(135deg, #1565C0, #42A5F5)',
+                fontSize: '1rem',
+                fontWeight: 800,
+              }}
+            >
+              {user?.firstName?.[0]}{user?.lastName?.[0]}
+            </Avatar>
+            <Box sx={{ minWidth: 0 }}>
+              <Typography variant="body1" fontWeight={800} noWrap>
+                {user?.firstName} {user?.lastName}
+              </Typography>
+            </Box>
           </Box>
-          <Divider />
-          <MenuItem onClick={handleProfile}>
-            <PersonIcon fontSize="small" sx={{ mr: 1.5 }} />
+
+          <Box sx={{ p: 1 }}>
+            <MenuItem
+              onClick={handleProfile}
+              sx={{
+                borderRadius: 2,
+                py: 1,
+                px: 1.1,
+                gap: 1.2,
+              }}
+            >
+              <Box
+                sx={{
+                  width: 28,
+                  height: 28,
+                  borderRadius: 1.5,
+                  display: 'grid',
+                  placeItems: 'center',
+                  backgroundColor: alpha(theme.palette.primary.main, 0.14),
+                  color: 'primary.main',
+                  flexShrink: 0,
+                }}
+              >
+                <PersonIcon fontSize="small" />
+              </Box>
             Mon Profil
-          </MenuItem>
-          <Divider />
-          <MenuItem onClick={handleLogout} sx={{ color: 'error.main' }}>
-            <LogoutIcon fontSize="small" sx={{ mr: 1.5 }} />
+            </MenuItem>
+
+            <MenuItem
+              onClick={handleLogout}
+              sx={{
+                mt: 0.5,
+                borderRadius: 2,
+                py: 1,
+                px: 1.1,
+                gap: 1.2,
+                color: 'error.main',
+                '&:hover': {
+                  backgroundColor: alpha(theme.palette.error.main, 0.1),
+                },
+              }}
+            >
+              <Box
+                sx={{
+                  width: 28,
+                  height: 28,
+                  borderRadius: 1.5,
+                  display: 'grid',
+                  placeItems: 'center',
+                  backgroundColor: alpha(theme.palette.error.main, 0.14),
+                  color: 'error.main',
+                  flexShrink: 0,
+                }}
+              >
+                <LogoutIcon fontSize="small" />
+              </Box>
             Déconnexion
-          </MenuItem>
+            </MenuItem>
+          </Box>
         </Menu>
       </Toolbar>
     </AppBar>

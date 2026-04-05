@@ -15,10 +15,10 @@ import DarkModeIcon from '@mui/icons-material/DarkMode';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 
 const FEATURES = [
-  'Suivi en temps réel du parc informatique',
-  'Gestion des interventions et maintenances',
-  'Rapports et analyses avancés',
-  'Gestion des utilisateurs et des rôles',
+  'Suivi centralise des materiels',
+  'Gestion des interventions, decharges et structures',
+  'Reporting operationnel et indicateurs d exploitation',
+  'Administration securisee des utilisateurs et des roles',
 ];
 
 const Login = () => {
@@ -83,64 +83,112 @@ const Login = () => {
           flexDirection: 'column',
           justifyContent: 'center',
           alignItems: 'flex-start',
-          px: 8,
+          px: { md: 7, lg: 9 },
           py: 6,
           color: '#fff',
           position: 'relative',
           overflow: 'hidden',
+          background: isDark
+            ? 'radial-gradient(circle at 18% 12%, rgba(255,255,255,0.08) 0%, transparent 33%), radial-gradient(circle at 88% 92%, rgba(66,165,245,0.2) 0%, transparent 38%), linear-gradient(145deg, #08101F 0%, #0E2B55 48%, #0D47A1 100%)'
+            : 'radial-gradient(circle at 16% 10%, rgba(255,255,255,0.14) 0%, transparent 34%), radial-gradient(circle at 90% 92%, rgba(255,255,255,0.12) 0%, transparent 35%), linear-gradient(145deg, #0D47A1 0%, #1565C0 56%, #1E6ED8 100%)',
         }}
       >
-        <Box sx={{ position: 'absolute', top: -80, left: -80, width: 300, height: 300, borderRadius: '50%', background: 'rgba(255,255,255,0.04)' }} />
-        <Box sx={{ position: 'absolute', bottom: -120, right: -60, width: 400, height: 400, borderRadius: '50%', background: 'rgba(255,255,255,0.04)' }} />
+        <Box
+          sx={{
+            position: 'absolute',
+            top: -130,
+            left: -120,
+            width: 360,
+            height: 360,
+            borderRadius: '50%',
+            background: 'rgba(255,255,255,0.06)',
+          }}
+        />
+        <Box
+          sx={{
+            position: 'absolute',
+            bottom: -190,
+            right: -120,
+            width: 470,
+            height: 470,
+            borderRadius: '50%',
+            background: 'rgba(255,255,255,0.06)',
+          }}
+        />
 
-        <Box display="flex" alignItems="center" gap={2} mb={6}>
+        <Box
+          sx={{
+            position: 'relative',
+            zIndex: 1,
+            backdropFilter: 'blur(2px)',
+          }}
+        >
           <Box
             sx={{
-              width: 56,
-              height: 56,
-              borderRadius: 3,
-              background: 'linear-gradient(135deg, #FFC107, #FF8F00)',
-              display: 'flex',
+              display: 'inline-flex',
               alignItems: 'center',
-              justifyContent: 'center',
-              fontWeight: 900,
-              fontSize: '1.5rem',
-              color: '#0D47A1',
-              boxShadow: '0 4px 20px rgba(0,0,0,0.25)',
+              gap: 2.25,
+              mb: 6,
+              px: 2,
+              py: 1.25,
+              borderRadius: 3,
+              background: 'rgba(255,255,255,0.08)',
+              border: '1px solid rgba(255,255,255,0.16)',
+              boxShadow: '0 10px 30px rgba(0,0,0,0.12)',
             }}
           >
-            N
-          </Box>
-          <Box>
-            <Typography variant="h5" fontWeight={900} letterSpacing={1}>
-              N.A.F.T.A.L
-            </Typography>
-            <Typography variant="caption" sx={{ opacity: 0.7, letterSpacing: 0.5 }}>
-              Gestion des Actifs IT
-            </Typography>
-          </Box>
-        </Box>
-
-        <Typography variant="h3" fontWeight={800} lineHeight={1.2} mb={2} sx={{ maxWidth: 440 }}>
-          Pilotez votre parc{' '}
-          <Box component="span" sx={{ color: '#FFC107' }}>informatique</Box>
-          {' '}en toute sérénité
-        </Typography>
-
-        <Typography variant="body1" sx={{ opacity: 0.72, mb: 5, maxWidth: 380 }}>
-          Une plateforme centralisée pour le suivi, la maintenance et
-          l'administration de vos ressources informatiques.
-        </Typography>
-
-        <Divider sx={{ width: 48, borderColor: 'rgba(255,193,7,0.7)', borderWidth: 2, mb: 4 }} />
-
-        <Box display="flex" flexDirection="column" gap={1.5}>
-          {FEATURES.map((f) => (
-            <Box key={f} display="flex" alignItems="center" gap={1.5}>
-              <CheckCircleOutlineIcon sx={{ fontSize: 18, color: '#FFC107', flexShrink: 0 }} />
-              <Typography variant="body2" sx={{ opacity: 0.85 }}>{f}</Typography>
+            <Box
+              component="img"
+              src="/naftal-logo.png"
+              alt="Naftal"
+              sx={{
+                width: 170,
+                height: 'auto',
+                display: 'block',
+                objectFit: 'contain',
+              }}
+            />
+            <Box>
+              <Typography
+                variant="h5"
+                fontWeight={900}
+                letterSpacing={1.4}
+                sx={{ lineHeight: 1.1 }}
+              >
+                N.A.F.T.A.L
+              </Typography>
+              <Typography
+                variant="caption"
+                sx={{ opacity: 0.84, letterSpacing: 0.6, fontSize: '0.78rem' }}
+              >
+                Gestion des Actifs IT
+              </Typography>
             </Box>
-          ))}
+          </Box>
+
+          <Typography variant="h3" fontWeight={850} lineHeight={1.16} mb={2.2} sx={{ maxWidth: 520 }}>
+            Pilotez vos actifs IT{' '}
+            <Box component="span" sx={{ color: '#FFD24D' }}>informatique</Box>
+            {' '}avec confiance
+          </Typography>
+
+          <Typography variant="body1" sx={{ opacity: 0.82, mb: 4.5, maxWidth: 520, fontSize: '1.08rem' }}>
+            Une plateforme unifiee pour la gestion du cycle de vie des equipements,
+            le suivi des operations terrain et la gouvernance des acces.
+          </Typography>
+
+          <Divider sx={{ width: 64, borderColor: 'rgba(255,210,77,0.95)', borderWidth: 2, mb: 3.5 }} />
+
+          <Box display="flex" flexDirection="column" gap={1.7}>
+            {FEATURES.map((f) => (
+              <Box key={f} display="flex" alignItems="center" gap={1.5}>
+                <CheckCircleOutlineIcon sx={{ fontSize: 19, color: '#FFD24D', flexShrink: 0 }} />
+                <Typography variant="body2" sx={{ opacity: 0.92, fontSize: '1rem', fontWeight: 500 }}>
+                  {f}
+                </Typography>
+              </Box>
+            ))}
+          </Box>
         </Box>
       </Box>
 

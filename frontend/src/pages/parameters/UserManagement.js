@@ -419,7 +419,6 @@ const UserManagement = () => {
             <TableHead>
               <TableRow>
                 <TableCell>Utilisateur</TableCell>
-                <TableCell>Username</TableCell>
                 <TableCell>Département</TableCell>
                 <TableCell>Rôle</TableCell>
                 <TableCell align="center">Actions</TableCell>
@@ -428,11 +427,11 @@ const UserManagement = () => {
             <TableBody>
               {loading ? (
                 Array.from({ length: 5 }).map((_, i) => (
-                  <TableRow key={i}>{[1,2,3,4,5].map((j) => <TableCell key={j}><Skeleton /></TableCell>)}</TableRow>
+                  <TableRow key={i}>{[1,2,3,4].map((j) => <TableCell key={j}><Skeleton /></TableCell>)}</TableRow>
                 ))
               ) : displayed.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} align="center" sx={{ py: 4 }}>
+                  <TableCell colSpan={4} align="center" sx={{ py: 4 }}>
                     <PeopleIcon sx={{ fontSize: 40, opacity: 0.3 }} />
                     <Typography variant="body2" color="text.secondary">Aucun utilisateur</Typography>
                   </TableCell>
@@ -451,7 +450,6 @@ const UserManagement = () => {
                         </Box>
                       </Box>
                     </TableCell>
-                    <TableCell><Typography variant="body2">{u.username || '—'}</Typography></TableCell>
                     <TableCell><Typography variant="body2">{u.department || '—'}</Typography></TableCell>
                     <TableCell>
                       <Box display="flex" gap={0.5} flexWrap="wrap">
@@ -578,12 +576,6 @@ const UserManagement = () => {
               </Box>
 
               <Grid container spacing={1.5}>
-                <Grid item xs={12} sm={6}>
-                  <Box sx={{ p: 1.5, border: 1, borderColor: 'divider', borderRadius: 2 }}>
-                    <Typography variant="caption" color="text.secondary">Username</Typography>
-                    <Typography variant="body2" fontWeight={600}>{detailsDialog.user.username || '—'}</Typography>
-                  </Box>
-                </Grid>
                 <Grid item xs={12} sm={6}>
                   <Box sx={{ p: 1.5, border: 1, borderColor: 'divider', borderRadius: 2 }}>
                     <Typography variant="caption" color="text.secondary">Département</Typography>
