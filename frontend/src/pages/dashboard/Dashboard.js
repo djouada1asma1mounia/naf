@@ -189,14 +189,14 @@ const Dashboard = () => {
                       />
                       <Legend />
                       <Bar
-                        dataKey="corrective"
-                        name="Corrective"
+                        dataKey="hard"
+                        name="HARD"
                         fill={theme.palette.error.main}
                         radius={[4, 4, 0, 0]}
                       />
                       <Bar
-                        dataKey="preventive"
-                        name="Préventive"
+                        dataKey="soft"
+                        name="SOFT"
                         fill={theme.palette.success.main}
                         radius={[4, 4, 0, 0]}
                       />

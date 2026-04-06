@@ -493,17 +493,35 @@ const StructuresList = () => {
         return (
           <Accordion
             key={dept.id}
-            sx={{ mb: 1, "&:before": { display: "none" } }}
+            sx={{
+              mb: 1.5,
+              borderRadius: 3,
+              border: 1,
+              borderColor: "divider",
+              overflow: "hidden",
+              boxShadow: "0 6px 18px rgba(0,0,0,0.05)",
+              "&:before": { display: "none" },
+            }}
           >
-            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+            <AccordionSummary
+              expandIcon={<ExpandMoreIcon />}
+              sx={{
+                px: 2.5,
+                py: 1,
+                "& .MuiAccordionSummary-content": {
+                  my: 0.5,
+                },
+              }}
+            >
               <Box display="flex" alignItems="center" gap={2} width="100%">
                 <Avatar
                   sx={{
                     bgcolor: "primary.main",
-                    width: 40,
-                    height: 40,
-                    fontSize: "0.9rem",
-                    fontWeight: 700,
+                    width: 44,
+                    height: 44,
+                    fontSize: "0.95rem",
+                    fontWeight: 800,
+                    boxShadow: "0 6px 14px rgba(25,118,210,0.24)",
                   }}
                 >
                   {dept.code}
@@ -516,24 +534,27 @@ const StructuresList = () => {
                     Chef: {dept.manager?.fullName || "—"}
                   </Typography>
                 </Box>
-                <Box display="flex" gap={1} mr={2}>
+                <Box display="flex" gap={1} mr={2} flexWrap="wrap" justifyContent="flex-end">
                   <Chip
                     label={`${deptStaff.length} agents`}
                     size="small"
                     color="primary"
                     variant="outlined"
+                    sx={{ fontWeight: 700 }}
                   />
                   <Chip
                     label={`${deptServices.length} services`}
                     size="small"
                     color="warning"
                     variant="outlined"
+                    sx={{ fontWeight: 700 }}
                   />
                   <Chip
                     label={`${deptMats.length} matériels`}
                     size="small"
                     color="info"
                     variant="outlined"
+                    sx={{ fontWeight: 700 }}
                   />
                 </Box>
                 {isAdminUser && (
@@ -547,6 +568,7 @@ const StructuresList = () => {
                         size="small"
                         color="primary"
                         onClick={(e) => openEdit(dept, e)}
+                        sx={{ border: 1, borderColor: "divider" }}
                       >
                         <EditIcon fontSize="small" />
                       </IconButton>
@@ -556,6 +578,7 @@ const StructuresList = () => {
                         size="small"
                         color="error"
                         onClick={(e) => openDelete(dept, e)}
+                        sx={{ border: 1, borderColor: "divider" }}
                       >
                         <DeleteIcon fontSize="small" />
                       </IconButton>
@@ -564,212 +587,220 @@ const StructuresList = () => {
                 )}
               </Box>
             </AccordionSummary>
-            <AccordionDetails sx={{ pt: 0 }}>
-              <Divider sx={{ mb: 2 }} />
+            <AccordionDetails sx={{ pt: 1.5, pb: 2.25, px: 2.5, bgcolor: "background.default" }}>
+              <Divider sx={{ mb: 2.2 }} />
               <Grid container spacing={2}>
                 <Grid item xs={12} md={4}>
-                  <Typography
-                    variant="subtitle2"
-                    fontWeight={700}
-                    mb={1}
-                    color="text.secondary"
-                  >
-                    Personnel ({deptStaff.length})
-                  </Typography>
-                  <List dense disablePadding>
-                    {deptStaff.length === 0 ? (
-                      <Typography variant="caption" color="text.secondary">
-                        Aucun agent
-                      </Typography>
-                    ) : (
-                      deptStaff.map((person) => (
-                        <ListItem
-                          key={person.id}
-                          disablePadding
-                          sx={{ py: 0.5 }}
-                        >
-                          <ListItemAvatar>
-                            <Avatar
-                              sx={{
-                                width: 32,
-                                height: 32,
-                                fontSize: "0.75rem",
-                                bgcolor: "secondary.main",
-                                color: "secondary.contrastText",
-                              }}
-                            >
-                              {`${person.firstName?.[0] || ""}${person.lastName?.[0] || ""}` ||
-                                "U"}
-                            </Avatar>
-                          </ListItemAvatar>
-                          <ListItemText
-                            primary={
-                              <Box display="flex" alignItems="center" gap={1}>
-                                <Typography variant="body2" fontWeight={600}>
-                                  {person.firstName} {person.lastName}
-                                </Typography>
-                                <RoleChip role={person.role} />
-                              </Box>
-                            }
-                            secondary={
-                              <Typography
-                                variant="caption"
-                                color="text.secondary"
-                              >
-                                {person.email} ·{" "}
-                                {getUserMaterials(person.id).length} matériel(s)
-                              </Typography>
-                            }
-                          />
-                        </ListItem>
-                      ))
-                    )}
-                  </List>
-                </Grid>
-                <Grid item xs={12} md={4}>
-                  <Box
-                    display="flex"
-                    alignItems="center"
-                    justifyContent="space-between"
-                    mb={1}
-                  >
+                  <Box sx={{ p: 1.5, border: 1, borderColor: "divider", borderRadius: 2.5, bgcolor: "background.paper", height: "100%" }}>
                     <Typography
                       variant="subtitle2"
-                      fontWeight={700}
+                      fontWeight={800}
+                      mb={1}
                       color="text.secondary"
                     >
-                      Services ({deptServices.length})
+                      Personnel ({deptStaff.length})
                     </Typography>
-                    {isAdminUser && (
-                      <Button
-                        size="small"
-                        variant="outlined"
-                        startIcon={<AddIcon />}
-                        onClick={(e) => openAddService(dept, e)}
-                      >
-                        Ajouter
-                      </Button>
-                    )}
-                  </Box>
-                  <List dense disablePadding>
-                    {deptServices.length === 0 ? (
-                      <Typography variant="caption" color="text.secondary">
-                        Aucun service
-                      </Typography>
-                    ) : (
-                      deptServices.map((service) => (
-                        <ListItem
-                          key={service.id}
-                          disablePadding
-                          sx={{ py: 0.6 }}
-                        >
-                          <ListItemText
-                            primary={
-                              <Typography variant="body2" fontWeight={600}>
-                                {service.name}
-                              </Typography>
-                            }
-                            secondary={
-                              <Typography
-                                variant="caption"
-                                color="text.secondary"
-                              >
-                                Code: {service.code}
-                              </Typography>
-                            }
-                          />
-                          {isAdminUser && (
-                            <Box display="flex" gap={0.5}>
-                              <Tooltip title="Modifier service">
-                                <IconButton
-                                  size="small"
-                                  color="primary"
-                                  onClick={(e) => openEditService(service, e)}
-                                >
-                                  <EditIcon fontSize="small" />
-                                </IconButton>
-                              </Tooltip>
-                              <Tooltip title="Supprimer service">
-                                <IconButton
-                                  size="small"
-                                  color="error"
-                                  onClick={(e) => openDeleteService(service, e)}
-                                >
-                                  <DeleteIcon fontSize="small" />
-                                </IconButton>
-                              </Tooltip>
-                            </Box>
-                          )}
-                        </ListItem>
-                      ))
-                    )}
-                  </List>
-                </Grid>
-                <Grid item xs={12} md={4}>
-                  <Typography
-                    variant="subtitle2"
-                    fontWeight={700}
-                    mb={1}
-                    color="text.secondary"
-                  >
-                    Matériels du département ({deptMats.length})
-                  </Typography>
-                  <Grid container spacing={1}>
-                    {deptMats.length === 0 ? (
-                      <Grid item xs={12}>
+                    <List dense disablePadding>
+                      {deptStaff.length === 0 ? (
                         <Typography variant="caption" color="text.secondary">
-                          Aucun matériel
+                          Aucun agent
                         </Typography>
-                      </Grid>
-                    ) : (
-                      deptMats.map((mat) => (
-                        <Grid item xs={12} sm={6} key={mat.id}>
-                          <Box
-                            sx={{
-                              p: 1.25,
-                              borderRadius: 2,
-                              border: 1,
-                              borderColor: "divider",
-                            }}
+                      ) : (
+                        deptStaff.map((person) => (
+                          <ListItem
+                            key={person.id}
+                            disablePadding
+                            sx={{ py: 0.65 }}
                           >
-                            <Box
-                              display="flex"
-                              justifyContent="space-between"
-                              alignItems="flex-start"
-                            >
-                              <Box>
-                                <Typography
-                                  variant="body2"
-                                  fontWeight={600}
-                                  fontSize="0.8rem"
-                                >
-                                  {mat.name}
-                                </Typography>
+                            <ListItemAvatar>
+                              <Avatar
+                                sx={{
+                                  width: 32,
+                                  height: 32,
+                                  fontSize: "0.75rem",
+                                  bgcolor: "secondary.main",
+                                  color: "secondary.contrastText",
+                                }}
+                              >
+                                {`${person.firstName?.[0] || ""}${person.lastName?.[0] || ""}` ||
+                                  "U"}
+                              </Avatar>
+                            </ListItemAvatar>
+                            <ListItemText
+                              primary={
+                                <Box display="flex" alignItems="center" gap={1}>
+                                  <Typography variant="body2" fontWeight={600}>
+                                    {person.firstName} {person.lastName}
+                                  </Typography>
+                                  <RoleChip role={person.role} />
+                                </Box>
+                              }
+                              secondary={
                                 <Typography
                                   variant="caption"
                                   color="text.secondary"
                                 >
-                                  {mat.code} · {mat.owner}
+                                  {person.email} ·{" "}
+                                  {getUserMaterials(person.id).length} matériel(s)
                                 </Typography>
+                              }
+                            />
+                          </ListItem>
+                        ))
+                      )}
+                    </List>
+                  </Box>
+                </Grid>
+                <Grid item xs={12} md={4}>
+                  <Box sx={{ p: 1.5, border: 1, borderColor: "divider", borderRadius: 2.5, bgcolor: "background.paper", height: "100%" }}>
+                    <Box
+                      display="flex"
+                      alignItems="center"
+                      justifyContent="space-between"
+                      mb={1}
+                    >
+                      <Typography
+                        variant="subtitle2"
+                        fontWeight={800}
+                        color="text.secondary"
+                      >
+                        Services ({deptServices.length})
+                      </Typography>
+                      {isAdminUser && (
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          startIcon={<AddIcon />}
+                          onClick={(e) => openAddService(dept, e)}
+                          sx={{ borderRadius: 2, fontWeight: 700 }}
+                        >
+                          Ajouter
+                        </Button>
+                      )}
+                    </Box>
+                    <List dense disablePadding>
+                      {deptServices.length === 0 ? (
+                        <Typography variant="caption" color="text.secondary">
+                          Aucun service
+                        </Typography>
+                      ) : (
+                        deptServices.map((service) => (
+                          <ListItem
+                            key={service.id}
+                            disablePadding
+                            sx={{ py: 0.65 }}
+                          >
+                            <ListItemText
+                              primary={
+                                <Typography variant="body2" fontWeight={600}>
+                                  {service.name}
+                                </Typography>
+                              }
+                              secondary={
+                                <Typography
+                                  variant="caption"
+                                  color="text.secondary"
+                                >
+                                  Code: {service.code}
+                                </Typography>
+                              }
+                            />
+                            {isAdminUser && (
+                              <Box display="flex" gap={0.5}>
+                                <Tooltip title="Modifier service">
+                                  <IconButton
+                                    size="small"
+                                    color="primary"
+                                    onClick={(e) => openEditService(service, e)}
+                                  >
+                                    <EditIcon fontSize="small" />
+                                  </IconButton>
+                                </Tooltip>
+                                <Tooltip title="Supprimer service">
+                                  <IconButton
+                                    size="small"
+                                    color="error"
+                                    onClick={(e) => openDeleteService(service, e)}
+                                  >
+                                    <DeleteIcon fontSize="small" />
+                                  </IconButton>
+                                </Tooltip>
                               </Box>
-                              <Chip
-                                label={mat.status}
-                                size="small"
-                                color={
-                                  mat.status === "En Service"
-                                    ? "success"
-                                    : mat.status === "Reforme"
-                                      ? "warning"
-                                      : "error"
-                                }
-                                sx={{ fontSize: "0.6rem", height: 18 }}
-                              />
-                            </Box>
-                          </Box>
+                            )}
+                          </ListItem>
+                        ))
+                      )}
+                    </List>
+                  </Box>
+                </Grid>
+                <Grid item xs={12} md={4}>
+                  <Box sx={{ p: 1.5, border: 1, borderColor: "divider", borderRadius: 2.5, bgcolor: "background.paper", height: "100%" }}>
+                    <Typography
+                      variant="subtitle2"
+                      fontWeight={800}
+                      mb={1}
+                      color="text.secondary"
+                    >
+                      Matériels du département ({deptMats.length})
+                    </Typography>
+                    <Grid container spacing={1.25}>
+                      {deptMats.length === 0 ? (
+                        <Grid item xs={12}>
+                          <Typography variant="caption" color="text.secondary">
+                            Aucun matériel
+                          </Typography>
                         </Grid>
-                      ))
-                    )}
-                  </Grid>
+                      ) : (
+                        deptMats.map((mat) => (
+                          <Grid item xs={12} sm={6} key={mat.id}>
+                            <Box
+                              sx={{
+                                p: 1.25,
+                                borderRadius: 2,
+                                border: 1,
+                                borderColor: "divider",
+                                backgroundColor: "background.default",
+                              }}
+                            >
+                              <Box
+                                display="flex"
+                                justifyContent="space-between"
+                                alignItems="flex-start"
+                              >
+                                <Box>
+                                  <Typography
+                                    variant="body2"
+                                    fontWeight={600}
+                                    fontSize="0.82rem"
+                                  >
+                                    {mat.name}
+                                  </Typography>
+                                  <Typography
+                                    variant="caption"
+                                    color="text.secondary"
+                                  >
+                                    {mat.code} · {mat.owner}
+                                  </Typography>
+                                </Box>
+                                <Chip
+                                  label={mat.status}
+                                  size="small"
+                                  color={
+                                    mat.status === "En Service"
+                                      ? "success"
+                                      : mat.status === "Reforme"
+                                        ? "warning"
+                                        : "error"
+                                  }
+                                  sx={{ fontSize: "0.62rem", height: 20, fontWeight: 700 }}
+                                />
+                              </Box>
+                            </Box>
+                          </Grid>
+                        ))
+                      )}
+                    </Grid>
+                  </Box>
                 </Grid>
               </Grid>
             </AccordionDetails>

@@ -1,18 +1,19 @@
 import React from 'react';
 import {
   Drawer, List, ListItem, ListItemButton, ListItemIcon, ListItemText,
-  Box, Typography, Avatar, Chip,
+  Box, Typography,
 } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth, ROLES } from '../../context/AuthContext';
 import { useThemeMode } from '../../context/ThemeContext';
-import { SIDEBAR_WIDTH, ROLE_LABELS, ROLE_COLORS, FULL_ACCESS_MODE } from '../../utils/constants';
+import { SIDEBAR_WIDTH, FULL_ACCESS_MODE } from '../../utils/constants';
 
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import ComputerIcon from '@mui/icons-material/Computer';
 import LocalGasStationIcon from '@mui/icons-material/LocalGasStation';
 import BuildIcon from '@mui/icons-material/Build';
+import DescriptionIcon from '@mui/icons-material/Description';
 import BusinessIcon from '@mui/icons-material/Business';
 import CategoryIcon from '@mui/icons-material/Category';
 import RuleIcon from '@mui/icons-material/Rule';
@@ -35,7 +36,7 @@ const navItems = [
     roles: [ROLES.ADMIN, ROLES.USER],
   },
   {
-    label: 'GD Material',
+    label: 'Matériels GD',
     icon: <LocalGasStationIcon />,
     path: '/gd-materials',
     roles: [ROLES.ADMIN, ROLES.USER],
@@ -44,6 +45,12 @@ const navItems = [
     label: 'Interventions',
     icon: <BuildIcon />,
     path: '/maintenance',
+    roles: [ROLES.ADMIN, ROLES.USER],
+  },
+  {
+    label: 'Décharges',
+    icon: <DescriptionIcon />,
+    path: '/decharges',
     roles: [ROLES.ADMIN, ROLES.USER],
   },
   {
@@ -103,9 +110,6 @@ const Sidebar = ({ open, onClose, variant = 'permanent' }) => {
   const bg = isDark ? '#1a1a2e' : '#fff';
   const paperBg = isDark ? '#1a1a2e' : '#fff';
   const paperShadow = isDark ? '2px 0 12px rgba(0,0,0,0.4)' : '2px 0 12px rgba(0,0,0,0.08)';
-  const titleColor = isDark ? '#42A5F5' : '#1565C0';
-  const subtitleColor = isDark ? 'rgba(255,255,255,0.45)' : 'rgba(0,0,0,0.45)';
-  const borderColor = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)';
   const userNameColor = isDark ? '#fff' : '#1a1a2e';
   const inactiveIconColor = isDark ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)';
   const inactiveTextColor = isDark ? 'rgba(255,255,255,0.75)' : 'rgba(0,0,0,0.75)';
@@ -136,82 +140,37 @@ const Sidebar = ({ open, onClose, variant = 'permanent' }) => {
       {/* Logo Header */}
       <Box
         sx={{
-          px: 2.5,
-          py: 2.5,
+          px: 2,
+          py: 2,
           display: 'flex',
-          alignItems: 'center',
-          gap: 1.5,
-          borderBottom: `1px solid ${borderColor}`,
+          justifyContent: 'center',
+          borderBottom: `1px solid ${borderColorLight}`,
         }}
       >
         <Box
           sx={{
-            width: 42,
-            height: 42,
-            borderRadius: 2,
-            background: 'linear-gradient(135deg, #1565C0, #1976D2)',
+            width: '100%',
+            maxWidth: 210,
+            px: 0.5,
+            py: 0.5,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontWeight: 900,
-            fontSize: '1.1rem',
-            color: '#fff',
-            flexShrink: 0,
-            boxShadow: '0 2px 8px rgba(21,101,192,0.4)',
+            backgroundColor: 'transparent',
+            border: 'none',
           }}
         >
-          N
-        </Box>
-        <Box>
-          <Typography
-            variant="subtitle1"
-            fontWeight={800}
-            sx={{ color: titleColor, lineHeight: 1.1, fontSize: '1rem' }}
-          >
-            N.A.F.T.A.L
-          </Typography>
-          <Typography variant="caption" sx={{ color: subtitleColor, fontSize: '0.68rem' }}>
-            Gestion des Actifs IT
-          </Typography>
-        </Box>
-      </Box>
-
-      {/* User Info */}
-      <Box
-        sx={{
-          px: 2.5,
-          py: 2,
-          display: 'flex',
-          alignItems: 'center',
-          gap: 1.5,
-          borderBottom: `1px solid ${borderColorLight}`,
-        }}
-      >
-        <Avatar
-          sx={{
-            width: 38,
-            height: 38,
-            background: 'linear-gradient(135deg, #1565C0, #42A5F5)',
-            color: '#fff',
-            fontWeight: 700,
-            fontSize: '1rem',
-          }}
-        >
-          {user?.firstName?.[0]}{user?.lastName?.[0]}
-        </Avatar>
-        <Box overflow="hidden">
-          <Typography
-            variant="body2"
-            fontWeight={700}
-            sx={{ color: userNameColor, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
-          >
-            {user?.firstName} {user?.lastName}
-          </Typography>
-          <Chip
-            label={ROLE_LABELS[user?.role]}
-            size="small"
-            color={ROLE_COLORS[user?.role]}
-            sx={{ height: 18, fontSize: '0.6rem', fontWeight: 700 }}
+          <Box
+            component="img"
+            src="/naftal-logo.png"
+            alt="Naftal"
+            sx={{
+              width: '100%',
+              height: 'auto',
+              display: 'block',
+              maxHeight: 84,
+              objectFit: 'contain',
+            }}
           />
         </Box>
       </Box>

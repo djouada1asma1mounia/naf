@@ -1,85 +1,133 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
+  Autocomplete,
   Dialog, DialogTitle, DialogContent, DialogActions, Grid,
-  TextField, Button, MenuItem, Box, Typography, Divider,
+  TextField, Button, MenuItem, Box, Typography, Divider, Chip,
 } from '@mui/material';
 import { materialsAPI } from '../../api/materials';
-import { structuresAPI } from '../../api/structures';
-import {
-  INTERVENTION_TYPES, INTERVENTION_STATUSES, INTERVENTION_PRIORITIES,
-} from '../../utils/constants';
+import { subsidiariesAPI } from '../../api/subsidiaries';
+import { useAuth } from '../../context/AuthContext';
 
 const initialForm = {
-  materialId: '', materialCode: '', materialName: '',
-  type: 'Corrective', status: 'Planifiée', priority: 'Normale',
-  description: '', staffId: '', staff: '', departmentId: '', department: '',
-  startDate: '', endDate: '', notes: '',
+  materialId: '',
+  interventionType: 'HARD',
+  destinataire: '',
+  interventionnaireNom: '',
+  interventionnairePrenom: '',
+  interventionnaireFonction: '',
+  observation: '',
+  itemQuantity: 1,
+  itemDesignation: '',
+  itemMarque: '',
+  itemNumeroSerie: '',
+  itemNumeroInventaire: '',
 };
 
-const MaintenanceForm = ({ open, onClose, onSubmit, editItem, departments = [] }) => {
+const MaintenanceForm = ({ open, onClose, onSubmit }) => {
+  const { user } = useAuth();
   const [form, setForm] = useState(initialForm);
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [materials, setMaterials] = useState([]);
-  const [staff, setStaff] = useState([]);
 
   useEffect(() => {
-    if (open) {
-      materialsAPI.getAll().then(setMaterials).catch(() => {});
-      structuresAPI.getStaff().then(setStaff).catch(() => {});
-    }
+    if (!open) return;
+
+    const loadMaterials = async () => {
+      try {
+        const [standardMaterials, subsidiaries] = await Promise.all([
+          materialsAPI.getAll(),
+          subsidiariesAPI.getAll(),
+        ]);
+
+        const gdResults = await Promise.allSettled(
+          (subsidiaries || []).map((subsidiary) => materialsAPI.getBySubsidiary(subsidiary.code)),
+        );
+
+        const gdMaterials = gdResults
+          .filter((result) => result.status === 'fulfilled')
+          .flatMap((result) => result.value || []);
+
+        const merged = [...(standardMaterials || []), ...gdMaterials];
+        const unique = Array.from(new Map(merged.map((item) => [item.id, item])).values());
+        setMaterials(unique);
+      } catch {
+        setMaterials([]);
+      }
+    };
+
+    loadMaterials();
   }, [open]);
 
   useEffect(() => {
-    if (editItem) {
-      setForm({ ...initialForm, ...editItem });
-    } else {
-      setForm({ ...initialForm, startDate: new Date().toISOString().split('T')[0] });
-    }
+    if (!open) return;
+
+    setForm({
+      ...initialForm,
+      interventionnaireNom: user?.lastName || '',
+      interventionnairePrenom: user?.firstName || '',
+      interventionnaireFonction: user?.role || '',
+    });
     setErrors({});
-  }, [editItem, open]);
+  }, [open, user]);
 
   const handleChange = (field) => (e) => {
     setForm((f) => ({ ...f, [field]: e.target.value }));
     if (errors[field]) setErrors((err) => ({ ...err, [field]: '' }));
   };
 
-  const handleMaterialChange = (e) => {
-    const selectedId = e.target.value;
-    const mat = materials.find((m) => String(m.id) === String(selectedId));
+  const selectedMaterial = useMemo(
+    () => materials.find((m) => String(m.id) === String(form.materialId)) || null,
+    [materials, form.materialId],
+  );
+
+  const getMaterialSearchText = (mat = {}) => [
+    mat.name,
+    mat.serialNumber,
+    mat.inventoryNumber,
+    mat.code,
+    mat.brand,
+    mat.model,
+    mat.subsidiaryCode,
+  ]
+    .map((value) => String(value || '').trim().toLowerCase())
+    .join(' ');
+
+  const getMaterialLabel = (mat = {}) => {
+    const designation = mat.name || 'Matériel';
+    const serial = mat.serialNumber || mat.code || 'N/A';
+    return `${designation} - SN: ${serial}`;
+  };
+
+  const handleMaterialSelect = (_, mat) => {
     if (mat) {
       setForm((f) => ({
         ...f,
         materialId: mat.id,
-        materialCode: mat.serialNumber || mat.code,
-        materialName: mat.name,
-        departmentId: mat.departmentId,
-        department: mat.department,
+        destinataire: f.destinataire || mat.department || '',
+        itemDesignation: mat.name || '',
+        itemMarque: mat.brand || '',
+        itemNumeroSerie: mat.serialNumber || '',
+        itemNumeroInventaire: mat.inventoryNumber || '',
       }));
-    }
-  };
-
-  const handleStaffChange = (e) => {
-    const person = staff.find((s) => s.id === e.target.value);
-    if (person) {
+      if (errors.materialId) setErrors((err) => ({ ...err, materialId: '' }));
+    } else {
       setForm((f) => ({
         ...f,
-        staffId: person.id,
-        staff: `${person.firstName} ${person.lastName}`,
+        materialId: '',
       }));
     }
-  };
-
-  const handleDeptChange = (e) => {
-    const dept = departments.find((d) => d.id === e.target.value);
-    setForm((f) => ({ ...f, departmentId: e.target.value, department: dept?.name || '' }));
   };
 
   const validate = () => {
     const newErrors = {};
     if (!form.materialId) newErrors.materialId = 'Champ requis';
-    if (!form.description.trim()) newErrors.description = 'Champ requis';
-    if (!form.startDate) newErrors.startDate = 'Champ requis';
+    if (!form.destinataire.trim()) newErrors.destinataire = 'Champ requis';
+    if (!form.interventionnaireNom.trim()) newErrors.interventionnaireNom = 'Champ requis';
+    if (!form.interventionnairePrenom.trim()) newErrors.interventionnairePrenom = 'Champ requis';
+    if (!form.interventionnaireFonction.trim()) newErrors.interventionnaireFonction = 'Champ requis';
+    if (!form.itemDesignation.trim()) newErrors.itemDesignation = 'Champ requis';
+    if (!Number(form.itemQuantity) || Number(form.itemQuantity) < 1) newErrors.itemQuantity = 'Minimum 1';
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -87,8 +135,27 @@ const MaintenanceForm = ({ open, onClose, onSubmit, editItem, departments = [] }
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validate()) return;
+
+    const payload = {
+      interventionType: form.interventionType,
+      observation: form.observation?.trim() || undefined,
+      destinataire: form.destinataire.trim(),
+      interventionnaireNom: form.interventionnaireNom.trim(),
+      interventionnairePrenom: form.interventionnairePrenom.trim(),
+      interventionnaireFonction: form.interventionnaireFonction.trim(),
+      items: [
+        {
+          designation: form.itemDesignation.trim(),
+          quantity: Number(form.itemQuantity),
+          marque: form.itemMarque?.trim() || undefined,
+          numeroSerie: form.itemNumeroSerie?.trim() || undefined,
+          numeroInventaire: form.itemNumeroInventaire?.trim() || undefined,
+        },
+      ],
+    };
+
     setLoading(true);
-    await onSubmit(form);
+    await onSubmit(payload);
     setLoading(false);
   };
 
@@ -96,94 +163,143 @@ const MaintenanceForm = ({ open, onClose, onSubmit, editItem, departments = [] }
     <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
       <DialogTitle>
         <Typography variant="h6" fontWeight={700}>
-          {editItem ? 'Modifier l\'Intervention' : 'Nouvelle Intervention'}
+          Nouvelle Intervention
         </Typography>
-        {editItem && (
-          <Typography variant="caption" color="text.secondary">Code: {editItem.code}</Typography>
-        )}
       </DialogTitle>
       <Divider />
       <DialogContent sx={{ pt: 2.5 }}>
         <Box component="form" id="maintenance-form" onSubmit={handleSubmit}>
           <Grid container spacing={2}>
             <Grid item xs={12} sm={6}>
+              <Autocomplete
+                fullWidth
+                options={materials}
+                value={selectedMaterial}
+                onChange={handleMaterialSelect}
+                isOptionEqualToValue={(option, value) => String(option.id) === String(value.id)}
+                getOptionLabel={getMaterialLabel}
+                filterOptions={(options, state) => {
+                  const query = String(state.inputValue || '').trim().toLowerCase();
+                  if (!query) return options;
+                  return options.filter((option) => getMaterialSearchText(option).includes(query));
+                }}
+                renderOption={(props, option) => (
+                  <Box component="li" {...props} sx={{ py: 1.2 }}>
+                    <Box sx={{ width: '100%' }}>
+                      <Box display="flex" justifyContent="space-between" alignItems="center" gap={1}>
+                        <Typography variant="body2" fontWeight={700} noWrap>
+                          {option.name || 'Matériel'}
+                        </Typography>
+                        {option.subsidiaryCode ? <Chip size="small" label={`GD ${option.subsidiaryCode}`} color="info" /> : null}
+                      </Box>
+                      <Typography variant="caption" color="text.secondary" display="block">
+                        Série: {option.serialNumber || option.code || 'N/A'} | Inventaire: {option.inventoryNumber || 'N/A'}
+                      </Typography>
+                    </Box>
+                  </Box>
+                )}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Matériel *"
+                    placeholder="Chercher par désignation, série ou inventaire"
+                    error={!!errors.materialId}
+                    helperText={errors.materialId || 'Recherchez rapidement: désignation, numéro de série, numéro inventaire'}
+                  />
+                )}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField fullWidth select label="Type d'intervention" value={form.interventionType} onChange={handleChange('interventionType')}>
+                <MenuItem value="HARD">HARD</MenuItem>
+                <MenuItem value="SOFT">SOFT</MenuItem>
+              </TextField>
+            </Grid>
+
+            <Grid item xs={12} sm={4}>
               <TextField
                 fullWidth
-                select
-                label="Matériel *"
-                value={form.materialId || ''}
-                onChange={handleMaterialChange}
-                error={!!errors.materialId}
-                helperText={errors.materialId}
-              >
-                {materials.map((m) => (
-                  <MenuItem key={m.id} value={m.id}>
-                    [{m.serialNumber || m.code}] {m.name}
-                  </MenuItem>
-                ))}
-              </TextField>
+                label="Nom Interventionnaire *"
+                value={form.interventionnaireNom}
+                onChange={handleChange('interventionnaireNom')}
+                error={!!errors.interventionnaireNom}
+                helperText={errors.interventionnaireNom}
+              />
+            </Grid>
+            <Grid item xs={12} sm={4}>
+              <TextField
+                fullWidth
+                label="Prénom Interventionnaire *"
+                value={form.interventionnairePrenom}
+                onChange={handleChange('interventionnairePrenom')}
+                error={!!errors.interventionnairePrenom}
+                helperText={errors.interventionnairePrenom}
+              />
+            </Grid>
+            <Grid item xs={12} sm={4}>
+              <TextField
+                fullWidth
+                label="Fonction Interventionnaire *"
+                value={form.interventionnaireFonction}
+                onChange={handleChange('interventionnaireFonction')}
+                error={!!errors.interventionnaireFonction}
+                helperText={errors.interventionnaireFonction}
+              />
             </Grid>
             <Grid item xs={12} sm={6}>
               <TextField
                 fullWidth
-                select
-                label="Responsable"
-                value={form.staffId || ''}
-                onChange={handleStaffChange}
-              >
-                {staff.map((s) => (
-                  <MenuItem key={s.id} value={s.id}>
-                    {s.firstName} {s.lastName}
-                  </MenuItem>
-                ))}
-              </TextField>
-            </Grid>
-            <Grid item xs={12} sm={4}>
-              <TextField fullWidth select label="Type" value={form.type} onChange={handleChange('type')}>
-                {INTERVENTION_TYPES.map((t) => <MenuItem key={t} value={t}>{t}</MenuItem>)}
-              </TextField>
-            </Grid>
-            <Grid item xs={12} sm={4}>
-              <TextField fullWidth select label="Statut" value={form.status} onChange={handleChange('status')}>
-                {INTERVENTION_STATUSES.map((s) => <MenuItem key={s} value={s}>{s}</MenuItem>)}
-              </TextField>
-            </Grid>
-            <Grid item xs={12} sm={4}>
-              <TextField fullWidth select label="Priorité" value={form.priority} onChange={handleChange('priority')}>
-                {INTERVENTION_PRIORITIES.map((p) => <MenuItem key={p} value={p}>{p}</MenuItem>)}
-              </TextField>
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <TextField
-                fullWidth
-                select
-                label="Département"
-                value={form.departmentId || ''}
-                onChange={handleDeptChange}
-              >
-                {departments.map((d) => <MenuItem key={d.id} value={d.id}>{d.name}</MenuItem>)}
-              </TextField>
-            </Grid>
-            <Grid item xs={12} sm={3}>
-              <TextField
-                fullWidth
-                label="Date Début *"
-                type="date"
-                value={form.startDate}
-                onChange={handleChange('startDate')}
-                InputLabelProps={{ shrink: true }}
-                error={!!errors.startDate}
-                helperText={errors.startDate}
+                label="Destinataire *"
+                value={form.destinataire}
+                onChange={handleChange('destinataire')}
+                error={!!errors.destinataire}
+                helperText={errors.destinataire}
               />
             </Grid>
             <Grid item xs={12} sm={3}>
               <TextField
                 fullWidth
-                label="Date Fin"
-                type="date"
-                value={form.endDate || ''}
-                onChange={handleChange('endDate')}
-                InputLabelProps={{ shrink: true }}
+                label="Quantité *"
+                type="number"
+                inputProps={{ min: 1 }}
+                value={form.itemQuantity}
+                onChange={handleChange('itemQuantity')}
+                error={!!errors.itemQuantity}
+                helperText={errors.itemQuantity}
+              />
+            </Grid>
+            <Grid item xs={12} sm={3}>
+              <TextField
+                fullWidth
+                label="Marque"
+                value={form.itemMarque}
+                onChange={handleChange('itemMarque')}
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Désignation *"
+                value={form.itemDesignation}
+                onChange={handleChange('itemDesignation')}
+                error={!!errors.itemDesignation}
+                helperText={errors.itemDesignation}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Numéro de série"
+                value={form.itemNumeroSerie}
+                onChange={handleChange('itemNumeroSerie')}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Numéro d'inventaire"
+                value={form.itemNumeroInventaire}
+                onChange={handleChange('itemNumeroInventaire')}
               />
             </Grid>
             <Grid item xs={12}>
@@ -191,21 +307,9 @@ const MaintenanceForm = ({ open, onClose, onSubmit, editItem, departments = [] }
                 fullWidth
                 multiline
                 rows={3}
-                label="Description *"
-                value={form.description}
-                onChange={handleChange('description')}
-                error={!!errors.description}
-                helperText={errors.description}
-              />
-            </Grid>
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
-                multiline
-                rows={2}
-                label="Notes"
-                value={form.notes}
-                onChange={handleChange('notes')}
+                label="Observation"
+                value={form.observation}
+                onChange={handleChange('observation')}
               />
             </Grid>
           </Grid>
@@ -215,7 +319,7 @@ const MaintenanceForm = ({ open, onClose, onSubmit, editItem, departments = [] }
       <DialogActions sx={{ px: 3, py: 2 }}>
         <Button onClick={onClose} variant="outlined" disabled={loading}>Annuler</Button>
         <Button type="submit" form="maintenance-form" variant="contained" disabled={loading}>
-          {editItem ? 'Modifier' : 'Créer'}
+          Créer
         </Button>
       </DialogActions>
     </Dialog>
