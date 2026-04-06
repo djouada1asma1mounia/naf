@@ -14,6 +14,7 @@ import { ServicesModule } from './services/services.module';
 import { SubsidiariesModule } from './subsidiaries/subsidiaries.module';
 import { DechargesModule } from './decharges/decharges.module';
 import { InterventionsModule } from './interventions/interventions.module';
+import { StatistiqueModule } from './statistique/statistique.module';
 
 @Module({
   imports: [
@@ -49,6 +50,7 @@ import { InterventionsModule } from './interventions/interventions.module';
     SubsidiariesModule,
     DechargesModule,
     InterventionsModule,
+    StatistiqueModule,
   ],
   controllers: [AppController],
   providers: [AppService],
