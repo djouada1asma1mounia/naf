@@ -1,8 +1,10 @@
-import { Body, Controller, HttpCode, Post, Req, Res, UnauthorizedException } from '@nestjs/common';
+import { Body, Controller, HttpCode, Post, Req, Res, UseGuards } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { RegisterUserDto } from './dto/register-user.dto';
 import { LoginUserDto } from './dto/login-user.dto';
 import type { Request, Response } from 'express';
+import { JwtAuthGuard } from './jwt.guard';
+import { ChangePasswordDto } from './dto/change-password.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -37,5 +39,12 @@ export class AuthController {
     const refreshToken = req.cookies['refreshToken'];
 
     return await this.authService.refreshToken(refreshToken);
+  }
+
+  @Post('change-password')
+  @UseGuards(JwtAuthGuard)
+  changePassword(@Req() req: any, @Body() dto: ChangePasswordDto) {
+    const userId = (req.user as { id?: string } | undefined)?.id;
+    return this.authService.changePassword(userId, dto);
   }
 }

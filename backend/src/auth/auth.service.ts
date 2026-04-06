@@ -1,4 +1,4 @@
-import { Injectable, ConflictException, UnauthorizedException, NotFoundException } from '@nestjs/common';
+import { Injectable, BadRequestException, ConflictException, UnauthorizedException, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 
 import * as bcrypt from 'bcrypt';
@@ -10,6 +10,7 @@ import { JwtService } from '@nestjs/jwt';
 import { Repository } from 'typeorm';
 import { Role } from 'src/roles/entities/role.entity';
 import { Department } from 'src/departments/entities/department.entity';
+import { ChangePasswordDto } from './dto/change-password.dto';
 
 @Injectable()
 export class AuthService {
@@ -152,6 +153,37 @@ export class AuthService {
             secret: process.env.JWT_ACCESS_SECRET,
             expiresIn: '1h',
         })
+    }
+
+    async changePassword(userId: string | undefined, dto: ChangePasswordDto) {
+        if (!userId) {
+            throw new UnauthorizedException('Utilisateur non authentifié');
+        }
+
+        const user = await this.userRepository.findOne({ where: { id: userId } });
+
+        if (!user) {
+            throw new NotFoundException('Utilisateur introuvable');
+        }
+
+        const isCurrentPasswordValid = await bcrypt.compare(dto.currentPassword, user.password);
+
+        if (!isCurrentPasswordValid) {
+            throw new UnauthorizedException('Mot de passe actuel incorrect');
+        }
+
+        const isSamePassword = await bcrypt.compare(dto.newPassword, user.password);
+        if (isSamePassword) {
+            throw new BadRequestException('Le nouveau mot de passe doit être différent de l\'ancien');
+        }
+
+        user.password = await bcrypt.hash(dto.newPassword, 10);
+        user.refreshToken = undefined;
+        await this.userRepository.save(user);
+
+        return {
+            message: 'Mot de passe modifié avec succès. Veuillez vous reconnecter.',
+        };
     }
 }
 
