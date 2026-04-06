@@ -15,6 +15,12 @@ export enum InterventionType {
     SOFT = 'SOFT',
 }
 
+export enum InterventionStatus {
+    A_FAIRE = 'A_FAIRE',
+    EN_COURS = 'EN_COURS',
+    TERMINE = 'TERMINE',
+}
+
 @Entity('interventions')
 export class Intervention {
     @PrimaryGeneratedColumn()
@@ -31,6 +37,13 @@ export class Intervention {
 
     @Column({ type: 'text', nullable: true })
     observation?: string;
+
+    @Column({
+        type: 'enum',
+        enum: InterventionStatus,
+        default: InterventionStatus.A_FAIRE,
+    })
+    status!: InterventionStatus;
 
     @Column()
     destinataire!: string;

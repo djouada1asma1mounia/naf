@@ -2,8 +2,11 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from 'src/users/entities/user.entity';
-import { CreateInterventionDto } from './dto/create-intervention.dto';
-import { InterventionResponseDto } from './dto/intervention-response.dto';
+import {
+    CreateInterventionDto,
+    InterventionResponseDto,
+    UpdateInterventionDto,
+} from './dto';
 import { Intervention } from './entities/intervention.entity';
 import { InterventionItem } from './entities/intervention-item.entity';
 
@@ -14,8 +17,8 @@ export class InterventionsService {
         private readonly interventionsRepository: Repository<Intervention>,
     ) { }
 
-    private baseQuery() {
-        return this.interventionsRepository
+    private baseQuery(repository: Repository<Intervention> = this.interventionsRepository) {
+        return repository
             .createQueryBuilder('intervention')
             .leftJoinAndSelect('intervention.items', 'item')
             .leftJoinAndSelect('intervention.createdBy', 'createdBy')
@@ -44,8 +47,11 @@ export class InterventionsService {
         return `${nextNumber}/${currentYear}`;
     }
 
-    private async getInterventionOrFail(id: number): Promise<Intervention> {
-        const intervention = await this.baseQuery()
+    private async getInterventionOrFail(
+        id: number,
+        repository: Repository<Intervention> = this.interventionsRepository,
+    ): Promise<Intervention> {
+        const intervention = await this.baseQuery(repository)
             .where('intervention.id = :id', { id })
             .getOne();
 
@@ -73,6 +79,7 @@ export class InterventionsService {
             const intervention = interventionRepository.create({
                 reference,
                 interventionType: createInterventionDto.interventionType,
+                status: createInterventionDto.status,
                 observation: createInterventionDto.observation,
                 destinataire: createInterventionDto.destinataire,
                 interventionnaireNom: createInterventionDto.interventionnaireNom,
@@ -122,6 +129,85 @@ export class InterventionsService {
         return {
             data: intervention as InterventionResponseDto,
             message: 'Intervention récupérée avec succès',
+        };
+    }
+
+    async update(
+        id: number,
+        updateInterventionDto: UpdateInterventionDto,
+    ): Promise<{ data: InterventionResponseDto; message: string }> {
+        return this.interventionsRepository.manager.transaction(async (manager) => {
+            const interventionRepository = manager.getRepository(Intervention);
+            const itemRepository = manager.getRepository(InterventionItem);
+
+            const existingIntervention = await interventionRepository.findOne({ where: { id } });
+            if (!existingIntervention) {
+                throw new NotFoundException(`Intervention avec l'id "${id}" introuvable`);
+            }
+
+            const interventionPayload: Partial<Intervention> = {
+                interventionType: updateInterventionDto.interventionType,
+                status: updateInterventionDto.status,
+                observation: updateInterventionDto.observation,
+                destinataire: updateInterventionDto.destinataire,
+                interventionnaireNom: updateInterventionDto.interventionnaireNom,
+                interventionnairePrenom: updateInterventionDto.interventionnairePrenom,
+                interventionnaireFonction: updateInterventionDto.interventionnaireFonction,
+            };
+
+            Object.keys(interventionPayload).forEach((key) => {
+                const typedKey = key as keyof Intervention;
+                if (interventionPayload[typedKey] === undefined) {
+                    delete interventionPayload[typedKey];
+                }
+            });
+
+            if (Object.keys(interventionPayload).length > 0) {
+                await interventionRepository.update(id, interventionPayload);
+            }
+
+            if (updateInterventionDto.items !== undefined) {
+                await itemRepository
+                    .createQueryBuilder()
+                    .delete()
+                    .from(InterventionItem)
+                    .where('interventionId = :interventionId', { interventionId: id })
+                    .execute();
+
+                const newItems = updateInterventionDto.items.map((item) =>
+                    itemRepository.create({
+                        designation: item.designation,
+                        quantity: item.quantity,
+                        marque: item.marque,
+                        numeroSerie: item.numeroSerie,
+                        numeroInventaire: item.numeroInventaire,
+                        intervention: { id } as Intervention,
+                    }),
+                );
+
+                if (newItems.length > 0) {
+                    await itemRepository.save(newItems);
+                }
+            }
+
+            const updated = await this.getInterventionOrFail(id, interventionRepository);
+
+            return {
+                data: updated as InterventionResponseDto,
+                message: 'Intervention mise à jour avec succès',
+            };
+        });
+    }
+
+    async remove(id: number): Promise<{ message: string }> {
+        const result = await this.interventionsRepository.delete(id);
+
+        if (!result.affected) {
+            throw new NotFoundException(`Intervention avec l'id "${id}" introuvable`);
+        }
+
+        return {
+            message: 'Intervention supprimée avec succès',
         };
     }
 }

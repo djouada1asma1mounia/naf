@@ -1,9 +1,11 @@
 import {
     Body,
     Controller,
+    Delete,
     Get,
     Param,
     ParseIntPipe,
+    Patch,
     Post,
     Req,
     UseGuards,
@@ -11,8 +13,11 @@ import {
 import { JwtAuthGuard } from 'src/auth/jwt.guard';
 import { Permissions } from 'src/permissions/permissions.decorator';
 import { PermissionsGuard } from 'src/permissions/permissions.guard';
-import { CreateInterventionDto } from './dto/create-intervention.dto';
-import { InterventionResponseDto } from './dto/intervention-response.dto';
+import {
+    CreateInterventionDto,
+    InterventionResponseDto,
+    UpdateInterventionDto,
+} from './dto';
 import { InterventionsService } from './interventions.service';
 
 @Controller('interventions')
@@ -39,5 +44,22 @@ export class InterventionsController {
     @Permissions('read-intervention')
     findOne(@Param('id', ParseIntPipe) id: number): Promise<{ data: InterventionResponseDto; message: string }> {
         return this.interventionsService.findOne(id);
+    }
+
+    @Patch(':id')
+    @UseGuards(JwtAuthGuard, PermissionsGuard)
+    @Permissions('update-intervention')
+    update(
+        @Param('id', ParseIntPipe) id: number,
+        @Body() updateInterventionDto: UpdateInterventionDto,
+    ): Promise<{ data: InterventionResponseDto; message: string }> {
+        return this.interventionsService.update(id, updateInterventionDto);
+    }
+
+    @Delete(':id')
+    @UseGuards(JwtAuthGuard, PermissionsGuard)
+    @Permissions('delete-intervention')
+    remove(@Param('id', ParseIntPipe) id: number): Promise<{ message: string }> {
+        return this.interventionsService.remove(id);
     }
 }

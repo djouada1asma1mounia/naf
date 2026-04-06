@@ -1,4 +1,4 @@
-import { InterventionType } from '../entities/intervention.entity';
+import { InterventionStatus, InterventionType } from '../entities/intervention.entity';
 
 export class InterventionItemResponseDto {
     id!: number;
@@ -20,6 +20,7 @@ export class InterventionResponseDto {
     id!: number;
     reference!: string;
     interventionType!: InterventionType;
+    status!: InterventionStatus;
     observation?: string;
     destinataire!: string;
     interventionnaireNom!: string;

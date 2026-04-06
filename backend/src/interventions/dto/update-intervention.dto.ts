@@ -3,7 +3,6 @@ import {
     IsArray,
     IsEnum,
     IsInt,
-    IsNotEmpty,
     IsOptional,
     IsString,
     Min,
@@ -12,9 +11,8 @@ import {
 import { Type } from 'class-transformer';
 import { InterventionStatus, InterventionType } from '../entities/intervention.entity';
 
-export class CreateInterventionItemDto {
+export class UpdateInterventionItemDto {
     @IsString()
-    @IsNotEmpty()
     designation!: string;
 
     @IsInt()
@@ -34,9 +32,10 @@ export class CreateInterventionItemDto {
     numeroInventaire?: string;
 }
 
-export class CreateInterventionDto {
+export class UpdateInterventionDto {
+    @IsOptional()
     @IsEnum(InterventionType)
-    interventionType!: InterventionType;
+    interventionType?: InterventionType;
 
     @IsOptional()
     @IsEnum(InterventionStatus)
@@ -46,25 +45,26 @@ export class CreateInterventionDto {
     @IsString()
     observation?: string;
 
+    @IsOptional()
     @IsString()
-    @IsNotEmpty()
-    destinataire!: string;
+    destinataire?: string;
 
+    @IsOptional()
     @IsString()
-    @IsNotEmpty()
-    interventionnaireNom!: string;
+    interventionnaireNom?: string;
 
+    @IsOptional()
     @IsString()
-    @IsNotEmpty()
-    interventionnairePrenom!: string;
+    interventionnairePrenom?: string;
 
+    @IsOptional()
     @IsString()
-    @IsNotEmpty()
-    interventionnaireFonction!: string;
+    interventionnaireFonction?: string;
 
+    @IsOptional()
     @IsArray()
     @ArrayMinSize(1)
     @ValidateNested({ each: true })
-    @Type(() => CreateInterventionItemDto)
-    items!: CreateInterventionItemDto[];
+    @Type(() => UpdateInterventionItemDto)
+    items?: UpdateInterventionItemDto[];
 }
