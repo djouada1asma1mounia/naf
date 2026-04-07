@@ -17,14 +17,13 @@ import DescriptionIcon from '@mui/icons-material/Description';
 import BusinessIcon from '@mui/icons-material/Business';
 import CategoryIcon from '@mui/icons-material/Category';
 import RuleIcon from '@mui/icons-material/Rule';
-import AssessmentIcon from '@mui/icons-material/Assessment';
 import SettingsIcon from '@mui/icons-material/Settings';
 import PeopleIcon from '@mui/icons-material/People';
 import BadgeIcon from '@mui/icons-material/Badge';
 
 const navItems = [
   {
-    label: 'Tableau de Bord',
+    label: 'Dashboard & Statistiques',
     icon: <DashboardIcon />,
     path: '/dashboard',
     roles: [ROLES.ADMIN, ROLES.USER],
@@ -82,12 +81,6 @@ const navItems = [
     icon: <BadgeIcon />,
     path: '/roles',
     roles: [ROLES.ADMIN],
-  },
-  {
-    label: 'Rapports',
-    icon: <AssessmentIcon />,
-    path: '/reports',
-    roles: [ROLES.ADMIN, ROLES.USER],
   },
   {
     label: 'Paramètres',
