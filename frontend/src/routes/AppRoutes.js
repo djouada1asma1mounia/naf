@@ -19,7 +19,6 @@ const ReasonsList = lazy(() => import('../pages/reasons/ReasonsList'));
 const UserManagement = lazy(() => import('../pages/parameters/UserManagement'));
 const RolesList = lazy(() => import('../pages/roles/RolesList'));
 const Profile = lazy(() => import('../pages/parameters/Profile'));
-const Reports = lazy(() => import('../pages/reports/Reports'));
 
 const PageLoader = () => (
   <Box display="flex" justifyContent="center" alignItems="center" minHeight="50vh">
@@ -121,15 +120,6 @@ const AppRoutes = () => (
           element={
             <RoleGuard allowedRoles={[ROLES.ADMIN]}>
               <RolesList />
-            </RoleGuard>
-          }
-        />
-
-        <Route
-          path="reports"
-          element={
-            <RoleGuard allowedRoles={[ROLES.ADMIN, ROLES.USER]}>
-              <Reports />
             </RoleGuard>
           }
         />

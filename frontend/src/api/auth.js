@@ -251,12 +251,13 @@ export const authAPI = {
     }
   },
 
-  /** PATCH /users/:id/password */
-  changePassword: async (id, oldPassword, newPassword) => {
+  /** POST /auth/change-password */
+  changePassword: async ({ currentPassword, newPassword, confirmNewPassword }) => {
     try {
-      const response = await axiosInstance.patch(`/users/${id}/password`, {
-        oldPassword,
+      const response = await axiosInstance.post('/auth/change-password', {
+        currentPassword,
         newPassword,
+        confirmNewPassword,
       });
       return response.data;
     } catch (error) {

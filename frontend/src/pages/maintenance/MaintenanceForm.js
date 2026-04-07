@@ -11,6 +11,7 @@ import { useAuth } from '../../context/AuthContext';
 const initialForm = {
   materialId: '',
   interventionType: 'HARD',
+  status: 'A_FAIRE',
   destinataire: '',
   interventionnaireNom: '',
   interventionnairePrenom: '',
@@ -23,7 +24,23 @@ const initialForm = {
   itemNumeroInventaire: '',
 };
 
-const MaintenanceForm = ({ open, onClose, onSubmit }) => {
+const STATUS_OPTIONS = [
+  { value: 'A_FAIRE', label: 'Planifiée' },
+  { value: 'EN_COURS', label: 'En cours' },
+  { value: 'TERMINE', label: 'Terminée' },
+];
+
+const toStatusCode = (value) => {
+  if (!value) return 'A_FAIRE';
+  const normalized = String(value).trim().toUpperCase();
+  if (['A_FAIRE', 'EN_COURS', 'TERMINE'].includes(normalized)) return normalized;
+  if (normalized === 'PLANIFIEE' || normalized === 'PLANIFIÉE') return 'A_FAIRE';
+  if (normalized === 'EN COURS') return 'EN_COURS';
+  if (normalized === 'TERMINEE' || normalized === 'TERMINÉE') return 'TERMINE';
+  return 'A_FAIRE';
+};
+
+const MaintenanceForm = ({ open, onClose, onSubmit, mode = 'create', initialData = null }) => {
   const { user } = useAuth();
   const [form, setForm] = useState(initialForm);
   const [errors, setErrors] = useState({});
@@ -62,14 +79,34 @@ const MaintenanceForm = ({ open, onClose, onSubmit }) => {
   useEffect(() => {
     if (!open) return;
 
-    setForm({
-      ...initialForm,
-      interventionnaireNom: user?.lastName || '',
-      interventionnairePrenom: user?.firstName || '',
-      interventionnaireFonction: user?.role || '',
-    });
+    if (mode === 'edit' && initialData) {
+      const firstItem = Array.isArray(initialData.items) ? (initialData.items[0] || {}) : {};
+      setForm({
+        ...initialForm,
+        interventionType: initialData.interventionType || initialData.type || 'HARD',
+        status: toStatusCode(initialData.statusCode || initialData.status),
+        destinataire: initialData.destinataire || initialData.department || '',
+        interventionnaireNom: initialData.interventionnaireNom || '',
+        interventionnairePrenom: initialData.interventionnairePrenom || '',
+        interventionnaireFonction: initialData.interventionnaireFonction || '',
+        observation: initialData.observation || '',
+        itemQuantity: Number(firstItem.quantity) > 0 ? Number(firstItem.quantity) : 1,
+        itemDesignation: firstItem.designation || initialData.materialName || '',
+        itemMarque: firstItem.marque || '',
+        itemNumeroSerie: firstItem.numeroSerie || initialData.materialCode || '',
+        itemNumeroInventaire: firstItem.numeroInventaire || '',
+      });
+    } else {
+      setForm({
+        ...initialForm,
+        interventionnaireNom: user?.lastName || '',
+        interventionnairePrenom: user?.firstName || '',
+        interventionnaireFonction: user?.role || '',
+      });
+    }
+
     setErrors({});
-  }, [open, user]);
+  }, [open, user, mode, initialData]);
 
   const handleChange = (field) => (e) => {
     setForm((f) => ({ ...f, [field]: e.target.value }));
@@ -121,7 +158,7 @@ const MaintenanceForm = ({ open, onClose, onSubmit }) => {
 
   const validate = () => {
     const newErrors = {};
-    if (!form.materialId) newErrors.materialId = 'Champ requis';
+    if (mode === 'create' && !form.materialId) newErrors.materialId = 'Champ requis';
     if (!form.destinataire.trim()) newErrors.destinataire = 'Champ requis';
     if (!form.interventionnaireNom.trim()) newErrors.interventionnaireNom = 'Champ requis';
     if (!form.interventionnairePrenom.trim()) newErrors.interventionnairePrenom = 'Champ requis';
@@ -138,6 +175,7 @@ const MaintenanceForm = ({ open, onClose, onSubmit }) => {
 
     const payload = {
       interventionType: form.interventionType,
+      status: form.status,
       observation: form.observation?.trim() || undefined,
       destinataire: form.destinataire.trim(),
       interventionnaireNom: form.interventionnaireNom.trim(),
@@ -155,15 +193,18 @@ const MaintenanceForm = ({ open, onClose, onSubmit }) => {
     };
 
     setLoading(true);
-    await onSubmit(payload);
-    setLoading(false);
+    try {
+      await onSubmit(payload);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
       <DialogTitle>
         <Typography variant="h6" fontWeight={700}>
-          Nouvelle Intervention
+          {mode === 'edit' ? 'Modifier Intervention' : 'Nouvelle Intervention'}
         </Typography>
       </DialogTitle>
       <Divider />
@@ -213,6 +254,13 @@ const MaintenanceForm = ({ open, onClose, onSubmit }) => {
               <TextField fullWidth select label="Type d'intervention" value={form.interventionType} onChange={handleChange('interventionType')}>
                 <MenuItem value="HARD">HARD</MenuItem>
                 <MenuItem value="SOFT">SOFT</MenuItem>
+              </TextField>
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField fullWidth select label="Statut" value={form.status} onChange={handleChange('status')}>
+                {STATUS_OPTIONS.map((option) => (
+                  <MenuItem key={option.value} value={option.value}>{option.label}</MenuItem>
+                ))}
               </TextField>
             </Grid>
 
@@ -319,7 +367,7 @@ const MaintenanceForm = ({ open, onClose, onSubmit }) => {
       <DialogActions sx={{ px: 3, py: 2 }}>
         <Button onClick={onClose} variant="outlined" disabled={loading}>Annuler</Button>
         <Button type="submit" form="maintenance-form" variant="contained" disabled={loading}>
-          Créer
+          {mode === 'edit' ? 'Modifier' : 'Creer'}
         </Button>
       </DialogActions>
     </Dialog>
