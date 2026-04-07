@@ -1,4 +1,9 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { CreateMaterielDto } from './dto/create-materiel.dto';
 import { UpdateMaterielDto } from './dto/update-materiel.dto';
@@ -183,6 +188,22 @@ export class MaterielsService {
       message: subsidiaryCode
         ? 'Liste des matériels de la filiale récupérée avec succès'
         : 'Liste des matériels sans filiale récupérée avec succès',
+    };
+  }
+
+  async findMine(userId?: string) {
+    if (!userId) {
+      throw new UnauthorizedException('Utilisateur non authentifié');
+    }
+
+    const data = await this.baseQuery()
+      .where('proprietaire.id = :userId', { userId })
+      .orderBy('materiel.numeroSerie', 'ASC')
+      .getMany();
+
+    return {
+      data,
+      message: 'Liste de mes matériels récupérée avec succès',
     };
   }
 

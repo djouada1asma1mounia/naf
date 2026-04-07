@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Query, UseGuards, Req } from '@nestjs/common';
 import { MaterielsService } from './materiels.service';
 import { CreateMaterielDto } from './dto/create-materiel.dto';
 import { UpdateMaterielDto } from './dto/update-materiel.dto';
@@ -32,6 +32,16 @@ export class MaterielsController {
     @Query('subsidiaryCode') subsidiaryCode?: string,
   ): Promise<{ data: MaterielResponseDto[]; message: string }> {
     return this.materielsService.findBySubsidiary(subsidiaryCode);
+  }
+
+  @Get('my')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Permissions('read-materiels')
+  findMyMaterials(
+    @Req() req: any,
+  ): Promise<{ data: MaterielResponseDto[]; message: string }> {
+    const userId = (req.user as { id?: string } | undefined)?.id;
+    return this.materielsService.findMine(userId);
   }
 
   @Get(':id')
