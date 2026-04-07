@@ -1,5 +1,17 @@
 import axiosInstance from './axios';
 
+const STATUS_LABEL_BY_API = {
+  A_FAIRE: 'Planifiée',
+  EN_COURS: 'En cours',
+  TERMINE: 'Terminée',
+};
+
+const STATUS_API_BY_LABEL = {
+  Planifiée: 'A_FAIRE',
+  'En cours': 'EN_COURS',
+  Terminée: 'TERMINE',
+};
+
 const getErrorMessage = (error, fallback) => {
   const apiMessage = error?.response?.data?.message;
   if (Array.isArray(apiMessage)) return apiMessage[0] || fallback;
@@ -17,13 +29,16 @@ const normalizeIntervention = (item = {}) => {
   const items = Array.isArray(item.items) ? item.items : [];
   const firstItem = items[0] || {};
   const staffName = `${item?.interventionnaireNom || ''} ${item?.interventionnairePrenom || ''}`.trim();
+  const apiStatus = String(item?.status || '').trim().toUpperCase();
+  const statusLabel = STATUS_LABEL_BY_API[apiStatus] || 'Planifiée';
 
   return {
     id: item?.id,
     code: item?.reference || '',
     reference: item?.reference || '',
     type: item?.interventionType || '',
-    status: 'Planifiée',
+    status: statusLabel,
+    statusCode: apiStatus || 'A_FAIRE',
     priority: 'Normale',
     materialName:
       firstItem?.designation || (items.length > 1 ? `${items.length} element(s)` : 'Element non specifie'),
@@ -39,6 +54,51 @@ const normalizeIntervention = (item = {}) => {
     interventionnairePrenom: item?.interventionnairePrenom || '',
     interventionnaireFonction: item?.interventionnaireFonction || '',
   };
+};
+
+const toApiStatus = (value) => {
+  if (!value) return undefined;
+  const trimmed = String(value).trim();
+  if (!trimmed) return undefined;
+
+  const upper = trimmed.toUpperCase();
+  if (STATUS_LABEL_BY_API[upper]) return upper;
+
+  return STATUS_API_BY_LABEL[trimmed] || undefined;
+};
+
+const buildPayload = (data = {}) => {
+  const status = toApiStatus(data?.status);
+  const items = Array.isArray(data?.items)
+    ? data.items
+      .map((item) => ({
+        designation: String(item?.designation || '').trim(),
+        quantity: Number(item?.quantity),
+        marque: item?.marque ? String(item.marque).trim() : undefined,
+        numeroSerie: item?.numeroSerie ? String(item.numeroSerie).trim() : undefined,
+        numeroInventaire: item?.numeroInventaire ? String(item.numeroInventaire).trim() : undefined,
+      }))
+      .filter((item) => item.designation && Number.isFinite(item.quantity) && item.quantity > 0)
+    : undefined;
+
+  const payload = {
+    interventionType: data?.interventionType || data?.type,
+    status,
+    observation: data?.observation ? String(data.observation).trim() : undefined,
+    destinataire: data?.destinataire ? String(data.destinataire).trim() : undefined,
+    interventionnaireNom: data?.interventionnaireNom ? String(data.interventionnaireNom).trim() : undefined,
+    interventionnairePrenom: data?.interventionnairePrenom ? String(data.interventionnairePrenom).trim() : undefined,
+    interventionnaireFonction: data?.interventionnaireFonction ? String(data.interventionnaireFonction).trim() : undefined,
+    items,
+  };
+
+  Object.keys(payload).forEach((key) => {
+    if (payload[key] === undefined) {
+      delete payload[key];
+    }
+  });
+
+  return payload;
 };
 
 const applyFilters = (interventions = [], filters = {}) => {
@@ -85,7 +145,8 @@ export const maintenanceAPI = {
 
   create: async (data) => {
     try {
-      const response = await axiosInstance.post('/interventions', data);
+      const payload = buildPayload(data);
+      const response = await axiosInstance.post('/interventions', payload);
       const rawItem = response?.data?.data || response?.data;
       return normalizeIntervention(rawItem);
     } catch (error) {
@@ -93,12 +154,24 @@ export const maintenanceAPI = {
     }
   },
 
-  update: async () => {
-    throw new Error('La mise a jour d intervention n est pas disponible cote backend.');
+  update: async (id, data) => {
+    try {
+      const payload = buildPayload(data);
+      const response = await axiosInstance.patch(`/interventions/${id}`, payload);
+      const rawItem = response?.data?.data || response?.data;
+      return normalizeIntervention(rawItem);
+    } catch (error) {
+      throw new Error(getErrorMessage(error, 'Erreur lors de la mise a jour de l intervention.'));
+    }
   },
 
-  delete: async () => {
-    throw new Error('La suppression d intervention n est pas disponible cote backend.');
+  delete: async (id) => {
+    try {
+      await axiosInstance.delete(`/interventions/${id}`);
+      return true;
+    } catch (error) {
+      throw new Error(getErrorMessage(error, 'Erreur lors de la suppression de l intervention.'));
+    }
   },
 
   getRecentCount: async () => {

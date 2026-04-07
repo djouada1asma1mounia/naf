@@ -19,12 +19,33 @@ const toFrDate = (value) => {
   return date.toLocaleDateString('fr-FR');
 };
 
+const splitReference = (reference, createdAt) => {
+  const raw = String(reference || '').trim();
+  const [numberPart = '', yearPart = ''] = raw.split('/').map((part) => part.trim());
+  const fallbackYear = (() => {
+    const date = createdAt ? new Date(createdAt) : new Date();
+    return Number.isNaN(date.getTime()) ? String(new Date().getFullYear()) : String(date.getFullYear());
+  })();
+
+  return {
+    number: numberPart || raw || '',
+    year: yearPart || fallbackYear,
+  };
+};
+
 const buildPrintableHtml = (decharge = {}) => {
+  const maintenanceType = String(decharge.maintenanceType || '').toUpperCase();
+  const isHard = maintenanceType === 'HARD';
+  const isSoft = maintenanceType === 'SOFT';
+  const { number: refNumber, year: refYear } = splitReference(decharge.reference, decharge.createdAt);
+  const logoUrl = `${window.location.origin}/naftal-logo.png`;
+  const createdDate = toFrDate(decharge.createdAt);
+
   const rows = (decharge.items || [])
     .map((item) => `
       <tr>
         <td>${escapeHtml(item.designation)}</td>
-        <td style="text-align:center;">${Number(item.quantity) || ''}</td>
+        <td style="text-align:center;">${String(Number(item.quantity) || '').padStart(2, '0')}</td>
         <td>${escapeHtml(item.marque)}</td>
         <td>${escapeHtml(item.numeroSerie)}</td>
         <td>${escapeHtml(item.numeroInventaire)}</td>
@@ -32,50 +53,296 @@ const buildPrintableHtml = (decharge = {}) => {
     `)
     .join('');
 
+  const minRows = Math.max(0, 4 - (decharge.items || []).length);
+  const emptyRows = Array.from({ length: minRows })
+    .map(() => '<tr><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>')
+    .join('');
+
   return `
     <!doctype html>
     <html lang="fr">
       <head>
         <meta charset="utf-8" />
-        <title>Décharge ${escapeHtml(decharge.reference)}</title>
+        <title>Décharge ${escapeHtml(decharge.reference || '')}</title>
         <style>
-          body { font-family: Arial, sans-serif; margin: 16px; color: #111; }
-          h1 { font-size: 28px; margin-bottom: 4px; }
-          .meta { margin-bottom: 12px; font-size: 14px; }
-          .row { margin: 4px 0; }
-          table { width: 100%; border-collapse: collapse; margin-top: 12px; }
-          th, td { border: 1px solid #444; padding: 8px; font-size: 12px; }
-          th { background: #f2f2f2; text-align: left; }
-          .obs { margin-top: 12px; font-size: 14px; }
+          @page {
+            size: A4;
+            margin: 12mm;
+          }
+
+          * {
+            box-sizing: border-box;
+          }
+
+          html, body {
+            margin: 0;
+            padding: 0;
+            color: #1a1a1a;
+            font-family: Arial, Helvetica, sans-serif;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+          }
+
+          .sheet {
+            width: 100%;
+            min-height: 100%;
+            padding: 5mm 4mm 4mm;
+          }
+
+          .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 8mm;
+          }
+
+          .left-header {
+            display: flex;
+            flex-direction: column;
+            gap: 1px;
+            min-width: 52%;
+          }
+
+          .logo {
+            width: 37mm;
+            height: auto;
+            object-fit: contain;
+            margin-bottom: 2px;
+          }
+
+          .org-line {
+            font-size: 11pt;
+            line-height: 1.2;
+            letter-spacing: 0;
+          }
+
+          .org-line.strong {
+            font-weight: 700;
+          }
+
+          .right-header {
+            margin-top: 7mm;
+            font-size: 11pt;
+            font-weight: 700;
+            text-align: right;
+          }
+
+          .title {
+            text-align: center;
+            font-size: 34pt;
+            line-height: 1;
+            font-weight: 900;
+            letter-spacing: 0.4px;
+            font-style: italic;
+            text-decoration: underline;
+            margin: 0;
+            margin-top: 1mm;
+          }
+
+          .reference {
+            text-align: center;
+            margin: 3mm 0 5mm;
+            font-size: 13pt;
+            letter-spacing: 0;
+          }
+
+          .reference .n {
+            margin-right: 6mm;
+          }
+
+          .reference .num {
+            min-width: 10mm;
+            display: inline-block;
+            text-align: center;
+          }
+
+          .paragraph {
+            margin: 0;
+            font-size: 12pt;
+            line-height: 1.35;
+            font-weight: 600;
+          }
+
+          .type-check {
+            float: right;
+            display: inline-flex;
+            gap: 5mm;
+            align-items: center;
+            font-size: 12pt;
+            font-weight: 600;
+          }
+
+          .check-item {
+            display: inline-flex;
+            align-items: center;
+            gap: 1.6mm;
+          }
+
+          .check {
+            width: 3.6mm;
+            height: 3.6mm;
+            border: 0.3mm solid #4b4b4b;
+            display: inline-block;
+            position: relative;
+            top: 0.3mm;
+            background: #fff;
+          }
+
+          .check.checked::after {
+            content: '✓';
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 8pt;
+            line-height: 1;
+            color: #1f1f1f;
+            font-weight: 700;
+          }
+
+          .items-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 2.2mm;
+            border: 0.3mm solid #595959;
+            table-layout: fixed;
+          }
+
+          .items-table th,
+          .items-table td {
+            border: 0.25mm solid #767676;
+            padding: 1.5mm 2mm;
+            font-size: 10.5pt;
+            line-height: 1.2;
+            height: 8mm;
+            vertical-align: middle;
+          }
+
+          .items-table th {
+            background: #f4f4f4;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0;
+            white-space: nowrap;
+          }
+
+          .items-table .col-designation { width: 30%; text-align: left; }
+          .items-table .col-qt { width: 11%; text-align: center; }
+          .items-table .col-marque { width: 22%; text-align: left; }
+          .items-table .col-serie { width: 18%; text-align: left; }
+          .items-table .col-inv { width: 19%; text-align: left; }
+
+          .meta-line {
+            margin-top: 3.2mm;
+            font-size: 12pt;
+            line-height: 1.28;
+          }
+
+          .meta-line strong {
+            font-weight: 800;
+          }
+
+          .signatures {
+            margin-top: 10mm;
+            display: flex;
+            justify-content: space-between;
+            gap: 10%;
+          }
+
+          .sign-block {
+            width: 44%;
+            min-height: 42mm;
+          }
+
+          .sign-title {
+            font-size: 13pt;
+            line-height: 1.1;
+            font-weight: 900;
+            text-transform: uppercase;
+            text-decoration: underline;
+            margin-bottom: 3.8mm;
+          }
+
+          .sign-subtitle {
+            font-size: 12pt;
+            font-weight: 800;
+            text-transform: uppercase;
+            line-height: 1.2;
+          }
+
+          .receiver-line {
+            font-size: 12pt;
+            margin: 2.2mm 0;
+            line-height: 1.2;
+            font-weight: 700;
+          }
+
+          .receiver-line span {
+            font-weight: 600;
+          }
         </style>
       </head>
       <body>
-        <h1>DECHARGE</h1>
-        <div class="meta">
-          <div class="row"><strong>Référence:</strong> ${escapeHtml(decharge.reference)}</div>
-          <div class="row"><strong>Date:</strong> ${escapeHtml(toFrDate(decharge.createdAt))}</div>
-          <div class="row"><strong>Type:</strong> ${escapeHtml(decharge.maintenanceType)}</div>
-          <div class="row"><strong>Destinataire:</strong> ${escapeHtml(decharge.destinataire)}</div>
-          <div class="row"><strong>Réceptionnaire:</strong> ${escapeHtml(`${decharge.receptionnaireNom || ''} ${decharge.receptionnairePrenom || ''}`.trim())}</div>
-          <div class="row"><strong>Fonction:</strong> ${escapeHtml(decharge.receptionnaireFonction)}</div>
+        <div class="sheet">
+          <header class="header">
+            <div class="left-header">
+              <img class="logo" src="${escapeHtml(logoUrl)}" alt="NAFTAL" />
+              <div class="org-line strong">Branche Commercialisation</div>
+              <div class="org-line">District Commercialisation Alger</div>
+              <div class="org-line strong">SCE S&amp;R&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;DPT INFORMATIQUE</div>
+            </div>
+            <div class="right-header">El Mohammadia le : ${escapeHtml(createdDate)}</div>
+          </header>
+
+          <h1 class="title">DECHARGE</h1>
+          <div class="reference">
+            <span class="n">N</span>
+            <span class="num">${escapeHtml(refNumber)}</span>
+            <span>/${escapeHtml(refYear)}</span>
+          </div>
+
+          <p class="paragraph">
+            Je soussigné: Reconnais avoir reçu à ce jour du DPT Informatique
+            <span class="type-check">
+              <span class="check-item"><span class="check ${isHard ? 'checked' : ''}"></span>HARD</span>
+              <span class="check-item"><span class="check ${isSoft ? 'checked' : ''}"></span>SOFT</span>
+            </span>
+            <br />
+            Alger le matériel ci-dessous:
+          </p>
+
+          <table class="items-table">
+            <thead>
+              <tr>
+                <th class="col-designation">Désignation</th>
+                <th class="col-qt">QT</th>
+                <th class="col-marque">Marque/Type</th>
+                <th class="col-serie">N° Serie</th>
+                <th class="col-inv">N° INV</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rows}${emptyRows}
+            </tbody>
+          </table>
+
+          <div class="meta-line"><strong>Observation:</strong> ${escapeHtml(decharge.observation)}</div>
+          <div class="meta-line"><strong>Destinataire:</strong> ${escapeHtml(decharge.destinataire)}</div>
+
+          <section class="signatures">
+            <div class="sign-block">
+              <div class="sign-title">Le Responsable</div>
+              <div class="sign-subtitle">Le Chef de Service S&amp;R</div>
+            </div>
+            <div class="sign-block">
+              <div class="sign-title">Le Receptionnaire</div>
+              <div class="receiver-line">NOM: <span>${escapeHtml(decharge.receptionnaireNom)}</span></div>
+              <div class="receiver-line">PRENOM: <span>${escapeHtml(decharge.receptionnairePrenom)}</span></div>
+              <div class="receiver-line">FONCTION: <span>${escapeHtml(decharge.receptionnaireFonction)}</span></div>
+            </div>
+          </section>
         </div>
-
-        <table>
-          <thead>
-            <tr>
-              <th>Désignation</th>
-              <th>QT</th>
-              <th>Marque/Type</th>
-              <th>N SERIE</th>
-              <th>N INV</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${rows}
-          </tbody>
-        </table>
-
-        <div class="obs"><strong>Observation:</strong> ${escapeHtml(decharge.observation)}</div>
       </body>
     </html>
   `;
@@ -98,13 +365,34 @@ const printHtml = (html) => {
   doc.write(html);
   doc.close();
 
-  setTimeout(() => {
-    iframe.contentWindow?.focus();
-    iframe.contentWindow?.print();
+  const cleanup = () => {
     setTimeout(() => {
       if (iframe.parentNode) iframe.parentNode.removeChild(iframe);
     }, 1500);
-  }, 150);
+  };
+
+  const startPrint = () => {
+    iframe.contentWindow?.focus();
+    iframe.contentWindow?.print();
+    cleanup();
+  };
+
+  const waitForAssets = () => {
+    const images = Array.from(doc.images || []);
+    Promise.all(
+      images.map((image) => {
+        if (image.complete) return Promise.resolve();
+        return new Promise((resolve) => {
+          image.onload = () => resolve();
+          image.onerror = () => resolve();
+        });
+      }),
+    ).then(() => {
+      setTimeout(startPrint, 120);
+    });
+  };
+
+  setTimeout(waitForAssets, 30);
 };
 
 const normalizeDecharge = (item = {}) => {

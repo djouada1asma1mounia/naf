@@ -17,11 +17,13 @@ import { useThemeMode } from '../../context/ThemeContext';
 import { authAPI } from '../../api/auth';
 import PageHeader from '../../components/common/PageHeader';
 import { useSnackbar } from 'notistack';
+import { useNavigate } from 'react-router-dom';
 
 const TabPanel = ({ children, value, index }) => value === index && <Box pt={3}>{children}</Box>;
 
 const Profile = () => {
-  const { user, updateUser } = useAuth();
+  const { user, updateUser, logout } = useAuth();
+  const navigate = useNavigate();
   const {
     mode,
     toggleTheme,
@@ -73,6 +75,10 @@ const Profile = () => {
 
   const handlePasswordChange = async (e) => {
     e.preventDefault();
+    if (!pwForm.old || !pwForm.new1 || !pwForm.new2) {
+      setPwError('Tous les champs du mot de passe sont obligatoires');
+      return;
+    }
     if (pwForm.new1 !== pwForm.new2) {
       setPwError('Les mots de passe ne correspondent pas');
       return;
@@ -84,9 +90,16 @@ const Profile = () => {
     setPwError('');
     setLoading(true);
     try {
-      await authAPI.changePassword(user.id, pwForm.old, pwForm.new1);
-      enqueueSnackbar('Mot de passe modifié', { variant: 'success' });
+      const response = await authAPI.changePassword({
+        currentPassword: pwForm.old,
+        newPassword: pwForm.new1,
+        confirmNewPassword: pwForm.new2,
+      });
+
+      enqueueSnackbar(response?.message || 'Mot de passe modifie. Veuillez vous reconnecter.', { variant: 'success' });
       setPwForm({ old: '', new1: '', new2: '' });
+      logout();
+      navigate('/login', { replace: true });
     } catch (err) {
       setPwError(err.message || 'Erreur');
     }
