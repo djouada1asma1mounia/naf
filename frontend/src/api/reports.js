@@ -1,24 +1,32 @@
 import axiosInstance from "./axios";
-import { materialsAPI } from "./materials";
-import { maintenanceAPI } from "./maintenance";
-import { authAPI } from "./auth";
-import { structuresAPI } from "./structures";
 import { rolesAPI } from "./roles";
 import { categoriesAPI } from "./categories";
 import { subsidiariesAPI } from "./subsidiaries";
-
-const emptyInterventionsByMonth = [
-  { month: "Jan", hard: 0, soft: 0 },
-  { month: "Fév", hard: 0, soft: 0 },
-  { month: "Mar", hard: 0, soft: 0 },
-  { month: "Avr", hard: 0, soft: 0 },
-  { month: "Mai", hard: 0, soft: 0 },
-  { month: "Juin", hard: 0, soft: 0 },
-];
+import { structuresAPI } from "./structures";
+import { servicesAPI } from "./services";
 
 const parseCount = (value) => {
   const n = Number(value);
   return Number.isFinite(n) ? n : 0;
+};
+
+const normalizeMaterialStatusName = (status) => {
+  const normalized = String(status || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toUpperCase();
+
+  if (normalized === "EN SERVICE" || normalized === "EN_SERVICE") {
+    return "EN_SERVICE";
+  }
+  if (normalized === "EN PANNE" || normalized === "EN_PANNE") {
+    return "EN_PANNE";
+  }
+  if (normalized === "REFORME") {
+    return "REFORME";
+  }
+  return normalized;
 };
 
 const normalizeInterventionStatusLabel = (status) => {
@@ -34,257 +42,152 @@ const normalizeNamedCounts = (rows = [], mapper) =>
     value: parseCount(row?.value),
   }));
 
-const countByStatus = (materials = []) => {
-  const grouped = {
-    "En Service": 0,
-    "En Panne": 0,
-    Reforme: 0,
-  };
-
-  materials.forEach((item) => {
-    const status = item?.status;
-    if (!grouped[status]) {
-      grouped[status] = 0;
-    }
-    grouped[status] += 1;
-  });
-
-  return [
-    { name: "En Service", value: grouped["En Service"] || 0 },
-    { name: "En Panne", value: grouped["En Panne"] || 0 },
-    { name: "Reforme", value: grouped.Reforme || 0 },
-  ];
-};
-
-const buildMaterialsStats = (materials = [], departments = []) => {
-  const totalMaterials = materials.length;
-  const activeMaterials = materials.filter(
-    (m) => m.status === "En Service",
-  ).length;
-  const maintenanceMaterials = materials.filter(
-    (m) => m.status === "Reforme",
-  ).length;
-  const panneMaterials = materials.filter(
-    (m) => m.status === "En Panne",
-  ).length;
-
-  const byCategoryMap = new Map();
-  materials.forEach((m) => {
-    const key = m.category || "Non classé";
-    byCategoryMap.set(key, (byCategoryMap.get(key) || 0) + 1);
-  });
-
-  const materialsByCategory = Array.from(byCategoryMap.entries())
-    .map(([name, value]) => ({ name, value }))
-    .sort((a, b) => b.value - a.value);
-
-  const materialsByStatus = [
-    { name: "En Service", value: activeMaterials },
-    { name: "Reforme", value: maintenanceMaterials },
-    { name: "En Panne", value: panneMaterials },
-  ];
-
-  const materialsByDept = departments.map((department) => ({
-    name: department.code || department.name,
-    fullName: department.name,
-    count: materials.filter(
-      (m) => String(m.departmentId) === String(department.id),
-    ).length,
-  }));
-
-  return {
-    totalMaterials,
-    activeMaterials,
-    maintenanceMaterials,
-    panneMaterials,
-    materialsByCategory,
-    materialsByStatus,
-    materialsByDept,
-  };
-};
-
-const buildInterventionsByMonth = (interventions = []) => {
-  if (!Array.isArray(interventions) || interventions.length === 0) {
-    return emptyInterventionsByMonth;
-  }
-
-  const monthLabels = ["Jan", "Fév", "Mar", "Avr", "Mai", "Juin"];
-  const now = new Date();
-  const buckets = monthLabels.map((label, index) => {
-    const date = new Date(
-      now.getFullYear(),
-      now.getMonth() - (monthLabels.length - 1 - index),
-      1,
-    );
-    return {
-      year: date.getFullYear(),
-      monthIndex: date.getMonth(),
-      month: label,
-      hard: 0,
-      soft: 0,
-    };
-  });
-
-  interventions.forEach((intervention) => {
-    const dateValue = intervention.startDate || intervention.createdAt;
-    const date = dateValue ? new Date(dateValue) : null;
-    if (!date || Number.isNaN(date.getTime())) return;
-
-    const bucket = buckets.find(
-      (b) => b.year === date.getFullYear() && b.monthIndex === date.getMonth(),
-    );
-    if (!bucket) return;
-
-    if (intervention.type === "SOFT") {
-      bucket.soft += 1;
-    } else {
-      bucket.hard += 1;
-    }
-  });
-
-  return buckets.map(({ month, hard, soft }) => ({
-    month,
-    hard,
-    soft,
-  }));
-};
-
 export const reportsAPI = {
   getStats: async () => {
-    try {
-      const [overviewResponse, roles, categories, reasons, allMaterials] =
-        await Promise.all([
-          axiosInstance.get("/statistique/overview", {
-            params: { months: 6, top: 10 },
-          }),
-          rolesAPI.getAll(),
-          categoriesAPI.getAll(),
-          subsidiariesAPI.getAll(),
-          materialsAPI.getAll(),
-        ]);
+    const [overviewResponse, roles, categories, reasons, departments, services] = await Promise.all([
+      axiosInstance.get("/statistique/overview", {
+        params: { months: 6, top: 10 },
+      }),
+      rolesAPI.getAll(),
+      categoriesAPI.getAll(),
+      subsidiariesAPI.getAll(),
+      structuresAPI.getDepartments(),
+      servicesAPI.getAll(),
+    ]);
 
-      const overview = overviewResponse?.data?.data || {};
-      const materials = overview.materials || {};
-      const interventions = overview.interventions || {};
-      const decharges = overview.decharges || {};
-      const users = overview.users || {};
+    const overview = overviewResponse?.data?.data || {};
+    const materials = overview.materials || {};
+    const interventions = overview.interventions || {};
+    const decharges = overview.decharges || {};
+    const users = overview.users || {};
 
-      const materialsByStatus = normalizeNamedCounts(materials.byStatus);
-      const interventionStatusCounts = normalizeNamedCounts(
-        interventions.byStatus,
-        normalizeInterventionStatusLabel,
-      );
+    const materialsByStatus = normalizeNamedCounts(materials.byStatus);
+    const interventionStatusCounts = normalizeNamedCounts(
+      interventions.byStatus,
+      normalizeInterventionStatusLabel,
+    );
 
-      const interventionsByMonth = (interventions.byMonth || []).map((entry) => ({
-        month: String(entry?.month || "").slice(5) || "-",
-        hard: parseCount(entry?.hard),
-        soft: parseCount(entry?.soft),
-      }));
+    const interventionsByMonth = (interventions.byMonth || []).map((entry) => ({
+      month: String(entry?.month || "").slice(5) || "-",
+      hard: parseCount(entry?.hard),
+      soft: parseCount(entry?.soft),
+    }));
 
-      const gdMaterials = allMaterials.filter((item) => Boolean(item?.subsidiaryCode));
-      const classicMaterials = allMaterials.filter((item) => !item?.subsidiaryCode);
-      const gdMaterialsByStatus = countByStatus(gdMaterials);
+    const materialByStatusMap = (Array.isArray(materials.byStatus) ? materials.byStatus : []).reduce(
+      (acc, item) => {
+        const key = normalizeMaterialStatusName(item?.name);
+        acc[key] = parseCount(item?.value);
+        return acc;
+      },
+      {},
+    );
 
-      const ongoingInterventions = parseCount(
-        (interventions.byStatus || []).find((s) => s.name === "EN_COURS")?.value,
-      );
+    const ongoingInterventions = parseCount(
+      (interventions.byStatus || []).find((s) => s.name === "EN_COURS")?.value,
+    );
 
+    const totalMaterials = parseCount(materials.totalMaterials);
+    const standardMaterialsCount = parseCount(materials?.quality?.withoutSubsidiary);
+    const gdMaterialsCount = Math.max(totalMaterials - standardMaterialsCount, 0);
+
+    const servicesByDepartmentId = (Array.isArray(services) ? services : []).reduce(
+      (acc, service) => {
+        const key = service?.departmentId == null ? "unknown" : String(service.departmentId);
+        acc[key] = (acc[key] || 0) + 1;
+        return acc;
+      },
+      {},
+    );
+
+    const departmentServiceBreakdown = (Array.isArray(departments) ? departments : []).map((department) => {
+      const key = String(department?.id);
       return {
-        totalMaterials: parseCount(materials.totalMaterials),
-        activeMaterials: parseCount(
-          (materials.byStatus || []).find((s) => s.name === "En Service")?.value,
-        ),
-        maintenanceMaterials: parseCount(
-          (materials.byStatus || []).find((s) => s.name === "Reforme")?.value,
-        ),
-        panneMaterials: parseCount(
-          (materials.byStatus || []).find((s) => s.name === "En Panne")?.value,
-        ),
-        materialsByCategory: normalizeNamedCounts(materials.byCategory),
-        materialsByStatus,
-        materialsByDept: normalizeNamedCounts(materials.byDepartment).map((row) => ({
-          ...row,
-          count: row.value,
-          fullName: row.name,
-        })),
-        interventionsByMonth,
-
-        totalInterventions: parseCount(interventions.totalInterventions),
-        ongoingInterventions,
-        interventionStatusCounts,
-        interventionTypeCounts: normalizeNamedCounts(interventions.byType),
-
-        totalUsers: parseCount(users.totalUsers),
-        totalDepartments: parseCount(users?.structure?.totalDepartments),
-        totalServices: parseCount(users?.structure?.totalServices),
-        roleCounts: normalizeNamedCounts(users.byRole),
-
-        totalDecharges: parseCount(decharges.totalDecharges),
-
-        totalRoles: Array.isArray(roles) ? roles.length : 0,
-        totalCategories: Array.isArray(categories) ? categories.length : 0,
-        totalReasons: Array.isArray(reasons) ? reasons.length : 0,
-
-        totalGdMaterials: gdMaterials.length,
-        totalClassicMaterials: classicMaterials.length,
-        gdMaterialsByStatus,
+        id: department?.id,
+        name: department?.name || department?.code || "Sans departement",
+        code: department?.code || "-",
+        servicesCount: parseCount(servicesByDepartmentId[key]),
       };
-    } catch {
-      const [materials, interventions, users, departments] = await Promise.all([
-        materialsAPI.getAll(),
-        maintenanceAPI.getAll(),
-        authAPI.getUsers(),
-        structuresAPI.getDepartments(),
-      ]);
+    });
 
-      const materialStats = buildMaterialsStats(materials, departments);
-      const now = Date.now();
-      const ongoingInterventions = interventions.filter((m) => {
-        const date = new Date(m.createdAt || m.startDate);
-        return !Number.isNaN(date.getTime()) && now - date.getTime() < 86400000 * 7;
-      }).length;
+    const interventionsInfo = {
+      byStatus: interventionStatusCounts,
+      byType: normalizeNamedCounts(interventions.byType),
+      byMonth: interventionsByMonth,
+      topDestinataires: normalizeNamedCounts(interventions.byDestinataire),
+      topInterventionnaires: normalizeNamedCounts(interventions.byInterventionnaire),
+      items: {
+        totalItems: parseCount(interventions?.items?.totalItems),
+        totalItemsQuantity: parseCount(interventions?.items?.totalItemsQuantity),
+        averageItemsPerIntervention: parseCount(interventions?.items?.averageItemsPerIntervention),
+      },
+    };
 
-      return {
-        ...materialStats,
-        totalInterventions: interventions.length,
-        ongoingInterventions,
-        totalUsers: users.length,
-        totalDepartments: departments.length,
-        totalServices: 0,
-        totalRoles: 0,
-        totalCategories: 0,
-        totalReasons: 0,
-        totalDecharges: 0,
-        totalGdMaterials: materials.filter((item) => item?.subsidiaryCode).length,
-        totalClassicMaterials: materials.filter((item) => !item?.subsidiaryCode).length,
-        gdMaterialsByStatus: countByStatus(materials.filter((item) => item?.subsidiaryCode)),
-        interventionStatusCounts: [],
-        interventionTypeCounts: [],
-        roleCounts: [],
-        interventionsByMonth: buildInterventionsByMonth(interventions),
-      };
-    }
+    return {
+      totalMaterials,
+      activeMaterials: parseCount(materialByStatusMap.EN_SERVICE),
+      maintenanceMaterials: parseCount(materialByStatusMap.REFORME),
+      panneMaterials: parseCount(materialByStatusMap.EN_PANNE),
+      materialsByCategory: normalizeNamedCounts(materials.byCategory),
+      materialsByStatus,
+      materialsByDept: normalizeNamedCounts(materials.byDepartment).map((row) => ({
+        ...row,
+        count: row.value,
+        fullName: row.name,
+      })),
+      interventionsByMonth,
+
+      totalInterventions: parseCount(interventions.totalInterventions),
+      ongoingInterventions,
+      interventionStatusCounts,
+      interventionTypeCounts: normalizeNamedCounts(interventions.byType),
+      interventionsInfo,
+
+      totalUsers: parseCount(users.totalUsers),
+      totalDepartments: parseCount(users?.structure?.totalDepartments),
+      totalServices: parseCount(users?.structure?.totalServices),
+      departmentsServiceBreakdown: departmentServiceBreakdown,
+      roleCounts: normalizeNamedCounts(users.byRole),
+
+      totalDecharges: parseCount(decharges.totalDecharges),
+
+      totalRoles: Array.isArray(roles) ? roles.length : 0,
+      totalCategories: Array.isArray(categories) ? categories.length : 0,
+      totalReasons: Array.isArray(reasons) ? reasons.length : 0,
+      totalGdMaterials: gdMaterialsCount,
+      totalClassicMaterials: standardMaterialsCount,
+      gdMaterialsByStatus: [],
+    };
   },
 
   getMaterialsReport: async () => {
-    const [materials, departments] = await Promise.all([
-      materialsAPI.getAll(),
-      structuresAPI.getDepartments(),
-    ]);
-
-    const materialStats = buildMaterialsStats(materials, departments);
+    const response = await axiosInstance.get("/statistique/materials", {
+      params: { top: 10 },
+    });
+    const data = response?.data?.data || {};
 
     return {
-      byCategory: materialStats.materialsByCategory,
-      byStatus: materialStats.materialsByStatus,
-      byDepartment: materialStats.materialsByDept,
+      byCategory: normalizeNamedCounts(data.byCategory),
+      byStatus: normalizeNamedCounts(data.byStatus),
+      byDepartment: normalizeNamedCounts(data.byDepartment).map((row) => ({
+        ...row,
+        count: row.value,
+        fullName: row.name,
+      })),
     };
   },
 
   getInterventionsReport: async () => {
-    const interventions = await maintenanceAPI.getAll();
+    const response = await axiosInstance.get("/statistique/interventions", {
+      params: { months: 6, top: 10 },
+    });
+    const data = response?.data?.data || {};
+
     return {
-      byMonth: buildInterventionsByMonth(interventions),
+      byMonth: (data.byMonth || []).map((entry) => ({
+        month: String(entry?.month || "").slice(5) || "-",
+        hard: parseCount(entry?.hard),
+        soft: parseCount(entry?.soft),
+      })),
     };
   },
 };
