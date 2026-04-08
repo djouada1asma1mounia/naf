@@ -1,6 +1,7 @@
 import {
     Body,
     Controller,
+    Delete,
     Get,
     Param,
     ParseIntPipe,
@@ -55,5 +56,12 @@ export class DechargesController {
     @Permissions('read-decharge')
     findOne(@Param('id', ParseIntPipe) id: number): Promise<{ data: DechargeResponseDto; message: string }> {
         return this.dechargesService.findOne(id);
+    }
+
+    @Delete(':id')
+    @UseGuards(JwtAuthGuard, PermissionsGuard)
+    @Permissions('delete-decharge')
+    remove(@Param('id', ParseIntPipe) id: number): Promise<{ message: string }> {
+        return this.dechargesService.remove(id);
     }
 }

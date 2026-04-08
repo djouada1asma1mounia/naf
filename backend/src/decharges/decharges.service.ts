@@ -376,4 +376,18 @@ export class DechargesService {
             await browser.close();
         }
     }
+
+    async remove(id: number): Promise<{ message: string }> {
+        const decharge = await this.dechargesRepository.findOne({ where: { id } });
+
+        if (!decharge) {
+            throw new NotFoundException(`Décharge avec l'id "${id}" introuvable`);
+        }
+
+        await this.dechargesRepository.remove(decharge);
+
+        return {
+            message: 'Décharge supprimée avec succès',
+        };
+    }
 }
