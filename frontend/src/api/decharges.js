@@ -465,6 +465,15 @@ export const dechargesAPI = {
     }
   },
 
+  delete: async (id) => {
+    try {
+      const response = await axiosInstance.delete(`/decharges/${id}`);
+      return response?.data;
+    } catch (error) {
+      throw new Error(getErrorMessage(error, 'Erreur lors de la suppression de la décharge.'));
+    }
+  },
+
   downloadPdf: async (id, reference) => {
     try {
       const response = await axiosInstance.get(`/decharges/${id}/pdf`, {

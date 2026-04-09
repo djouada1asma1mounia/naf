@@ -25,9 +25,11 @@ import {
 import AddIcon from '@mui/icons-material/Add';
 import PrintIcon from '@mui/icons-material/Print';
 import DescriptionIcon from '@mui/icons-material/Description';
+import DeleteIcon from '@mui/icons-material/Delete';
 import { useSnackbar } from 'notistack';
 import { useAuth } from '../../context/AuthContext';
 import PageHeader from '../../components/common/PageHeader';
+import ConfirmDialog from '../../components/common/ConfirmDialog';
 import DechargeForm from './DechargeForm';
 import { dechargesAPI } from '../../api/decharges';
 
@@ -35,6 +37,7 @@ const DECHARGE_PERMISSIONS = {
   create: ['create-decharge', 'create decharge'],
   readAll: ['read-decharges', 'read decharges'],
   readOne: ['read-decharge', 'read decharge'],
+  deleteOne: ['delete-decharge', 'delete decharge'],
 };
 
 const formatDate = (value) => {
@@ -54,10 +57,13 @@ const DechargesList = () => {
   const [filters, setFilters] = useState({ search: '', maintenanceType: '' });
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [deleteDialog, setDeleteDialog] = useState({ open: false, id: null, reference: '' });
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   const canCreate = hasPermissionAny(DECHARGE_PERMISSIONS.create);
   const canReadAll = hasPermissionAny(DECHARGE_PERMISSIONS.readAll);
   const canReadOne = hasPermissionAny(DECHARGE_PERMISSIONS.readOne);
+  const canDeleteOne = hasPermissionAny(DECHARGE_PERMISSIONS.deleteOne);
 
   const loadData = useCallback(async () => {
     if (!canReadAll) {
@@ -108,6 +114,24 @@ const DechargesList = () => {
     } catch (error) {
       enqueueSnackbar(error.message || 'Erreur lors de l\'impression.', { variant: 'error' });
     }
+  };
+
+  const handleDelete = async () => {
+    if (!canDeleteOne) {
+      enqueueSnackbar('Vous n\'avez pas la permission de supprimer des décharges.', { variant: 'warning' });
+      return;
+    }
+
+    setDeleteLoading(true);
+    try {
+      await dechargesAPI.delete(deleteDialog.id);
+      enqueueSnackbar('Décharge supprimée avec succès', { variant: 'success' });
+      setDeleteDialog({ open: false, id: null, reference: '' });
+      loadData();
+    } catch (error) {
+      enqueueSnackbar(error.message || 'Erreur lors de la suppression de la décharge.', { variant: 'error' });
+    }
+    setDeleteLoading(false);
   };
 
   const displayed = decharges.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
@@ -164,7 +188,7 @@ const DechargesList = () => {
                 <TableCell>Destinataire</TableCell>
                 <TableCell>Réceptionnaire</TableCell>
                 <TableCell>Date</TableCell>
-                <TableCell align="center">Imprimer</TableCell>
+                <TableCell align="center">Actions</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -203,13 +227,27 @@ const DechargesList = () => {
                       </TableCell>
                       <TableCell>{formatDate(decharge.createdAt)}</TableCell>
                       <TableCell align="center">
-                        <Tooltip title={canReadOne ? 'Imprimer PDF' : 'Permission insuffisante'}>
-                          <span>
-                            <IconButton size="small" color="primary" disabled={!canReadOne} onClick={() => handlePrint(decharge)}>
-                              <PrintIcon fontSize="small" />
-                            </IconButton>
-                          </span>
-                        </Tooltip>
+                        <Box display="flex" justifyContent="center" gap={0.5}>
+                          <Tooltip title={canReadOne ? 'Imprimer PDF' : 'Permission insuffisante'}>
+                            <span>
+                              <IconButton size="small" color="primary" disabled={!canReadOne} onClick={() => handlePrint(decharge)}>
+                                <PrintIcon fontSize="small" />
+                              </IconButton>
+                            </span>
+                          </Tooltip>
+                          <Tooltip title={canDeleteOne ? 'Supprimer' : 'Permission insuffisante'}>
+                            <span>
+                              <IconButton
+                                size="small"
+                                color="error"
+                                disabled={!canDeleteOne}
+                                onClick={() => setDeleteDialog({ open: true, id: decharge.id, reference: decharge.reference })}
+                              >
+                                <DeleteIcon fontSize="small" />
+                              </IconButton>
+                            </span>
+                          </Tooltip>
+                        </Box>
                       </TableCell>
                     </TableRow>
                   );
@@ -238,6 +276,15 @@ const DechargesList = () => {
         open={formOpen}
         onClose={() => setFormOpen(false)}
         onSubmit={handleCreate}
+      />
+
+      <ConfirmDialog
+        open={deleteDialog.open}
+        title="Supprimer la Décharge"
+        message={`Êtes-vous sûr de vouloir supprimer la décharge "${deleteDialog.reference}" ? Cette action est irréversible.`}
+        onConfirm={handleDelete}
+        onClose={() => setDeleteDialog({ open: false, id: null, reference: '' })}
+        loading={deleteLoading}
       />
     </Box>
   );

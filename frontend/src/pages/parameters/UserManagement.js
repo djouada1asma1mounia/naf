@@ -23,21 +23,6 @@ import ConfirmDialog from '../../components/common/ConfirmDialog';
 import { useSnackbar } from 'notistack';
 import { useAuth } from '../../context/AuthContext';
 
-const REQUIRED_PERMISSION_NAMES = ['create-role'];
-
-const buildPermissionOptions = (backendPermissions = []) => {
-  const normalized = Array.isArray(backendPermissions) ? [...backendPermissions] : [];
-  const existingNames = new Set(normalized.map((permission) => String(permission?.name || '').trim().toLowerCase()));
-
-  REQUIRED_PERMISSION_NAMES.forEach((permissionName) => {
-    if (!existingNames.has(permissionName.toLowerCase())) {
-      normalized.push({ id: `virtual:${permissionName}`, name: permissionName, virtual: true });
-    }
-  });
-
-  return normalized;
-};
-
 const extractPermissionIds = (user) => {
   if (Array.isArray(user?.permissionIds)) return user.permissionIds.map(Number).filter((id) => !Number.isNaN(id));
   if (Array.isArray(user?.permissions)) {
@@ -260,7 +245,7 @@ const UserForm = ({ open, onClose, onSubmit, editItem, departments, customRoles,
             {permissions.length === 0 && (
               <Grid item xs={12}>
                 <Alert severity="info">
-                  Mode frontend: permissions backend indisponibles, tous les comptes disposent actuellement d'un accès complet.
+                  Permissions backend indisponibles: la liste des permissions ne peut pas être chargée pour le moment.
                 </Alert>
               </Grid>
             )}
@@ -316,10 +301,10 @@ const UserManagement = () => {
       setCustomRoles(rolesResult.value);
 
       if (permissionsResult.status === 'fulfilled' && Array.isArray(permissionsResult.value) && permissionsResult.value.length > 0) {
-        setPermissions(buildPermissionOptions(permissionsResult.value));
+        setPermissions(permissionsResult.value);
         setPermissionsFallback(false);
       } else {
-        setPermissions(buildPermissionOptions([]));
+        setPermissions([]);
         setPermissionsFallback(true);
       }
     } catch { enqueueSnackbar('Erreur chargement', { variant: 'error' }); }
@@ -397,7 +382,7 @@ const UserManagement = () => {
         <CardContent sx={{ py: 2 }}>
           {permissionsFallback && (
             <Alert severity="info" sx={{ mb: 2 }}>
-              Mode frontend actif: permissions backend non prêtes, tous les comptes ont temporairement un accès complet.
+              Les permissions backend sont indisponibles actuellement. Vérifiez l'endpoint /permissions.
             </Alert>
           )}
           <TextField
