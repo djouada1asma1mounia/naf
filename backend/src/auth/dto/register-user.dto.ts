@@ -1,4 +1,4 @@
-import { IsEmail, IsNumber, IsString, MinLength } from "class-validator";
+import { IsArray, IsEmail, IsInt, IsNumber, IsOptional, IsString, MinLength } from "class-validator";
 import { Match } from "src/validators/match.validators";
 
 export class RegisterUserDto {
@@ -17,6 +17,11 @@ export class RegisterUserDto {
 
     @IsNumber()
     departmentId: number;
+
+    @IsOptional()
+    @IsArray()
+    @IsInt({ each: true })
+    permissionIds?: number[];
 
     @IsString()
     @MinLength(6)

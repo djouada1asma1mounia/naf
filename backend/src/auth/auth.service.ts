@@ -7,10 +7,11 @@ import { User } from 'src/users/entities/user.entity';
 import { RegisterUserDto } from './dto/register-user.dto';
 import { LoginUserDto } from './dto/login-user.dto';
 import { JwtService } from '@nestjs/jwt';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { Role } from 'src/roles/entities/role.entity';
 import { Department } from 'src/departments/entities/department.entity';
 import { ChangePasswordDto } from './dto/change-password.dto';
+import { Permission } from 'src/permissions/entities/permission.entity';
 
 @Injectable()
 export class AuthService {
@@ -22,11 +23,13 @@ export class AuthService {
         private roleRepository: Repository<Role>,
         @InjectRepository(Department)
         private departmentRepository: Repository<Department>,
+        @InjectRepository(Permission)
+        private permissionRepository: Repository<Permission>,
         private jwtService: JwtService,
     ) { }
 
     async register(RegisterUserDto: RegisterUserDto) {
-        const { email, nom, prenom, roleId, departmentId, password } = RegisterUserDto;
+        const { email, nom, prenom, roleId, departmentId, permissionIds, password } = RegisterUserDto;
 
         const [role, department, existingUser] = await Promise.all([
             this.roleRepository.findOne({ where: { id: roleId } }),
@@ -46,6 +49,17 @@ export class AuthService {
             throw new ConflictException('Email already exists');
         }
 
+        let permissions: Permission[] = [];
+        if (permissionIds?.length) {
+            permissions = await this.permissionRepository.find({
+                where: { id: In(permissionIds) },
+            });
+
+            if (permissions.length !== new Set(permissionIds).size) {
+                throw new NotFoundException('Une ou plusieurs permissions sont introuvables');
+            }
+        }
+
         const hashedPassword = await bcrypt.hash(password, 10);
 
         const newUser = this.userRepository.create({
@@ -55,6 +69,7 @@ export class AuthService {
             password: hashedPassword,
             role,
             department,
+            permissions,
         });
 
         await this.userRepository.save(newUser);
