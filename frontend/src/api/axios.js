@@ -11,6 +11,27 @@ const axiosInstance = axios.create({
   timeout: 15000,
 });
 
+const AUTH_ENDPOINTS = ['/auth/login', '/auth/register', '/auth/refresh'];
+
+let isRefreshing = false;
+let refreshSubscribers = [];
+
+const isAuthEndpoint = (url = '') => AUTH_ENDPOINTS.some((endpoint) => String(url).includes(endpoint));
+
+const subscribeTokenRefresh = (callback) => {
+  refreshSubscribers.push(callback);
+};
+
+const onRefreshed = (token) => {
+  refreshSubscribers.forEach((callback) => callback(token));
+  refreshSubscribers = [];
+};
+
+const clearSession = () => {
+  localStorage.removeItem('naftal_token');
+  localStorage.removeItem('naftal_user');
+};
+
 axiosInstance.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('naftal_token');
@@ -24,13 +45,63 @@ axiosInstance.interceptors.request.use(
 
 axiosInstance.interceptors.response.use(
   (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      localStorage.removeItem('naftal_token');
-      localStorage.removeItem('naftal_user');
-      window.location.href = '/login';
+  async (error) => {
+    const originalRequest = error?.config || {};
+    const status = error?.response?.status;
+    const hasStoredToken = Boolean(localStorage.getItem('naftal_token'));
+
+    if (status !== 401) {
+      return Promise.reject(error);
     }
-    return Promise.reject(error);
+
+    if (!hasStoredToken) {
+      return Promise.reject(error);
+    }
+
+    if (isAuthEndpoint(originalRequest.url) || originalRequest._retry) {
+      return Promise.reject(error);
+    }
+
+    if (isRefreshing) {
+      return new Promise((resolve, reject) => {
+        subscribeTokenRefresh((token) => {
+          if (!token) {
+            reject(error);
+            return;
+          }
+          originalRequest.headers = originalRequest.headers || {};
+          originalRequest.headers.Authorization = `Bearer ${token}`;
+          resolve(axiosInstance(originalRequest));
+        });
+      });
+    }
+
+    originalRequest._retry = true;
+    isRefreshing = true;
+
+    try {
+      const refreshResponse = await axiosInstance.post('/auth/refresh');
+      const newAccessToken = refreshResponse?.data?.accessToken;
+
+      if (!newAccessToken) {
+        throw new Error('Access token manquant après refresh');
+      }
+
+      localStorage.setItem('naftal_token', newAccessToken);
+      onRefreshed(newAccessToken);
+
+      originalRequest.headers = originalRequest.headers || {};
+      originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+
+      return axiosInstance(originalRequest);
+    } catch (refreshError) {
+      onRefreshed(null);
+      clearSession();
+      window.location.href = '/login';
+      return Promise.reject(refreshError);
+    } finally {
+      isRefreshing = false;
+    }
   }
 );
 
