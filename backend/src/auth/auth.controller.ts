@@ -5,12 +5,17 @@ import { LoginUserDto } from './dto/login-user.dto';
 import type { Request, Response } from 'express';
 import { JwtAuthGuard } from './jwt.guard';
 import { ChangePasswordDto } from './dto/change-password.dto';
+import { PermissionsGuard } from 'src/permissions/permissions.guard';
+import { Permissions } from 'src/permissions/permissions.decorator';
+
 
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) { }
 
   @Post("register")
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Permissions('create-user')
   register(@Body() RegisterUserDto: RegisterUserDto) {
     return this.authService.register(RegisterUserDto);
   }
