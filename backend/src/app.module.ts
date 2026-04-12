@@ -15,6 +15,7 @@ import { SubsidiariesModule } from './subsidiaries/subsidiaries.module';
 import { DechargesModule } from './decharges/decharges.module';
 import { InterventionsModule } from './interventions/interventions.module';
 import { StatistiqueModule } from './statistique/statistique.module';
+import { ExportsModule } from './exports/exports.module';
 
 @Module({
   imports: [
@@ -51,6 +52,7 @@ import { StatistiqueModule } from './statistique/statistique.module';
     DechargesModule,
     InterventionsModule,
     StatistiqueModule,
+    ExportsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
