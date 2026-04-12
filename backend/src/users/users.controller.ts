@@ -18,7 +18,7 @@ export class UsersController {
 
   @Get(':id')
   @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @Permissions('read-user')
+  @Permissions('read-users')
   findOne(@Param('id') id: string) {
     return this.usersService.findOne(id);
   }

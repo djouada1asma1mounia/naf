@@ -26,7 +26,7 @@ export class DepartmentsController {
 
   @Get(':id')
   @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @Permissions('read-department')
+  @Permissions('read-departments')
   findOne(@Param('id') id: string) {
     return this.departmentsService.findOne(+id);
   }

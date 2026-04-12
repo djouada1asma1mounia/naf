@@ -26,7 +26,7 @@ export class RolesController {
 
   @Get(':id')
   @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @Permissions('read-role')
+  @Permissions('read-roles')
   findOne(@Param('id') id: string) {
     return this.rolesService.findOne(+id);
   }

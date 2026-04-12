@@ -34,17 +34,9 @@ export class ServicesController {
         return this.servicesService.findAll();
     }
 
-    //   to-do
-    //   @Get('department/:departmentId')
-    //   @UseGuards(JwtAuthGuard, PermissionsGuard)
-    //   @Permissions('read-services')
-    //   findByDepartment(@Param('departmentId', ParseIntPipe) departmentId: number) {
-    //     return this.servicesService.findByDepartment(departmentId);
-    //   }
-
     @Get(':id')
     @UseGuards(JwtAuthGuard, PermissionsGuard)
-    @Permissions('read-service')
+    @Permissions('read-services')
     findOne(@Param('id', ParseIntPipe) id: number) {
         return this.servicesService.findOne(id);
     }

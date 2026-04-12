@@ -36,7 +36,7 @@ export class MaterielsController {
 
   @Get('my')
   @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @Permissions('read-materiels')
+  @Permissions('read-my-materiels')
   findMyMaterials(
     @Req() req: any,
   ): Promise<{ data: MaterielResponseDto[]; message: string }> {
@@ -46,7 +46,7 @@ export class MaterielsController {
 
   @Get(':id')
   @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @Permissions('read-materiel')
+  @Permissions('read-materiels')
   findOne(@Param('id') numeroSerie: string): Promise<{ data: MaterielResponseDto; message: string }> {
     return this.materielsService.findOne(numeroSerie);
   }

@@ -26,7 +26,7 @@ export class CategoriesController {
 
   @Get(':id')
   @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @Permissions('read-category')
+  @Permissions('read-categories')
   findOne(@Param('id') id: string) {
     return this.categoriesService.findOne(+id);
   }

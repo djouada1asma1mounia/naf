@@ -13,6 +13,17 @@ import { Department } from 'src/departments/entities/department.entity';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { Permission } from 'src/permissions/entities/permission.entity';
 
+type LoginUserPayload = {
+    id: string;
+    nom: string;
+    prenom: string;
+    fullName: string;
+    email: string;
+    role: { id: number; name: string } | null;
+    department: { id: number; name: string; code: string } | null;
+    permissions: Array<{ id: number; name: string }>;
+};
+
 @Injectable()
 export class AuthService {
 
@@ -82,8 +93,13 @@ export class AuthService {
     async login(LoginUserDto: LoginUserDto) {
         const { email, password } = LoginUserDto;
 
-
-        const user = await this.userRepository.findOne({ where: { email } });
+        const user = await this.userRepository
+            .createQueryBuilder('user')
+            .leftJoinAndSelect('user.permissions', 'permission')
+            .leftJoinAndSelect('user.role', 'role')
+            .leftJoinAndSelect('user.department', 'department')
+            .where('user.email = :email', { email })
+            .getOne();
 
         if (!user) {
             throw new UnauthorizedException('Identifiants invalides');
@@ -98,15 +114,41 @@ export class AuthService {
         const tokens = await this.generateTokens(user);
 
         const hashedRefreshToken = await bcrypt.hash(tokens.refreshToken, 10);
-        user.refreshToken = hashedRefreshToken;
-        await this.userRepository.save(user);
+        await this.userRepository.update({ id: user.id }, { refreshToken: hashedRefreshToken });
 
         return {
-            data: user,
+            data: this.buildLoginUserPayload(user),
             accessToken: tokens.accessToken,
             refreshToken: tokens.refreshToken,
             message: 'Connexion réussie',
         }
+    }
+
+    private buildLoginUserPayload(user: User): LoginUserPayload {
+        return {
+            id: user.id,
+            nom: user.nom,
+            prenom: user.prenom,
+            fullName: user.fullName,
+            email: user.email,
+            role: user.role
+                ? {
+                    id: user.role.id,
+                    name: user.role.name,
+                }
+                : null,
+            department: user.department
+                ? {
+                    id: user.department.id,
+                    name: user.department.name,
+                    code: user.department.code,
+                }
+                : null,
+            permissions: (user.permissions ?? []).map((permission) => ({
+                id: permission.id,
+                name: permission.name,
+            })),
+        };
     }
 
     async refreshToken(refreshToken: string) {

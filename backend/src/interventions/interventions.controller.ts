@@ -41,7 +41,7 @@ export class InterventionsController {
 
     @Get(':id')
     @UseGuards(JwtAuthGuard, PermissionsGuard)
-    @Permissions('read-intervention')
+    @Permissions('read-interventions')
     findOne(@Param('id', ParseIntPipe) id: number): Promise<{ data: InterventionResponseDto; message: string }> {
         return this.interventionsService.findOne(id);
     }

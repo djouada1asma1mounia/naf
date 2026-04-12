@@ -24,7 +24,7 @@ export class DechargesController {
 
     @Post()
     @UseGuards(JwtAuthGuard, PermissionsGuard)
-    @Permissions('create-decharge')
+    @Permissions('create-decharges')
     create(@Body() createDechargeDto: CreateDechargeDto, @Req() req: any) {
         const userId = (req.user as { id?: string } | undefined)?.id;
         return this.dechargesService.create(createDechargeDto, userId);
@@ -39,7 +39,7 @@ export class DechargesController {
 
     @Get(':id/pdf')
     @UseGuards(JwtAuthGuard, PermissionsGuard)
-    @Permissions('read-decharge')
+    @Permissions('read-decharges')
     async generatePdf(
         @Param('id', ParseIntPipe) id: number,
         @Res() res: Response,
@@ -53,7 +53,7 @@ export class DechargesController {
 
     @Get(':id')
     @UseGuards(JwtAuthGuard, PermissionsGuard)
-    @Permissions('read-decharge')
+    @Permissions('read-decharges')
     findOne(@Param('id', ParseIntPipe) id: number): Promise<{ data: DechargeResponseDto; message: string }> {
         return this.dechargesService.findOne(id);
     }

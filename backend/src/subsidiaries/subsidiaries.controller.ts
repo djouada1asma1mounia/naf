@@ -26,7 +26,7 @@ export class SubsidiariesController {
 
     @Get(':code')
     @UseGuards(JwtAuthGuard, PermissionsGuard)
-    @Permissions('read-subsidiary')
+    @Permissions('read-subsidiaries')
     findOne(@Param('code') code: string) {
         return this.subsidiariesService.findOne(code);
     }
