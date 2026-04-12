@@ -15,6 +15,14 @@ import { authAPI } from '../../api/auth';
 import PageHeader from '../../components/common/PageHeader';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
 import { useSnackbar } from 'notistack';
+import { useAuth } from '../../context/AuthContext';
+
+const ROLE_PERMISSIONS = {
+  create: ['create-role', 'create role'],
+  read: ['read-roles', 'read roles', 'read-role', 'read role'],
+  update: ['update-role', 'update role'],
+  remove: ['delete-role', 'delete role'],
+};
 
 const RoleForm = ({ open, onClose, onSubmit, editItem }) => {
   const [form, setForm] = useState({ name: '' });
@@ -70,6 +78,7 @@ const RoleForm = ({ open, onClose, onSubmit, editItem }) => {
 };
 
 const RolesList = () => {
+  const { hasPermissionAny } = useAuth();
   const { enqueueSnackbar } = useSnackbar();
   const [roles, setRoles] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -86,7 +95,19 @@ const RolesList = () => {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
 
+  const canCreate = hasPermissionAny(ROLE_PERMISSIONS.create);
+  const canRead = hasPermissionAny(ROLE_PERMISSIONS.read);
+  const canUpdate = hasPermissionAny(ROLE_PERMISSIONS.update);
+  const canDelete = hasPermissionAny(ROLE_PERMISSIONS.remove);
+
   const loadData = useCallback(async () => {
+    if (!canRead) {
+      setLoading(false);
+      setRoles([]);
+      enqueueSnackbar('Vous n\'avez pas la permission de lire les rôles.', { variant: 'warning' });
+      return;
+    }
+
     setLoading(true);
     try {
       setRoles(await rolesAPI.getAll());
@@ -94,7 +115,7 @@ const RolesList = () => {
       enqueueSnackbar(err.message || 'Erreur chargement rôles', { variant: 'error' });
     }
     setLoading(false);
-  }, [enqueueSnackbar]);
+  }, [enqueueSnackbar, canRead]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
@@ -103,9 +124,11 @@ const RolesList = () => {
   const handleFormSubmit = async (data) => {
     try {
       if (editItem) {
+        if (!canUpdate) throw new Error('Vous n\'avez pas la permission de modifier les rôles.');
         await rolesAPI.update(editItem.id, data);
         enqueueSnackbar('Rôle modifié', { variant: 'success' });
       } else {
+        if (!canCreate) throw new Error('Vous n\'avez pas la permission de créer des rôles.');
         await rolesAPI.create(data);
         enqueueSnackbar('Rôle créé', { variant: 'success' });
       }
@@ -115,6 +138,11 @@ const RolesList = () => {
   };
 
   const handleDeleteConfirm = async () => {
+    if (!canDelete) {
+      enqueueSnackbar('Vous n\'avez pas la permission de supprimer des rôles.', { variant: 'warning' });
+      return;
+    }
+
     setDeleteLoading(true);
     try {
       await rolesAPI.delete(deleteDialog.id);
@@ -148,9 +176,11 @@ const RolesList = () => {
         subtitle={`${roles.length} rôle(s)`}
         breadcrumbs={[{ label: 'Accueil', path: '/dashboard' }, { label: 'Rôles' }]}
         action={
-          <Button variant="contained" startIcon={<AddIcon />} onClick={() => { setEditItem(null); setFormOpen(true); }}>
-            Nouveau Rôle
-          </Button>
+          canCreate ? (
+            <Button variant="contained" startIcon={<AddIcon />} onClick={() => { setEditItem(null); setFormOpen(true); }}>
+              Nouveau Rôle
+            </Button>
+          ) : null
         }
       />
 
@@ -193,16 +223,20 @@ const RolesList = () => {
                             <PeopleIcon fontSize="small" />
                           </IconButton>
                         </Tooltip>
-                        <Tooltip title="Modifier">
-                          <IconButton size="small" color="primary" onClick={() => { setEditItem(r); setFormOpen(true); }}>
-                            <EditIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Supprimer">
-                          <IconButton size="small" color="error" onClick={() => setDeleteDialog({ open: true, id: r.id, name: r.name })}>
-                            <DeleteIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
+                        {canUpdate && (
+                          <Tooltip title="Modifier">
+                            <IconButton size="small" color="primary" onClick={() => { setEditItem(r); setFormOpen(true); }}>
+                              <EditIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        )}
+                        {canDelete && (
+                          <Tooltip title="Supprimer">
+                            <IconButton size="small" color="error" onClick={() => setDeleteDialog({ open: true, id: r.id, name: r.name })}>
+                              <DeleteIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        )}
                       </Box>
                     </TableCell>
                   </TableRow>

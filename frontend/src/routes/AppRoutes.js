@@ -4,7 +4,30 @@ import { Box, CircularProgress } from '@mui/material';
 import PrivateRoute from './PrivateRoute';
 import RoleGuard from './RoleGuard';
 import MainLayout from '../layouts/MainLayout';
-import { ROLES } from '../context/AuthContext';
+
+const ROUTE_PERMISSIONS = {
+  materials: [
+    'read-materiels',
+    'read materiels',
+    'read materials',
+    'read-materiel',
+    'read materiel',
+    'read material',
+    'read-my-materiels',
+    'read my materiels',
+    'read my materials',
+    'read-my-materials',
+  ],
+  gdMaterials: ['read-subsidiary', 'read subsidiary', 'read-subsidiaries', 'read subsidiaries'],
+  maintenance: ['read-interventions', 'read intervention', 'read interventions'],
+  decharges: ['read-decharges', 'read decharges', 'read-decharge', 'read decharge'],
+  structures: ['read-departments', 'read department', 'read departments'],
+  categories: ['read-categories', 'read categories', 'read-category', 'read category'],
+  reasons: ['read-subsidiary', 'read subsidiary', 'read-subsidiaries', 'read subsidiaries'],
+  users: ['read-users', 'read users', 'read-user', 'read user'],
+  roles: ['read-roles', 'read roles', 'read-role', 'read role'],
+  dataTransfer: ['export-all-data', 'export all data'],
+};
 
 // Lazy-loaded pages
 const Login = lazy(() => import('../pages/auth/Login'));
@@ -19,6 +42,7 @@ const ReasonsList = lazy(() => import('../pages/reasons/ReasonsList'));
 const UserManagement = lazy(() => import('../pages/parameters/UserManagement'));
 const RolesList = lazy(() => import('../pages/roles/RolesList'));
 const Profile = lazy(() => import('../pages/parameters/Profile'));
+const DataTransfer = lazy(() => import('../pages/parameters/DataTransfer'));
 
 const PageLoader = () => (
   <Box display="flex" justifyContent="center" alignItems="center" minHeight="50vh">
@@ -46,7 +70,9 @@ const AppRoutes = () => (
         <Route
           path="materials"
           element={
-            <RoleGuard allowedRoles={[ROLES.ADMIN, ROLES.USER]}>
+            <RoleGuard
+              allowedPermissions={ROUTE_PERMISSIONS.materials}
+            >
               <MaterialsList />
             </RoleGuard>
           }
@@ -55,7 +81,9 @@ const AppRoutes = () => (
         <Route
           path="gd-materials"
           element={
-            <RoleGuard allowedRoles={[ROLES.ADMIN, ROLES.USER]}>
+            <RoleGuard
+              allowedPermissions={ROUTE_PERMISSIONS.gdMaterials}
+            >
               <GdMaterialsList />
             </RoleGuard>
           }
@@ -64,7 +92,7 @@ const AppRoutes = () => (
         <Route
           path="maintenance"
           element={
-            <RoleGuard allowedRoles={[ROLES.ADMIN, ROLES.USER]}>
+            <RoleGuard allowedPermissions={ROUTE_PERMISSIONS.maintenance}>
               <MaintenanceList />
             </RoleGuard>
           }
@@ -73,7 +101,9 @@ const AppRoutes = () => (
         <Route
           path="decharges"
           element={
-            <RoleGuard allowedRoles={[ROLES.ADMIN, ROLES.USER]}>
+            <RoleGuard
+              allowedPermissions={ROUTE_PERMISSIONS.decharges}
+            >
               <DechargesList />
             </RoleGuard>
           }
@@ -82,7 +112,7 @@ const AppRoutes = () => (
         <Route
           path="structures"
           element={
-            <RoleGuard allowedRoles={[ROLES.ADMIN, ROLES.USER]}>
+            <RoleGuard allowedPermissions={ROUTE_PERMISSIONS.structures}>
               <StructuresList />
             </RoleGuard>
           }
@@ -91,7 +121,7 @@ const AppRoutes = () => (
         <Route
           path="categories"
           element={
-            <RoleGuard allowedRoles={[ROLES.ADMIN]}>
+            <RoleGuard allowedPermissions={ROUTE_PERMISSIONS.categories}>
               <CategoriesList />
             </RoleGuard>
           }
@@ -100,7 +130,9 @@ const AppRoutes = () => (
         <Route
           path="reasons"
           element={
-            <RoleGuard allowedRoles={[ROLES.ADMIN, ROLES.USER]}>
+            <RoleGuard
+              allowedPermissions={ROUTE_PERMISSIONS.reasons}
+            >
               <ReasonsList />
             </RoleGuard>
           }
@@ -109,7 +141,7 @@ const AppRoutes = () => (
         <Route
           path="users"
           element={
-            <RoleGuard allowedRoles={[ROLES.ADMIN]}>
+            <RoleGuard allowedPermissions={ROUTE_PERMISSIONS.users}>
               <UserManagement />
             </RoleGuard>
           }
@@ -118,8 +150,17 @@ const AppRoutes = () => (
         <Route
           path="roles"
           element={
-            <RoleGuard allowedRoles={[ROLES.ADMIN]}>
+            <RoleGuard allowedPermissions={ROUTE_PERMISSIONS.roles}>
               <RolesList />
+            </RoleGuard>
+          }
+        />
+
+        <Route
+          path="data-transfer"
+          element={
+            <RoleGuard allowedPermissions={ROUTE_PERMISSIONS.dataTransfer}>
+              <DataTransfer />
             </RoleGuard>
           }
         />

@@ -26,7 +26,7 @@ import { useSnackbar } from 'notistack';
 const MATERIAL_PERMISSIONS = {
   createOwn: ['create-materiel', 'create materiel', 'cree material', 'cree materiel'],
   createAll: ['create-materiels', 'create materiels', 'create materials', 'cree materials', 'cree materiels'],
-  readOwn: ['read-materiel', 'read materiel', 'read material'],
+  readOwn: ['read-materiel', 'read materiel', 'read material', 'read-my-materiels', 'read my materiels', 'read my materials', 'read-my-materials'],
   readAll: ['read-materiels', 'read materiels', 'read materials'],
   updateOwn: ['update-materiel', 'update materiel', 'update material'],
   updateAll: ['update-materiels', 'update materiels', 'update materials'],

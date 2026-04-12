@@ -34,7 +34,16 @@ import DechargeForm from './DechargeForm';
 import { dechargesAPI } from '../../api/decharges';
 
 const DECHARGE_PERMISSIONS = {
-  create: ['create-decharge', 'create decharge'],
+  create: [
+    'create-decharges',
+    'create decharges',
+    'create-decharge',
+    'create decharge',
+    'cree-decharge',
+    'cree decharge',
+    'cree-decharges',
+    'cree decharges',
+  ],
   readAll: ['read-decharges', 'read decharges'],
   readOne: ['read-decharge', 'read decharge'],
   deleteOne: ['delete-decharge', 'delete decharge'],
@@ -49,7 +58,7 @@ const formatDate = (value) => {
 
 const DechargesList = () => {
   const { enqueueSnackbar } = useSnackbar();
-  const { hasPermissionAny } = useAuth();
+  const { user, hasPermissionAny } = useAuth();
 
   const [decharges, setDecharges] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -60,10 +69,18 @@ const DechargesList = () => {
   const [deleteDialog, setDeleteDialog] = useState({ open: false, id: null, reference: '' });
   const [deleteLoading, setDeleteLoading] = useState(false);
 
-  const canCreate = hasPermissionAny(DECHARGE_PERMISSIONS.create);
+  const hasCreateByKeyword = (user?.permissionNames || []).some((permission) => {
+    const name = String(permission || '').toLowerCase();
+    const hasDecharge = name.includes('decharge') || name.includes('decharges');
+    const hasCreate = name.includes('create') || name.includes('cree');
+    return hasDecharge && hasCreate;
+  });
+
+  const canCreate = hasPermissionAny(DECHARGE_PERMISSIONS.create) || hasCreateByKeyword;
   const canReadAll = hasPermissionAny(DECHARGE_PERMISSIONS.readAll);
   const canReadOne = hasPermissionAny(DECHARGE_PERMISSIONS.readOne);
   const canDeleteOne = hasPermissionAny(DECHARGE_PERMISSIONS.deleteOne);
+  const canPrint = canReadAll || canReadOne;
 
   const loadData = useCallback(async () => {
     if (!canReadAll) {
@@ -228,9 +245,9 @@ const DechargesList = () => {
                       <TableCell>{formatDate(decharge.createdAt)}</TableCell>
                       <TableCell align="center">
                         <Box display="flex" justifyContent="center" gap={0.5}>
-                          <Tooltip title={canReadOne ? 'Imprimer PDF' : 'Permission insuffisante'}>
+                          <Tooltip title={canPrint ? 'Imprimer PDF' : 'Permission insuffisante'}>
                             <span>
-                              <IconButton size="small" color="primary" disabled={!canReadOne} onClick={() => handlePrint(decharge)}>
+                              <IconButton size="small" color="primary" disabled={!canPrint} onClick={() => handlePrint(decharge)}>
                                 <PrintIcon fontSize="small" />
                               </IconButton>
                             </span>

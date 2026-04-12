@@ -44,7 +44,7 @@ const normalizeNamedCounts = (rows = [], mapper) =>
 
 export const reportsAPI = {
   getStats: async () => {
-    const [overviewResponse, roles, categories, reasons, departments, services] = await Promise.all([
+    const [overviewResult, rolesResult, categoriesResult, reasonsResult, departmentsResult, servicesResult] = await Promise.allSettled([
       axiosInstance.get("/statistique/overview", {
         params: { months: 6, top: 10 },
       }),
@@ -55,7 +55,15 @@ export const reportsAPI = {
       servicesAPI.getAll(),
     ]);
 
-    const overview = overviewResponse?.data?.data || {};
+    const overview = overviewResult.status === "fulfilled"
+      ? overviewResult.value?.data?.data || {}
+      : {};
+    const roles = rolesResult.status === "fulfilled" ? rolesResult.value : [];
+    const categories = categoriesResult.status === "fulfilled" ? categoriesResult.value : [];
+    const reasons = reasonsResult.status === "fulfilled" ? reasonsResult.value : [];
+    const departments = departmentsResult.status === "fulfilled" ? departmentsResult.value : [];
+    const services = servicesResult.status === "fulfilled" ? servicesResult.value : [];
+
     const materials = overview.materials || {};
     const interventions = overview.interventions || {};
     const decharges = overview.decharges || {};

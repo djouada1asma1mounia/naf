@@ -23,6 +23,13 @@ import ConfirmDialog from '../../components/common/ConfirmDialog';
 import { useSnackbar } from 'notistack';
 import { useAuth } from '../../context/AuthContext';
 
+const USER_PERMISSIONS = {
+  create: ['create-user', 'create user'],
+  read: ['read-users', 'read users', 'read-user', 'read user'],
+  update: ['update-user', 'update user'],
+  remove: ['delete-user', 'delete user'],
+};
+
 const extractPermissionIds = (user) => {
   if (Array.isArray(user?.permissionIds)) return user.permissionIds.map(Number).filter((id) => !Number.isNaN(id));
   if (Array.isArray(user?.permissions)) {
@@ -265,7 +272,7 @@ const UserForm = ({ open, onClose, onSubmit, editItem, departments, customRoles,
 };
 
 const UserManagement = () => {
-  const { user: currentUser, updateUser } = useAuth();
+  const { user: currentUser, updateUser, hasPermissionAny } = useAuth();
   const { enqueueSnackbar } = useSnackbar();
   const [users, setUsers] = useState([]);
   const [departments, setDepartments] = useState([]);
@@ -282,7 +289,22 @@ const UserManagement = () => {
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [detailsDialog, setDetailsDialog] = useState({ open: false, user: null });
 
+  const canCreate = hasPermissionAny(USER_PERMISSIONS.create);
+  const canRead = hasPermissionAny(USER_PERMISSIONS.read);
+  const canUpdate = hasPermissionAny(USER_PERMISSIONS.update);
+  const canDelete = hasPermissionAny(USER_PERMISSIONS.remove);
+
   const loadData = useCallback(async () => {
+    if (!canRead) {
+      setLoading(false);
+      setUsers([]);
+      setDepartments([]);
+      setCustomRoles([]);
+      setPermissions([]);
+      enqueueSnackbar('Vous n\'avez pas la permission de lire les utilisateurs.', { variant: 'warning' });
+      return;
+    }
+
     setLoading(true);
     try {
       const [usrsResult, deptsResult, rolesResult, permissionsResult] = await Promise.allSettled([
@@ -309,7 +331,7 @@ const UserManagement = () => {
       }
     } catch { enqueueSnackbar('Erreur chargement', { variant: 'error' }); }
     setLoading(false);
-  }, [enqueueSnackbar]);
+  }, [enqueueSnackbar, canRead]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
@@ -336,12 +358,18 @@ const UserManagement = () => {
       };
 
       if (editItem) {
+        if (!canUpdate) {
+          throw new Error('Vous n\'avez pas la permission de modifier les utilisateurs.');
+        }
         const updatedUser = await authAPI.updateUser(editItem.id, payload);
         if (String(editItem.id) === String(currentUser?.id)) {
           updateUser(updatedUser);
         }
         enqueueSnackbar('Utilisateur modifié', { variant: 'success' });
       } else {
+        if (!canCreate) {
+          throw new Error('Vous n\'avez pas la permission de créer des utilisateurs.');
+        }
         const createResult = await authAPI.createUser(payload);
         enqueueSnackbar('Utilisateur créé', { variant: 'success' });
         if (createResult?.permissionsApplyWarning) {
@@ -354,6 +382,11 @@ const UserManagement = () => {
   };
 
   const handleDeleteConfirm = async () => {
+    if (!canDelete) {
+      enqueueSnackbar('Vous n\'avez pas la permission de supprimer des utilisateurs.', { variant: 'warning' });
+      return;
+    }
+
     setDeleteLoading(true);
     try {
       await materialsAPI.deleteByOwner(deleteDialog.id);
@@ -372,9 +405,11 @@ const UserManagement = () => {
         subtitle={`${users.length} utilisateur(s)`}
         breadcrumbs={[{ label: 'Accueil', path: '/dashboard' }, { label: 'Utilisateurs' }]}
         action={
-          <Button variant="contained" startIcon={<AddIcon />} onClick={() => { setEditItem(null); setFormOpen(true); }}>
-            Nouvel Utilisateur
-          </Button>
+          canCreate ? (
+            <Button variant="contained" startIcon={<AddIcon />} onClick={() => { setEditItem(null); setFormOpen(true); }}>
+              Nouvel Utilisateur
+            </Button>
+          ) : null
         }
       />
 
@@ -475,12 +510,18 @@ const UserManagement = () => {
                             Détails
                           </Button>
                         </Tooltip>
-                        <Tooltip title="Modifier">
-                          <IconButton size="small" color="primary" onClick={() => { setEditItem(u); setFormOpen(true); }}>
-                            <EditIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                        {u.id !== currentUser?.id && (
+                        {canUpdate && (
+                          <Tooltip title="Modifier">
+                            <IconButton
+                              size="small"
+                              color="primary"
+                              onClick={() => { setEditItem(u); setFormOpen(true); }}
+                            >
+                              <EditIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        )}
+                        {canDelete && u.id !== currentUser?.id && (
                           <Tooltip title="Supprimer (+ ses matériels)">
                             <IconButton size="small" color="error" onClick={() => setDeleteDialog({ open: true, id: u.id, name: `${u.firstName} ${u.lastName}` })}>
                               <DeleteIcon fontSize="small" />

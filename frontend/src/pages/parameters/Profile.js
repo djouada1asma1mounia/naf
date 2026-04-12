@@ -65,7 +65,7 @@ const Profile = () => {
     try {
       const updated = await authAPI.updateUser(user.id, profileForm);
       updateUser(updated);
-      enqueueSnackbar('Profil mis à jour', { variant: 'success' });
+      enqueueSnackbar('Profil mis a jour', { variant: 'success' });
       setEditMode(false);
     } catch (err) {
       enqueueSnackbar(err.message || 'Erreur', { variant: 'error' });
@@ -84,7 +84,7 @@ const Profile = () => {
       return;
     }
     if (pwForm.new1.length < 6) {
-      setPwError('Le mot de passe doit contenir au moins 6 caractères');
+      setPwError('Le mot de passe doit contenir au moins 6 caracteres');
       return;
     }
     setPwError('');

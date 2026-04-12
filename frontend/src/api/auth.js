@@ -111,6 +111,19 @@ const resolveBackendPermissionIds = async (permissionSelections = []) => {
   return Array.from(new Set(resolvedIds));
 };
 
+const extractPermissionIdsFromUser = (user = {}) => {
+  if (!Array.isArray(user?.permissions)) return [];
+  return user.permissions
+    .map((permission) => Number(permission?.id))
+    .filter((id) => !Number.isNaN(id));
+};
+
+const hasAllRequestedPermissions = (user = {}, requestedIds = []) => {
+  if (!Array.isArray(requestedIds) || requestedIds.length === 0) return true;
+  const currentIds = new Set(extractPermissionIdsFromUser(user));
+  return requestedIds.every((id) => currentIds.has(Number(id)));
+};
+
 export const authAPI = {
   /** POST /auth/login → { accessToken, data, message } */
   login: async (email, password) => {
@@ -184,39 +197,42 @@ export const authAPI = {
         throw new Error('Veuillez sélectionner un rôle backend valide.');
       }
 
-      const response = await axiosInstance.post('/auth/register', mapCreateRegisterPayload({
+      await axiosInstance.post('/auth/register', mapCreateRegisterPayload({
         ...data,
         roleId: resolvedRoleId,
       }));
 
       const requestedPermissionIds = await resolveBackendPermissionIds(data.permissionSelections || []);
 
-      if (requestedPermissionIds.length > 0) {
-        try {
-          const users = await authAPI.getUsers();
-          const createdUser = users.find(
-            (user) => String(user?.email || '').toLowerCase() === String(data.email || '').toLowerCase()
-          );
+      const users = await authAPI.getUsers();
+      const createdUser = users.find(
+        (user) => String(user?.email || '').toLowerCase() === String(data.email || '').toLowerCase()
+      );
 
-          if (createdUser?.id) {
-            await authAPI.updateUser(createdUser.id, {
-              firstName: data.firstName,
-              lastName: data.lastName,
-              email: data.email,
-              roleId: resolvedRoleId,
-              departmentId: data.departmentId,
-              permissionIds: requestedPermissionIds,
-            });
-            return { ...(response.data || {}), permissionsApplied: true };
-          }
-
-          return { ...(response.data || {}), permissionsApplied: false, permissionsApplyWarning: true };
-        } catch {
-          return { ...(response.data || {}), permissionsApplied: false, permissionsApplyWarning: true };
-        }
+      if (!createdUser?.id) {
+        throw new Error('Utilisateur créé mais introuvable après création.');
       }
 
-      return response.data;
+      if (requestedPermissionIds.length > 0) {
+        await authAPI.updateUser(createdUser.id, {
+          firstName: data.firstName,
+          lastName: data.lastName,
+          email: data.email,
+          roleId: resolvedRoleId,
+          departmentId: data.departmentId,
+          permissionSelections: data.permissionSelections || [],
+        });
+      }
+
+      const persisted = await authAPI.getUserById(createdUser.id);
+      if (!hasAllRequestedPermissions(persisted, requestedPermissionIds)) {
+        throw new Error('Les permissions n\'ont pas été persistées correctement en base de données.');
+      }
+
+      return {
+        data: persisted,
+        permissionsApplied: requestedPermissionIds.length > 0,
+      };
     } catch (error) {
       throw new Error(getErrorMessage(error, 'Erreur lors de la création de l’utilisateur.'));
     }
@@ -230,12 +246,22 @@ export const authAPI = {
         throw new Error('Veuillez sélectionner un rôle backend valide.');
       }
 
+      const requestedPermissionIds = Array.isArray(data.permissionSelections)
+        ? await resolveBackendPermissionIds(data.permissionSelections)
+        : [];
+
       if (Array.isArray(data.permissionSelections)) {
-        mapped.permissionIds = await resolveBackendPermissionIds(data.permissionSelections);
+        mapped.permissionIds = requestedPermissionIds;
       }
 
-      const response = await axiosInstance.patch(`/users/${id}`, mapped);
-      return response?.data?.data || response.data;
+      await axiosInstance.patch(`/users/${id}`, mapped);
+
+      const persisted = await authAPI.getUserById(id);
+      if (!hasAllRequestedPermissions(persisted, requestedPermissionIds)) {
+        throw new Error('Les permissions mises à jour ne sont pas persistées correctement en base de données.');
+      }
+
+      return persisted;
     } catch (error) {
       throw new Error(getErrorMessage(error, 'Erreur lors de la mise à jour de l’utilisateur.'));
     }

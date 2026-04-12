@@ -1,7 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { authAPI } from '../api/auth';
 import { ROLES, FULL_ACCESS_MODE } from '../utils/constants';
-import { mockUsers } from '../mock/data';
 
 export { ROLES };
 
@@ -11,7 +10,7 @@ const normalizePermissionName = (value) => String(value || '')
   .normalize('NFD')
   .replace(/[\u0300-\u036f]/g, '')
   .toLowerCase()
-  .replace(/[_-]+/g, ' ')
+  .replace(/[^a-z0-9]+/g, ' ')
   .replace(/\s+/g, ' ')
   .trim();
 
@@ -28,6 +27,32 @@ const extractPermissionNames = (permissions = []) => {
     })
     .map((name) => normalizePermissionName(name))
     .filter(Boolean);
+};
+
+const collectPermissions = (rawUser = {}) => {
+  const sources = [];
+
+  if (Array.isArray(rawUser.permissions)) {
+    sources.push(rawUser.permissions);
+  }
+
+  if (Array.isArray(rawUser.permissionNames)) {
+    sources.push(rawUser.permissionNames);
+  }
+
+  if (rawUser.role && typeof rawUser.role === 'object' && Array.isArray(rawUser.role.permissions)) {
+    sources.push(rawUser.role.permissions);
+  }
+
+  if (Array.isArray(rawUser.roles)) {
+    rawUser.roles.forEach((roleItem) => {
+      if (roleItem && typeof roleItem === 'object' && Array.isArray(roleItem.permissions)) {
+        sources.push(roleItem.permissions);
+      }
+    });
+  }
+
+  return sources.flat();
 };
 
 export const useAuth = () => {
@@ -84,15 +109,13 @@ const splitFullName = (fullName = '') => {
 const normalizeUser = (rawUser) => {
   if (!rawUser || typeof rawUser !== 'object') return null;
 
+  const rawPermissions = collectPermissions(rawUser);
+
   const normalizedRole =
     normalizeRole(rawUser.role) ||
     normalizeRole(rawUser.roleName) ||
     normalizeRole(rawUser.roles) ||
     roleFromId(rawUser.roleId);
-
-  const matchedMockUser = rawUser.email
-    ? mockUsers.find((mockUser) => mockUser.email?.toLowerCase() === rawUser.email.toLowerCase())
-    : null;
 
   const fromFullName = splitFullName(rawUser.fullName || '');
 
@@ -105,15 +128,15 @@ const normalizeUser = (rawUser) => {
 
   return {
     ...rawUser,
-    firstName: rawUser.prenom || fromFullName.firstName || rawUser.firstName || matchedMockUser?.firstName || '',
-    lastName: rawUser.nom || fromFullName.lastName || rawUser.lastName || matchedMockUser?.lastName || '',
-    role: normalizedRole || matchedMockUser?.role || ROLES.USER,
+    firstName: rawUser.prenom || fromFullName.firstName || rawUser.firstName || '',
+    lastName: rawUser.nom || fromFullName.lastName || rawUser.lastName || '',
+    role: normalizedRole || ROLES.USER,
     username,
     department: departmentName,
     roleId: roleId || null,
     departmentId: departmentId || null,
-    permissions: Array.isArray(rawUser.permissions) ? rawUser.permissions : [],
-    permissionNames: extractPermissionNames(rawUser.permissions),
+    permissions: rawPermissions,
+    permissionNames: extractPermissionNames(rawPermissions),
   };
 };
 
@@ -128,7 +151,22 @@ export const AuthProvider = ({ children }) => {
     if (storedToken && storedUser) {
       try {
         setToken(storedToken);
-        setUser(normalizeUser(JSON.parse(storedUser)));
+        const parsedStoredUser = JSON.parse(storedUser);
+        const normalizedStoredUser = normalizeUser(parsedStoredUser);
+        setUser(normalizedStoredUser);
+
+        if (parsedStoredUser?.id) {
+          try {
+            const freshUser = await authAPI.getUserById(parsedStoredUser.id);
+            const normalizedFreshUser = normalizeUser(freshUser);
+            if (normalizedFreshUser) {
+              localStorage.setItem('naftal_user', JSON.stringify(normalizedFreshUser));
+              setUser(normalizedFreshUser);
+            }
+          } catch {
+            // Keep stored user if the backend profile cannot be fetched (for example, missing read-users permission).
+          }
+        }
       } catch {
         localStorage.removeItem('naftal_token');
         localStorage.removeItem('naftal_user');

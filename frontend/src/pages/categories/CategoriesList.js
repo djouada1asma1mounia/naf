@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box, Button, Card, CardContent, Grid, Typography, TextField, Dialog,
   DialogTitle, DialogContent, DialogActions, IconButton, Tooltip,
@@ -12,6 +12,14 @@ import { categoriesAPI } from '../../api/categories';
 import PageHeader from '../../components/common/PageHeader';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
 import { useSnackbar } from 'notistack';
+import { useAuth } from '../../context/AuthContext';
+
+const CATEGORY_PERMISSIONS = {
+  create: ['create-category', 'create category'],
+  read: ['read-categories', 'read categories', 'read-category', 'read category'],
+  update: ['update-category', 'update category'],
+  remove: ['delete-category', 'delete category'],
+};
 
 const CategoryForm = ({ open, onClose, onSubmit, editItem }) => {
   const [form, setForm] = useState({ name: '' });
@@ -64,6 +72,7 @@ const CategoryForm = ({ open, onClose, onSubmit, editItem }) => {
 };
 
 const CategoriesList = () => {
+  const { hasPermissionAny } = useAuth();
   const { enqueueSnackbar } = useSnackbar();
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -72,20 +81,35 @@ const CategoriesList = () => {
   const [deleteDialog, setDeleteDialog] = useState({ open: false, id: null, name: '' });
   const [deleteLoading, setDeleteLoading] = useState(false);
 
-  const loadData = async () => {
+  const canCreate = hasPermissionAny(CATEGORY_PERMISSIONS.create);
+  const canRead = hasPermissionAny(CATEGORY_PERMISSIONS.read);
+  const canUpdate = hasPermissionAny(CATEGORY_PERMISSIONS.update);
+  const canDelete = hasPermissionAny(CATEGORY_PERMISSIONS.remove);
+  const canMutate = canUpdate || canDelete;
+
+  const loadData = useCallback(async () => {
+    if (!canRead) {
+      setLoading(false);
+      setCategories([]);
+      enqueueSnackbar('Vous n\'avez pas la permission de lire les catégories.', { variant: 'warning' });
+      return;
+    }
+
     setLoading(true);
     try { setCategories(await categoriesAPI.getAll()); } catch {}
     setLoading(false);
-  };
+  }, [canRead, enqueueSnackbar]);
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => { loadData(); }, [loadData]);
 
   const handleFormSubmit = async (data) => {
     try {
       if (editItem) {
+        if (!canUpdate) throw new Error('Vous n\'avez pas la permission de modifier les catégories.');
         await categoriesAPI.update(editItem.id, data);
         enqueueSnackbar('Catégorie modifiée', { variant: 'success' });
       } else {
+        if (!canCreate) throw new Error('Vous n\'avez pas la permission de créer des catégories.');
         await categoriesAPI.create(data);
         enqueueSnackbar('Catégorie créée', { variant: 'success' });
       }
@@ -97,6 +121,11 @@ const CategoriesList = () => {
   };
 
   const handleDelete = async () => {
+    if (!canDelete) {
+      enqueueSnackbar('Vous n\'avez pas la permission de supprimer des catégories.', { variant: 'warning' });
+      return;
+    }
+
     setDeleteLoading(true);
     try {
       await categoriesAPI.delete(deleteDialog.id);
@@ -118,9 +147,11 @@ const CategoriesList = () => {
         subtitle={`${categories.length} catégorie(s)`}
         breadcrumbs={[{ label: 'Accueil', path: '/dashboard' }, { label: 'Catégories' }]}
         action={
-          <Button variant="contained" startIcon={<AddIcon />} onClick={() => { setEditItem(null); setFormOpen(true); }}>
-            Nouvelle Catégorie
-          </Button>
+          canCreate ? (
+            <Button variant="contained" startIcon={<AddIcon />} onClick={() => { setEditItem(null); setFormOpen(true); }}>
+              Nouvelle Catégorie
+            </Button>
+          ) : null
         }
       />
 
@@ -168,18 +199,24 @@ const CategoriesList = () => {
                         />
                       </Box>
                     </Box>
-                    <Box display="flex" gap={0.5}>
-                      <Tooltip title="Modifier">
-                        <IconButton size="small" color="primary" onClick={() => { setEditItem(cat); setFormOpen(true); }}>
-                          <EditIcon fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-                      <Tooltip title="Supprimer">
-                        <IconButton size="small" color="error" onClick={() => setDeleteDialog({ open: true, id: cat.id, name: cat.name })}>
-                          <DeleteIcon fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-                    </Box>
+                    {canMutate && (
+                      <Box display="flex" gap={0.5}>
+                        {canUpdate && (
+                          <Tooltip title="Modifier">
+                            <IconButton size="small" color="primary" onClick={() => { setEditItem(cat); setFormOpen(true); }}>
+                              <EditIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        )}
+                        {canDelete && (
+                          <Tooltip title="Supprimer">
+                            <IconButton size="small" color="error" onClick={() => setDeleteDialog({ open: true, id: cat.id, name: cat.name })}>
+                              <DeleteIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        )}
+                      </Box>
+                    )}
                   </Box>
                 </CardContent>
               </Card>

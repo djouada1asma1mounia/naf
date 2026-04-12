@@ -42,12 +42,22 @@ import { RoleChip } from "../../components/common/StatusChip";
 import { useAuth } from "../../context/AuthContext";
 import { useSnackbar } from "notistack";
 
+const STRUCTURE_PERMISSIONS = {
+  readDepartments: ["read-departments", "read department", "read departments"],
+  createDepartment: ["create-department", "create department"],
+  updateDepartment: ["update-department", "update department"],
+  deleteDepartment: ["delete-department", "delete department"],
+  readServices: ["read-services", "read service", "read services"],
+  createService: ["create-service", "create service"],
+  updateService: ["update-service", "update service"],
+  deleteService: ["delete-service", "delete service"],
+};
+
 const emptyForm = { name: "", code: "", managerId: "" };
 const emptyServiceForm = { name: "", code: "", departmentId: "" };
 
 const StructuresList = () => {
-  const { isAdmin } = useAuth();
-  const isAdminUser = isAdmin();
+  const { hasPermissionAny } = useAuth();
   const { enqueueSnackbar } = useSnackbar();
   const [departments, setDepartments] = useState([]);
   const [staff, setStaff] = useState([]);
@@ -73,14 +83,36 @@ const StructuresList = () => {
   const [serviceDeleteTarget, setServiceDeleteTarget] = useState(null);
   const [serviceDeleting, setServiceDeleting] = useState(false);
 
+  const canReadDepartments = hasPermissionAny(STRUCTURE_PERMISSIONS.readDepartments);
+  const canCreateDepartment = hasPermissionAny(STRUCTURE_PERMISSIONS.createDepartment);
+  const canUpdateDepartment = hasPermissionAny(STRUCTURE_PERMISSIONS.updateDepartment);
+  const canDeleteDepartment = hasPermissionAny(STRUCTURE_PERMISSIONS.deleteDepartment);
+  const canReadServices = hasPermissionAny(STRUCTURE_PERMISSIONS.readServices);
+  const canCreateService = hasPermissionAny(STRUCTURE_PERMISSIONS.createService);
+  const canUpdateService = hasPermissionAny(STRUCTURE_PERMISSIONS.updateService);
+  const canDeleteService = hasPermissionAny(STRUCTURE_PERMISSIONS.deleteService);
+
   const refreshData = useCallback(
     async ({ showGlobalError = true } = {}) => {
+      if (!canReadDepartments) {
+        setDepartments([]);
+        setStaff([]);
+        setMaterials([]);
+        setServices([]);
+        if (showGlobalError) {
+          enqueueSnackbar("Vous n'avez pas la permission de lire les structures.", {
+            variant: "warning",
+          });
+        }
+        return;
+      }
+
       const [deptsResult, staffResult, matsResult, servicesResult] =
         await Promise.allSettled([
           structuresAPI.getDepartments(),
           structuresAPI.getStaff(),
           materialsAPI.getAll(),
-          servicesAPI.getAll(),
+          canReadServices ? servicesAPI.getAll() : Promise.resolve([]),
         ]);
 
       if (deptsResult.status === "fulfilled") {
@@ -117,7 +149,7 @@ const StructuresList = () => {
         }
       }
     },
-    [enqueueSnackbar],
+      [enqueueSnackbar, canReadDepartments, canReadServices],
   );
 
   useEffect(() => {
@@ -167,6 +199,20 @@ const StructuresList = () => {
     setForm((f) => ({ ...f, [field]: e.target.value }));
 
   const handleSave = async () => {
+    if (editTarget && !canUpdateDepartment) {
+      enqueueSnackbar("Vous n'avez pas la permission de modifier un département", {
+        variant: "warning",
+      });
+      return;
+    }
+
+    if (!editTarget && !canCreateDepartment) {
+      enqueueSnackbar("Vous n'avez pas la permission de créer un département", {
+        variant: "warning",
+      });
+      return;
+    }
+
     if (!form.name.trim() || !form.code.trim()) {
       enqueueSnackbar("Le nom et le code sont obligatoires", {
         variant: "warning",
@@ -210,6 +256,13 @@ const StructuresList = () => {
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
+
+    if (!canDeleteDepartment) {
+      enqueueSnackbar("Vous n'avez pas la permission de supprimer un département", {
+        variant: "warning",
+      });
+      return;
+    }
 
     const deptStaff = getDeptStaff(deleteTarget.id);
     const deptServices = getDeptServices(deleteTarget.id);
@@ -275,6 +328,20 @@ const StructuresList = () => {
   };
 
   const handleSaveService = async () => {
+    if (serviceEditTarget && !canUpdateService) {
+      enqueueSnackbar("Vous n'avez pas la permission de modifier un service", {
+        variant: "warning",
+      });
+      return;
+    }
+
+    if (!serviceEditTarget && !canCreateService) {
+      enqueueSnackbar("Vous n'avez pas la permission de créer un service", {
+        variant: "warning",
+      });
+      return;
+    }
+
     if (
       !serviceForm.name.trim() ||
       !serviceForm.code.trim() ||
@@ -320,6 +387,13 @@ const StructuresList = () => {
 
   const handleDeleteService = async () => {
     if (!serviceDeleteTarget) return;
+
+    if (!canDeleteService) {
+      enqueueSnackbar("Vous n'avez pas la permission de supprimer un service", {
+        variant: "warning",
+      });
+      return;
+    }
 
     const linkedMaterials = getServiceMaterials(serviceDeleteTarget.id);
     if (linkedMaterials.length > 0) {
@@ -370,7 +444,7 @@ const StructuresList = () => {
           { label: "Structures" },
         ]}
         action={
-          isAdminUser && (
+          canCreateDepartment && (
             <Button
               variant="contained"
               startIcon={<AddIcon />}
@@ -557,32 +631,36 @@ const StructuresList = () => {
                     sx={{ fontWeight: 700 }}
                   />
                 </Box>
-                {isAdminUser && (
+                {(canUpdateDepartment || canDeleteDepartment) && (
                   <Box
                     display="flex"
                     gap={0.5}
                     onClick={(e) => e.stopPropagation()}
                   >
-                    <Tooltip title="Modifier">
-                      <IconButton
-                        size="small"
-                        color="primary"
-                        onClick={(e) => openEdit(dept, e)}
-                        sx={{ border: 1, borderColor: "divider" }}
-                      >
-                        <EditIcon fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
-                    <Tooltip title="Supprimer">
-                      <IconButton
-                        size="small"
-                        color="error"
-                        onClick={(e) => openDelete(dept, e)}
-                        sx={{ border: 1, borderColor: "divider" }}
-                      >
-                        <DeleteIcon fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
+                    {canUpdateDepartment && (
+                      <Tooltip title="Modifier">
+                        <IconButton
+                          size="small"
+                          color="primary"
+                          onClick={(e) => openEdit(dept, e)}
+                          sx={{ border: 1, borderColor: "divider" }}
+                        >
+                          <EditIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    )}
+                    {canDeleteDepartment && (
+                      <Tooltip title="Supprimer">
+                        <IconButton
+                          size="small"
+                          color="error"
+                          onClick={(e) => openDelete(dept, e)}
+                          sx={{ border: 1, borderColor: "divider" }}
+                        >
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    )}
                   </Box>
                 )}
               </Box>
@@ -666,7 +744,7 @@ const StructuresList = () => {
                       >
                         Services ({deptServices.length})
                       </Typography>
-                      {isAdminUser && (
+                      {canCreateService && (
                         <Button
                           size="small"
                           variant="outlined"
@@ -679,7 +757,11 @@ const StructuresList = () => {
                       )}
                     </Box>
                     <List dense disablePadding>
-                      {deptServices.length === 0 ? (
+                      {!canReadServices ? (
+                        <Typography variant="caption" color="text.secondary">
+                          Lecture des services non autorisée
+                        </Typography>
+                      ) : deptServices.length === 0 ? (
                         <Typography variant="caption" color="text.secondary">
                           Aucun service
                         </Typography>
@@ -705,26 +787,30 @@ const StructuresList = () => {
                                 </Typography>
                               }
                             />
-                            {isAdminUser && (
+                            {(canUpdateService || canDeleteService) && (
                               <Box display="flex" gap={0.5}>
-                                <Tooltip title="Modifier service">
-                                  <IconButton
-                                    size="small"
-                                    color="primary"
-                                    onClick={(e) => openEditService(service, e)}
-                                  >
-                                    <EditIcon fontSize="small" />
-                                  </IconButton>
-                                </Tooltip>
-                                <Tooltip title="Supprimer service">
-                                  <IconButton
-                                    size="small"
-                                    color="error"
-                                    onClick={(e) => openDeleteService(service, e)}
-                                  >
-                                    <DeleteIcon fontSize="small" />
-                                  </IconButton>
-                                </Tooltip>
+                                {canUpdateService && (
+                                  <Tooltip title="Modifier service">
+                                    <IconButton
+                                      size="small"
+                                      color="primary"
+                                      onClick={(e) => openEditService(service, e)}
+                                    >
+                                      <EditIcon fontSize="small" />
+                                    </IconButton>
+                                  </Tooltip>
+                                )}
+                                {canDeleteService && (
+                                  <Tooltip title="Supprimer service">
+                                    <IconButton
+                                      size="small"
+                                      color="error"
+                                      onClick={(e) => openDeleteService(service, e)}
+                                    >
+                                      <DeleteIcon fontSize="small" />
+                                    </IconButton>
+                                  </Tooltip>
+                                )}
                               </Box>
                             )}
                           </ListItem>

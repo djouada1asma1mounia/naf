@@ -4,12 +4,22 @@ import { Box, Typography, Paper } from '@mui/material';
 import LockIcon from '@mui/icons-material/Lock';
 import { FULL_ACCESS_MODE } from '../utils/constants';
 
-const RoleGuard = ({ children, allowedRoles }) => {
-  const { user } = useAuth();
+const RoleGuard = ({ children, allowedRoles = [], allowedPermissions = [], requireAllPermissions = false }) => {
+  const { user, hasPermissionAny, hasPermission } = useAuth();
 
   if (FULL_ACCESS_MODE) return children;
 
-  if (!user || !allowedRoles.includes(user.role)) {
+  const roleAllowed = !Array.isArray(allowedRoles) || allowedRoles.length === 0
+    ? true
+    : allowedRoles.includes(user?.role);
+
+  const permissionAllowed = !Array.isArray(allowedPermissions) || allowedPermissions.length === 0
+    ? true
+    : (requireAllPermissions
+      ? allowedPermissions.every((permissionName) => hasPermission(permissionName))
+      : hasPermissionAny(allowedPermissions));
+
+  if (!user || !roleAllowed || !permissionAllowed) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" minHeight="60vh">
         <Paper sx={{ p: 5, textAlign: 'center', maxWidth: 400 }}>

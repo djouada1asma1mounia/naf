@@ -22,15 +22,11 @@ import GdMaterialForm from './GdMaterialForm';
 import { MATERIAL_STATUSES } from '../../utils/constants';
 import { useSnackbar } from 'notistack';
 
-const MATERIAL_PERMISSIONS = {
-  createOwn: ['create-materiel', 'create materiel', 'cree material', 'cree materiel'],
-  createAll: ['create-materiels', 'create materiels', 'create materials', 'cree materials', 'cree materiels'],
-  readOwn: ['read-materiel', 'read materiel', 'read material'],
-  readAll: ['read-materiels', 'read materiels', 'read materials'],
-  updateOwn: ['update-materiel', 'update materiel', 'update material'],
-  updateAll: ['update-materiels', 'update materiels', 'update materials'],
-  deleteOwn: ['delete-materiel', 'delete materiel', 'delete material'],
-  deleteAll: ['delete-materiels', 'delete materiels', 'delete materials'],
+const GD_PERMISSIONS = {
+  create: ['create-subsidiary', 'create subsidiary', 'create-subsidiaries', 'create subsidiaries'],
+  read: ['read-subsidiary', 'read subsidiary', 'read-subsidiaries', 'read subsidiaries'],
+  update: ['update-subsidiary', 'update subsidiary', 'update-subsidiaries', 'update subsidiaries'],
+  remove: ['delete-subsidiary', 'delete subsidiary', 'delete-subsidiaries', 'delete subsidiaries'],
 };
 
 const GdMaterialsList = () => {
@@ -51,24 +47,16 @@ const GdMaterialsList = () => {
   const [deleteDialog, setDeleteDialog] = useState({ open: false, id: null, name: '' });
   const [deleteLoading, setDeleteLoading] = useState(false);
 
-  const canReadOwn = hasPermissionAny(MATERIAL_PERMISSIONS.readOwn);
-  const canReadAll = hasPermissionAny(MATERIAL_PERMISSIONS.readAll);
-  const canCreateOwn = hasPermissionAny(MATERIAL_PERMISSIONS.createOwn);
-  const canCreateAll = hasPermissionAny(MATERIAL_PERMISSIONS.createAll);
-  const canUpdateOwn = hasPermissionAny(MATERIAL_PERMISSIONS.updateOwn);
-  const canUpdateAll = hasPermissionAny(MATERIAL_PERMISSIONS.updateAll);
-  const canDeleteOwn = hasPermissionAny(MATERIAL_PERMISSIONS.deleteOwn);
-  const canDeleteAll = hasPermissionAny(MATERIAL_PERMISSIONS.deleteAll);
-
-  const canReadAny = canReadOwn || canReadAll;
-  const canCreateAny = canCreateOwn || canCreateAll;
-  const canMutateAny = canUpdateOwn || canUpdateAll || canDeleteOwn || canDeleteAll;
+  const canReadAny = hasPermissionAny(GD_PERMISSIONS.read);
+  const canCreateAny = hasPermissionAny(GD_PERMISSIONS.create);
+  const canUpdateAny = hasPermissionAny(GD_PERMISSIONS.update);
+  const canDeleteAny = hasPermissionAny(GD_PERMISSIONS.remove);
+  const canMutateAny = canUpdateAny || canDeleteAny;
 
   const formatDate = (value) => (value ? new Date(value).toLocaleDateString('fr-FR') : '—');
 
-  const isOwnMaterial = (material) => String(material?.ownerId || '') === String(user?.id || '');
-  const canUpdateMaterial = (material) => canUpdateAll || (canUpdateOwn && isOwnMaterial(material));
-  const canDeleteMaterial = (material) => canDeleteAll || (canDeleteOwn && isOwnMaterial(material));
+  const canUpdateMaterial = () => canUpdateAny;
+  const canDeleteMaterial = () => canDeleteAny;
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -77,7 +65,7 @@ const GdMaterialsList = () => {
       setCategories([]);
       setSubsidiaries([]);
       setOwners([]);
-      enqueueSnackbar('Vous n\'avez pas la permission de lire les matériels GD.', { variant: 'warning' });
+      enqueueSnackbar('Vous n\'avez pas la permission de lire les matériels GD (matériels + raisons).', { variant: 'warning' });
       setLoading(false);
       return;
     }
@@ -85,13 +73,13 @@ const GdMaterialsList = () => {
     const apiFilters = {
       status: filters.status,
       categoryId: filters.categoryId,
-      ownerId: canReadAll ? (filters.ownerId || undefined) : user?.id,
+      ownerId: filters.ownerId || undefined,
     };
 
     const loaders = [
       categoriesAPI.getAll(),
       subsidiariesAPI.getAll(),
-      canReadAll || canCreateAll || canUpdateAll ? authAPI.getUsers() : Promise.resolve([]),
+      canReadAny || canCreateAny || canUpdateAny ? authAPI.getUsers() : Promise.resolve([]),
     ];
 
     const [catsResult, subsResult, ownersResult] = await Promise.allSettled(loaders);
@@ -99,20 +87,23 @@ const GdMaterialsList = () => {
     let materialsResult = [];
     try {
       if (filters.subsidiaryCode) {
+        // Direct GD endpoint when a specific subsidiary is selected.
         materialsResult = await materialsAPI.getBySubsidiary(filters.subsidiaryCode, apiFilters);
       } else if (subsResult.status === 'fulfilled' && (subsResult.value || []).length > 0) {
+        // Aggregate GD materials by each subsidiary code.
         const subsidiaryMaterials = await Promise.allSettled(
-          (subsResult.value || []).map((s) => materialsAPI.getBySubsidiary(s.code, apiFilters)),
+          (subsResult.value || []).map((subsidiary) => materialsAPI.getBySubsidiary(subsidiary.code, apiFilters)),
         );
 
         const merged = subsidiaryMaterials
           .filter((result) => result.status === 'fulfilled')
           .flatMap((result) => result.value || []);
 
-        const unique = Array.from(new Map(merged.map((item) => [item.id, item])).values());
-        materialsResult = unique;
+        materialsResult = Array.from(new Map(merged.map((item) => [item.id, item])).values());
       } else {
-        materialsResult = [];
+        // Fallback when subsidiary list is unavailable.
+        const allMaterials = await materialsAPI.getAll(apiFilters);
+        materialsResult = (allMaterials || []).filter((item) => String(item?.subsidiaryCode || '').trim() !== '');
       }
 
       setMaterials(materialsResult);
@@ -131,8 +122,14 @@ const GdMaterialsList = () => {
     if (subsResult.status === 'fulfilled') {
       setSubsidiaries(subsResult.value || []);
     } else {
-      setSubsidiaries([]);
-      enqueueSnackbar('Impossible de charger les name raison.', { variant: 'warning' });
+      const derivedSubsidiaries = Array.from(
+        new Map(
+          (materialsResult || [])
+            .filter((item) => item?.subsidiaryCode)
+            .map((item) => [item.subsidiaryCode, { code: item.subsidiaryCode, name: item.subsidiaryName || item.subsidiaryCode }]),
+        ).values(),
+      );
+      setSubsidiaries(derivedSubsidiaries);
     }
 
     if (ownersResult.status === 'fulfilled') {
@@ -143,7 +140,7 @@ const GdMaterialsList = () => {
       })));
     } else {
       setOwners([]);
-      if (canReadAll || canCreateAll || canUpdateAll) {
+      if (canReadAny || canCreateAny || canUpdateAny) {
         enqueueSnackbar('Impossible de charger la liste des propriétaires.', { variant: 'warning' });
       }
     }
@@ -151,12 +148,9 @@ const GdMaterialsList = () => {
     setLoading(false);
   }, [
     filters,
-    user,
     canReadAny,
-    canReadAll,
-    canReadOwn,
-    canCreateAll,
-    canUpdateAll,
+    canCreateAny,
+    canUpdateAny,
     enqueueSnackbar,
   ]);
 
@@ -191,12 +185,12 @@ const GdMaterialsList = () => {
       };
 
       if (editItem) {
-        payload.ownerId = canUpdateAll ? (data?.ownerId || editItem.ownerId || user?.id) : user?.id;
+        payload.ownerId = data?.ownerId || editItem.ownerId || user?.id;
       } else {
         if (!canCreateAny) {
           throw new Error('Vous n\'avez pas la permission de créer des matériels GD.');
         }
-        payload.ownerId = canCreateAll ? (data?.ownerId || user?.id) : user?.id;
+        payload.ownerId = data?.ownerId || user?.id;
       }
 
       if (!payload.ownerId) {
@@ -327,7 +321,7 @@ const GdMaterialsList = () => {
                 </Select>
               </FormControl>
             </Grid>
-            {canReadAll && (
+            {canReadAny && (
               <Grid item xs={6} sm={3} md={3}>
                 <FormControl fullWidth size="small">
                   <InputLabel>Utilisateur</InputLabel>
@@ -464,7 +458,7 @@ const GdMaterialsList = () => {
         categories={categories}
         subsidiaries={subsidiaries}
         owners={owners}
-        canSelectOwner={editItem ? canUpdateAll : canCreateAll}
+        canSelectOwner={canCreateAny || canUpdateAny}
       />
 
       <ConfirmDialog

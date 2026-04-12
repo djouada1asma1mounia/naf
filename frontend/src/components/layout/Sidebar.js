@@ -5,7 +5,7 @@ import {
 } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useAuth, ROLES } from '../../context/AuthContext';
+import { useAuth } from '../../context/AuthContext';
 import { useThemeMode } from '../../context/ThemeContext';
 import { SIDEBAR_WIDTH, FULL_ACCESS_MODE } from '../../utils/constants';
 
@@ -20,78 +20,96 @@ import RuleIcon from '@mui/icons-material/Rule';
 import SettingsIcon from '@mui/icons-material/Settings';
 import PeopleIcon from '@mui/icons-material/People';
 import BadgeIcon from '@mui/icons-material/Badge';
+import ImportExportIcon from '@mui/icons-material/ImportExport';
 
 const navItems = [
   {
     label: 'Dashboard & Statistiques',
     icon: <DashboardIcon />,
     path: '/dashboard',
-    roles: [ROLES.ADMIN, ROLES.USER],
+    public: true,
   },
   {
     label: 'Matériels',
     icon: <ComputerIcon />,
     path: '/materials',
-    roles: [ROLES.ADMIN, ROLES.USER],
+    permissions: [
+      'read-materiels',
+      'read materiels',
+      'read materials',
+      'read-materiel',
+      'read materiel',
+      'read material',
+      'read-my-materiels',
+      'read my materiels',
+      'read my materials',
+      'read-my-materials',
+    ],
   },
   {
     label: 'Matériels GD',
     icon: <LocalGasStationIcon />,
     path: '/gd-materials',
-    roles: [ROLES.ADMIN, ROLES.USER],
+    permissions: ['read-subsidiary', 'read subsidiary', 'read-subsidiaries', 'read subsidiaries'],
   },
   {
     label: 'Interventions',
     icon: <BuildIcon />,
     path: '/maintenance',
-    roles: [ROLES.ADMIN, ROLES.USER],
+    permissions: ['read-interventions', 'read intervention', 'read interventions'],
   },
   {
     label: 'Décharges',
     icon: <DescriptionIcon />,
     path: '/decharges',
-    roles: [ROLES.ADMIN, ROLES.USER],
+    permissions: ['read-decharges', 'read decharges', 'read-decharge', 'read decharge'],
   },
   {
     label: 'Structures',
     icon: <BusinessIcon />,
     path: '/structures',
-    roles: [ROLES.ADMIN, ROLES.USER],
+    permissions: ['read-departments', 'read department', 'read departments'],
   },
   {
     label: 'Catégories',
     icon: <CategoryIcon />,
     path: '/categories',
-    roles: [ROLES.ADMIN],
+    permissions: ['read-categories', 'read categories', 'read-category', 'read category'],
   },
   {
     label: 'Raisons',
     icon: <RuleIcon />,
     path: '/reasons',
-    roles: [ROLES.ADMIN, ROLES.USER],
+    permissions: ['read-subsidiary', 'read subsidiary', 'read-subsidiaries', 'read subsidiaries'],
   },
   {
     label: 'Utilisateurs',
     icon: <PeopleIcon />,
     path: '/users',
-    roles: [ROLES.ADMIN],
+    permissions: ['read-users', 'read users', 'read-user', 'read user'],
   },
   {
     label: 'Rôles',
     icon: <BadgeIcon />,
     path: '/roles',
-    roles: [ROLES.ADMIN],
+    permissions: ['read-roles', 'read roles', 'read-role', 'read role'],
+  },
+  {
+    label: 'Import Export',
+    icon: <ImportExportIcon />,
+    path: '/data-transfer',
+    permissions: ['export-all-data', 'export all data'],
   },
   {
     label: 'Paramètres',
     icon: <SettingsIcon />,
     path: '/profile',
-    roles: [ROLES.ADMIN, ROLES.USER],
+    public: true,
   },
 ];
 
 const Sidebar = ({ open, onClose, variant = 'permanent' }) => {
-  const { user } = useAuth();
+  const { hasPermissionAny } = useAuth();
   const { mode } = useThemeMode();
   const isDark = mode === 'dark';
   const theme = useTheme();
@@ -112,7 +130,15 @@ const Sidebar = ({ open, onClose, variant = 'permanent' }) => {
   const footerColor = isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.35)';
   const borderColorLight = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)';
 
-  const visibleItems = FULL_ACCESS_MODE ? navItems : navItems.filter((item) => item.roles.includes(user?.role));
+  const visibleItems = FULL_ACCESS_MODE
+    ? navItems
+    : navItems.filter((item) => {
+      const publicAllowed = Boolean(item.public);
+      const permissionAllowed = !Array.isArray(item.permissions) || item.permissions.length === 0
+        ? true
+        : hasPermissionAny(item.permissions);
+      return publicAllowed || permissionAllowed;
+    });
 
   const handleNavClick = (path) => {
     navigate(path);

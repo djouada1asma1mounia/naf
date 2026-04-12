@@ -24,7 +24,7 @@ export class DechargesController {
 
     @Post()
     @UseGuards(JwtAuthGuard, PermissionsGuard)
-    @Permissions('create-decharges')
+    @Permissions('create-decharge')
     create(@Body() createDechargeDto: CreateDechargeDto, @Req() req: any) {
         const userId = (req.user as { id?: string } | undefined)?.id;
         return this.dechargesService.create(createDechargeDto, userId);

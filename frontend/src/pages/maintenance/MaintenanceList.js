@@ -16,8 +16,15 @@ import { InterventionStatusChip } from '../../components/common/StatusChip';
 import { useSnackbar } from 'notistack';
 import { useAuth } from '../../context/AuthContext';
 
+const INTERVENTION_PERMISSIONS = {
+  read: ['read-interventions', 'read intervention', 'read interventions'],
+  create: ['create-intervention', 'create intervention'],
+  update: ['update-intervention', 'update intervention'],
+  remove: ['delete-intervention', 'delete intervention'],
+};
+
 const MaintenanceList = () => {
-  const { canEdit } = useAuth();
+  const { hasPermissionAny } = useAuth();
   const { enqueueSnackbar } = useSnackbar();
 
   const [interventions, setInterventions] = useState([]);
@@ -30,7 +37,20 @@ const MaintenanceList = () => {
   const [deleteDialog, setDeleteDialog] = useState({ open: false, id: null, label: '' });
   const [deleteLoading, setDeleteLoading] = useState(false);
 
+  const canRead = hasPermissionAny(INTERVENTION_PERMISSIONS.read);
+  const canCreate = hasPermissionAny(INTERVENTION_PERMISSIONS.create);
+  const canUpdate = hasPermissionAny(INTERVENTION_PERMISSIONS.update);
+  const canDelete = hasPermissionAny(INTERVENTION_PERMISSIONS.remove);
+  const canMutate = canUpdate || canDelete;
+
   const loadData = useCallback(async () => {
+    if (!canRead) {
+      setLoading(false);
+      setInterventions([]);
+      enqueueSnackbar('Vous n\'avez pas la permission de lire les interventions.', { variant: 'warning' });
+      return;
+    }
+
     setLoading(true);
     try {
       const data = await maintenanceAPI.getAll(filters);
@@ -39,7 +59,7 @@ const MaintenanceList = () => {
       enqueueSnackbar('Erreur lors du chargement', { variant: 'error' });
     }
     setLoading(false);
-  }, [filters, enqueueSnackbar]);
+  }, [filters, enqueueSnackbar, canRead]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
@@ -51,9 +71,15 @@ const MaintenanceList = () => {
   const handleFormSubmit = async (data) => {
     try {
       if (editItem) {
+        if (!canUpdate) {
+          throw new Error('Vous n\'avez pas la permission de modifier des interventions.');
+        }
         await maintenanceAPI.update(editItem.id, data);
         enqueueSnackbar('Intervention modifiee', { variant: 'success' });
       } else {
+        if (!canCreate) {
+          throw new Error('Vous n\'avez pas la permission de créer des interventions.');
+        }
         await maintenanceAPI.create(data);
         enqueueSnackbar('Intervention creee', { variant: 'success' });
       }
@@ -71,6 +97,11 @@ const MaintenanceList = () => {
   };
 
   const handleDelete = async () => {
+    if (!canDelete) {
+      enqueueSnackbar('Vous n\'avez pas la permission de supprimer des interventions.', { variant: 'warning' });
+      return;
+    }
+
     setDeleteLoading(true);
     try {
       await maintenanceAPI.delete(deleteDialog.id);
@@ -92,7 +123,7 @@ const MaintenanceList = () => {
         subtitle={`${interventions.length} intervention(s)`}
         breadcrumbs={[{ label: 'Accueil', path: '/dashboard' }, { label: 'Interventions' }]}
         action={
-          canEdit() && (
+          canCreate && (
             <Button
               variant="contained"
               startIcon={<AddIcon />}
@@ -148,7 +179,7 @@ const MaintenanceList = () => {
                 <TableCell>Interventionnaire</TableCell>
                 <TableCell>Destinataire</TableCell>
                 <TableCell>Date création</TableCell>
-                {canEdit() && <TableCell align="center">Actions</TableCell>}
+                {canMutate && <TableCell align="center">Actions</TableCell>}
               </TableRow>
             </TableHead>
             <TableBody>
@@ -162,7 +193,7 @@ const MaintenanceList = () => {
                 ))
               ) : displayed.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={canEdit() ? 8 : 7} align="center" sx={{ py: 4 }}>
+                  <TableCell colSpan={canMutate ? 8 : 7} align="center" sx={{ py: 4 }}>
                     <Box display="flex" flexDirection="column" alignItems="center" gap={1} color="text.secondary">
                       <BuildIcon sx={{ fontSize: 40, opacity: 0.3 }} />
                       <Typography variant="body2">Aucune intervention trouvée</Typography>
@@ -190,23 +221,27 @@ const MaintenanceList = () => {
                     <TableCell>
                       <Typography variant="caption" color="text.secondary">{inv.startDate}</Typography>
                     </TableCell>
-                    {canEdit() && (
+                    {canMutate && (
                       <TableCell align="center">
                         <Box display="flex" justifyContent="center" gap={0.5}>
-                          <Tooltip title="Modifier">
-                            <IconButton size="small" color="primary" onClick={() => handleEdit(inv)}>
-                              <EditIcon fontSize="small" />
-                            </IconButton>
-                          </Tooltip>
-                          <Tooltip title="Supprimer">
-                            <IconButton
-                              size="small"
-                              color="error"
-                              onClick={() => setDeleteDialog({ open: true, id: inv.id, label: inv.reference || inv.code })}
-                            >
-                              <DeleteIcon fontSize="small" />
-                            </IconButton>
-                          </Tooltip>
+                          {canUpdate && (
+                            <Tooltip title="Modifier">
+                              <IconButton size="small" color="primary" onClick={() => handleEdit(inv)}>
+                                <EditIcon fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+                          )}
+                          {canDelete && (
+                            <Tooltip title="Supprimer">
+                              <IconButton
+                                size="small"
+                                color="error"
+                                onClick={() => setDeleteDialog({ open: true, id: inv.id, label: inv.reference || inv.code })}
+                              >
+                                <DeleteIcon fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+                          )}
                         </Box>
                       </TableCell>
                     )}

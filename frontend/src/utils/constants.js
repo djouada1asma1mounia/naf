@@ -4,7 +4,7 @@ export const ROLES = {
 };
 
 export const FULL_ACCESS_MODE =
-  (process.env.REACT_APP_FULL_ACCESS_MODE ?? "true").toLowerCase() !== "false";
+  (process.env.REACT_APP_FULL_ACCESS_MODE ?? "false").toLowerCase() === "true";
 
 export const MATERIAL_STATUSES = ["En Service", "En Panne", "Reforme"];
 
