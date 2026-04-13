@@ -64,13 +64,14 @@ const MaterialsList = () => {
 
   const canReadAny = canReadOwn || canReadAll;
   const canCreateAny = canCreateOwn || canCreateAll;
-  const canMutateAny = canUpdateOwn || canUpdateAll || canDeleteOwn || canDeleteAll;
+  const canUpdateAny = canUpdateOwn || canUpdateAll;
+  const canDeleteAny = canDeleteOwn || canDeleteAll;
+  const canMutateAny = canUpdateAny || canDeleteAny;
 
   const formatDate = (value) => (value ? new Date(value).toLocaleDateString('fr-FR') : '—');
 
-  const isOwnMaterial = (material) => String(material?.ownerId || '') === String(user?.id || '');
-  const canUpdateMaterial = (material) => canUpdateAll || (canUpdateOwn && isOwnMaterial(material));
-  const canDeleteMaterial = (material) => canDeleteAll || (canDeleteOwn && isOwnMaterial(material));
+  const canUpdateMaterial = () => canUpdateAny;
+  const canDeleteMaterial = () => canDeleteAny;
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -93,7 +94,7 @@ const MaterialsList = () => {
       categoriesAPI.getAll(),
       servicesAPI.getAll(),
       structuresAPI.getDepartments(),
-      canCreateAll || canUpdateAll ? authAPI.getUsers() : Promise.resolve([]),
+      canCreateAny || canUpdateAny ? authAPI.getUsers() : Promise.resolve([]),
     ];
 
     const [matsResult, catsResult, servicesResult, deptsResult, ownersResult] = await Promise.allSettled(loaders);
@@ -134,7 +135,7 @@ const MaterialsList = () => {
       })));
     } else {
       setOwners([]);
-      if (canCreateAll || canUpdateAll) {
+      if (canCreateAny || canUpdateAny) {
         enqueueSnackbar('Impossible de charger la liste des propriétaires.', { variant: 'warning' });
       }
     }
@@ -145,8 +146,8 @@ const MaterialsList = () => {
     user,
     canReadAny,
     canReadAll,
-    canCreateAll,
-    canUpdateAll,
+    canCreateAny,
+    canUpdateAny,
     enqueueSnackbar,
   ]);
 
@@ -172,18 +173,18 @@ const MaterialsList = () => {
   const handleFormSubmit = async (data) => {
     try {
       if (editItem && !canUpdateMaterial(editItem)) {
-        throw new Error('Vous ne pouvez modifier que vos propres matériels.');
+        throw new Error('Vous n\'avez pas la permission de modifier les matériels.');
       }
 
       const payload = { ...data };
 
       if (editItem) {
-        payload.ownerId = canUpdateAll ? (data?.ownerId || editItem.ownerId || user?.id) : user?.id;
+        payload.ownerId = data?.ownerId || editItem.ownerId || user?.id;
       } else {
         if (!canCreateAny) {
           throw new Error('Vous n\'avez pas la permission de créer des matériels.');
         }
-        payload.ownerId = canCreateAll ? (data?.ownerId || user?.id) : user?.id;
+        payload.ownerId = data?.ownerId || user?.id;
       }
 
       if (!payload.ownerId) {
@@ -209,7 +210,7 @@ const MaterialsList = () => {
     try {
       const target = materials.find((item) => String(item.id) === String(deleteDialog.id));
       if (!target || !canDeleteMaterial(target)) {
-        throw new Error('Vous ne pouvez supprimer que vos propres matériels.');
+        throw new Error('Vous n\'avez pas la permission de supprimer ce matériel.');
       }
       await materialsAPI.delete(deleteDialog.id);
       enqueueSnackbar('Matériel supprimé', { variant: 'success' });
@@ -425,7 +426,7 @@ const MaterialsList = () => {
         categories={categories}
         services={services}
         owners={owners}
-        canSelectOwner={editItem ? canUpdateAll : canCreateAll}
+        canSelectOwner={editItem ? canUpdateAny : canCreateAny}
       />
 
       {/* Delete Confirm */}
