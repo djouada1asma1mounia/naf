@@ -314,13 +314,29 @@ const UserManagement = () => {
         permissionsAPI.getAll(),
       ]);
 
-      if (usrsResult.status === 'rejected' || deptsResult.status === 'rejected' || rolesResult.status === 'rejected') {
-        throw new Error('Erreur chargement');
+      if (usrsResult.status === 'rejected') {
+        throw new Error('Erreur chargement utilisateurs');
       }
 
-      setUsers(usrsResult.value);
-      setDepartments(deptsResult.value);
-      setCustomRoles(rolesResult.value);
+      setUsers(Array.isArray(usrsResult.value) ? usrsResult.value : []);
+
+      if (deptsResult.status === 'fulfilled' && Array.isArray(deptsResult.value)) {
+        setDepartments(deptsResult.value);
+      } else {
+        setDepartments([]);
+        if (canCreate || canUpdate) {
+          enqueueSnackbar('Liste des départements indisponible. Les actions de création/modification peuvent être limitées.', { variant: 'info' });
+        }
+      }
+
+      if (rolesResult.status === 'fulfilled' && Array.isArray(rolesResult.value)) {
+        setCustomRoles(rolesResult.value);
+      } else {
+        setCustomRoles([]);
+        if (canCreate || canUpdate) {
+          enqueueSnackbar('Liste des rôles indisponible. Les actions de création/modification peuvent être limitées.', { variant: 'info' });
+        }
+      }
 
       if (permissionsResult.status === 'fulfilled' && Array.isArray(permissionsResult.value) && permissionsResult.value.length > 0) {
         setPermissions(permissionsResult.value);
@@ -329,9 +345,11 @@ const UserManagement = () => {
         setPermissions([]);
         setPermissionsFallback(true);
       }
-    } catch { enqueueSnackbar('Erreur chargement', { variant: 'error' }); }
+    } catch {
+      enqueueSnackbar('Erreur chargement utilisateurs', { variant: 'error' });
+    }
     setLoading(false);
-  }, [enqueueSnackbar, canRead]);
+  }, [enqueueSnackbar, canRead, canCreate, canUpdate]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
@@ -628,20 +646,31 @@ const UserManagement = () => {
                       Permissions
                     </Typography>
                     <Box display="flex" gap={0.75} flexWrap="wrap">
-                      {extractPermissionIds(detailsDialog.user).map((permissionId) => {
-                        const permission = permissions.find((item) => item.id === permissionId);
-                        return permission ? (
-                          <Chip
-                            key={permissionId}
-                            label={permission.name}
-                            size="small"
-                            variant="outlined"
-                            color="primary"
-                            sx={{ fontSize: '0.7rem', fontWeight: 600 }}
-                          />
-                        ) : null;
-                      })}
-                      {extractPermissionIds(detailsDialog.user).length === 0 && (
+                      {Array.from(new Set([
+                        ...extractPermissionIds(detailsDialog.user)
+                          .map((permissionId) => permissions.find((item) => item.id === permissionId)?.name)
+                          .filter(Boolean),
+                        ...((detailsDialog.user?.permissions || [])
+                          .map((permission) => (typeof permission === 'string' ? permission : permission?.name))
+                          .filter(Boolean)),
+                      ])).map((permissionLabel) => (
+                        <Chip
+                          key={permissionLabel}
+                          label={permissionLabel}
+                          size="small"
+                          variant="outlined"
+                          color="primary"
+                          sx={{ fontSize: '0.7rem', fontWeight: 600 }}
+                        />
+                      ))}
+                      {Array.from(new Set([
+                        ...extractPermissionIds(detailsDialog.user)
+                          .map((permissionId) => permissions.find((item) => item.id === permissionId)?.name)
+                          .filter(Boolean),
+                        ...((detailsDialog.user?.permissions || [])
+                          .map((permission) => (typeof permission === 'string' ? permission : permission?.name))
+                          .filter(Boolean)),
+                      ])).length === 0 && (
                         <Typography variant="body2" color="text.secondary">Aucune permission</Typography>
                       )}
                     </Box>
