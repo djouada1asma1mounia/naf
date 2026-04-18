@@ -133,24 +133,33 @@ const StripStatTile = ({ title, value, icon, accent }) => (
   </Card>
 );
 
-const StatCard = ({ title, children, height = 420, titleSx, contentSx }) => (
-  <Card
-    sx={{
-      borderRadius: 4,
-      height,
-      border: `1px solid ${alpha("#1e293b", 0.08)}`,
-      background: `linear-gradient(180deg, ${alpha("#ffffff", 0.95)} 0%, ${alpha("#f8fafc", 0.92)} 100%)`,
-      boxShadow: `0 10px 24px ${alpha("#0f172a", 0.06)}`,
-    }}
-  >
-    <CardContent sx={{ height: "100%", ...contentSx }}>
-      <Typography variant="h6" fontWeight={800} mb={1.5} sx={titleSx}>
-        {title}
-      </Typography>
-      {children}
-    </CardContent>
-  </Card>
-);
+const StatCard = ({ title, children, height = 420, titleSx, contentSx }) => {
+  const theme = useTheme();
+  const isDark = theme.palette.mode === "dark";
+
+  return (
+    <Card
+      sx={{
+        borderRadius: 4,
+        height,
+        border: `1px solid ${isDark ? alpha(theme.palette.common.white, 0.12) : alpha("#1e293b", 0.08)}`,
+        background: isDark
+          ? `linear-gradient(180deg, ${alpha(theme.palette.background.paper, 0.96)} 0%, ${alpha(theme.palette.background.default, 0.92)} 100%)`
+          : `linear-gradient(180deg, ${alpha("#ffffff", 0.95)} 0%, ${alpha("#f8fafc", 0.92)} 100%)`,
+        boxShadow: isDark
+          ? `0 10px 24px ${alpha("#000000", 0.35)}`
+          : `0 10px 24px ${alpha("#0f172a", 0.06)}`,
+      }}
+    >
+      <CardContent sx={{ height: "100%", ...contentSx }}>
+        <Typography variant="h6" fontWeight={800} mb={1.5} sx={titleSx}>
+          {title}
+        </Typography>
+        {children}
+      </CardContent>
+    </Card>
+  );
+};
 
 const normalizeStatusLabel = (name) => {
   const value = String(name || "").toLowerCase();
@@ -210,7 +219,7 @@ const Dashboard = () => {
 
     const materialsScope = [
       { name: "GD", value: Number(safe.totalGdMaterials) || 0 },
-      { name: "Standard", value: Number(safe.totalClassicMaterials) || 0 },
+      { name: "Informatique", value: Number(safe.totalClassicMaterials) || 0 },
     ].filter((x) => x.value > 0);
 
     return {
@@ -341,7 +350,7 @@ const Dashboard = () => {
       >
         <Box>
           <StatCard
-            title="Répartition GD vs Standard"
+            title="Répartition GD vs Informatique"
             height={350}
             titleSx={{ textAlign: "center", mb: 0.5 }}
             contentSx={{ display: "flex", flexDirection: "column", justifyContent: "space-around" }}
@@ -385,7 +394,7 @@ const Dashboard = () => {
             </Box>
             <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap justifyContent="center">
               <Chip size="small" label={`GD: ${stats.totalGdMaterials || 0}`} color="secondary" variant="outlined" />
-              <Chip size="small" label={`Standard: ${stats.totalClassicMaterials || 0}`} color="info" variant="outlined" />
+              <Chip size="small" label={`Informatique: ${stats.totalClassicMaterials || 0}`} color="info" variant="outlined" />
             </Stack>
           </StatCard>
         </Box>
@@ -420,7 +429,7 @@ const Dashboard = () => {
           <StatTile title="Matériels GD" value={stats.totalGdMaterials || 0} subtitle="Avec filiale" icon={<DomainIcon fontSize="small" />} tone="secondary" />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
-          <StatTile title="Matériels Standard" value={stats.totalClassicMaterials || 0} subtitle="Sans filiale" icon={<LayersIcon fontSize="small" />} tone="info" />
+          <StatTile title="Matériels Informatique" value={stats.totalClassicMaterials || 0} subtitle="Sans filiale" icon={<LayersIcon fontSize="small" />} tone="info" />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
           <StatTile title="Total interventions" value={stats.totalInterventions || 0} subtitle={`En cours: ${stats.ongoingInterventions || 0}`} icon={<BuildIcon fontSize="small" />} tone="warning" />
