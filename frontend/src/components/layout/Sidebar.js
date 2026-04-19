@@ -77,7 +77,7 @@ const navItems = [
     permissions: ['read-categories', 'read categories', 'read-category', 'read category'],
   },
   {
-    label: 'Raisons',
+    label: 'GD',
     icon: <RuleIcon />,
     path: '/reasons',
     permissions: ['read-subsidiary', 'read subsidiary', 'read-subsidiaries', 'read subsidiaries'],

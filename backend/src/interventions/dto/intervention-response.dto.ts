@@ -2,6 +2,7 @@ import { InterventionStatus, InterventionType } from '../entities/intervention.e
 
 export class InterventionItemResponseDto {
     id!: number;
+    category?: string;
     designation!: string;
     quantity!: number;
     marque?: string;

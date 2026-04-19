@@ -1,43 +1,85 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from "react";
 import {
-  Box, Button, Card, CardContent, Table, TableBody, TableCell,
-  TableContainer, TableHead, TableRow, TablePagination, TextField,
-  InputAdornment, IconButton, Tooltip, Typography, Skeleton, Dialog,
-  DialogTitle, DialogContent, DialogActions, Divider,
-} from '@mui/material';
-import AddIcon from '@mui/icons-material/Add';
-import EditIcon from '@mui/icons-material/Edit';
-import DeleteIcon from '@mui/icons-material/Delete';
-import SearchIcon from '@mui/icons-material/Search';
-import RuleIcon from '@mui/icons-material/Rule';
-import { useSnackbar } from 'notistack';
-import { useAuth } from '../../context/AuthContext';
-import { subsidiariesAPI } from '../../api/subsidiaries';
-import PageHeader from '../../components/common/PageHeader';
-import ConfirmDialog from '../../components/common/ConfirmDialog';
+  Box,
+  Button,
+  Card,
+  CardContent,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  TablePagination,
+  TextField,
+  InputAdornment,
+  IconButton,
+  Tooltip,
+  Typography,
+  Skeleton,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Divider,
+} from "@mui/material";
+import AddIcon from "@mui/icons-material/Add";
+import EditIcon from "@mui/icons-material/Edit";
+import DeleteIcon from "@mui/icons-material/Delete";
+import SearchIcon from "@mui/icons-material/Search";
+import RuleIcon from "@mui/icons-material/Rule";
+import { useSnackbar } from "notistack";
+import { useAuth } from "../../context/AuthContext";
+import { subsidiariesAPI } from "../../api/subsidiaries";
+import PageHeader from "../../components/common/PageHeader";
+import ConfirmDialog from "../../components/common/ConfirmDialog";
 
 const REASON_PERMISSIONS = {
-  create: ['create-subsidiary', 'create subsidiary', 'create-subsidiaries', 'create subsidiaries'],
-  read: ['read-subsidiary', 'read subsidiary', 'read-subsidiaries', 'read subsidiaries'],
-  update: ['update-subsidiary', 'update subsidiary', 'update-subsidiaries', 'update subsidiaries'],
-  remove: ['delete-subsidiary', 'delete subsidiary', 'delete-subsidiaries', 'delete subsidiaries'],
+  create: [
+    "create-subsidiary",
+    "create subsidiary",
+    "create-subsidiaries",
+    "create subsidiaries",
+  ],
+  read: [
+    "read-subsidiary",
+    "read subsidiary",
+    "read-subsidiaries",
+    "read subsidiaries",
+  ],
+  update: [
+    "update-subsidiary",
+    "update subsidiary",
+    "update-subsidiaries",
+    "update subsidiaries",
+  ],
+  remove: [
+    "delete-subsidiary",
+    "delete subsidiary",
+    "delete-subsidiaries",
+    "delete subsidiaries",
+  ],
 };
 
 const ReasonForm = ({ open, onClose, onSubmit, editItem }) => {
-  const [form, setForm] = useState({ name: '', code: '' });
+  const [form, setForm] = useState({ name: "", code: "" });
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    setForm(editItem ? { name: editItem.name || '', code: editItem.code || '' } : { name: '', code: '' });
+    setForm(
+      editItem
+        ? { name: editItem.name || "", code: editItem.code || "" }
+        : { name: "", code: "" },
+    );
     setErrors({});
   }, [editItem, open]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     const nextErrors = {};
-    if (!form.name.trim()) nextErrors.name = 'Champ requis';
-    if (!form.code.trim()) nextErrors.code = 'Champ requis';
+    if (!form.name.trim()) nextErrors.name = "Champ requis";
+    if (!form.code.trim()) nextErrors.code = "Champ requis";
     if (Object.keys(nextErrors).length > 0) {
       setErrors(nextErrors);
       return;
@@ -55,19 +97,24 @@ const ReasonForm = ({ open, onClose, onSubmit, editItem }) => {
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
       <DialogTitle>
         <Typography variant="h6" fontWeight={700}>
-          {editItem ? 'Modifier la Raison' : 'Nouvelle Raison'}
+          {editItem ? "Modifier le GD" : "Nouveau GD"}
         </Typography>
       </DialogTitle>
       <Divider />
       <DialogContent>
-        <Box component="form" id="reason-form" onSubmit={handleSubmit} sx={{ pt: 1 }}>
+        <Box
+          component="form"
+          id="reason-form"
+          onSubmit={handleSubmit}
+          sx={{ pt: 1 }}
+        >
           <TextField
             fullWidth
-            label="Raison *"
+            label="GD *"
             value={form.name}
             onChange={(e) => {
               setForm((f) => ({ ...f, name: e.target.value }));
-              if (errors.name) setErrors((prev) => ({ ...prev, name: '' }));
+              if (errors.name) setErrors((prev) => ({ ...prev, name: "" }));
             }}
             error={!!errors.name}
             helperText={errors.name}
@@ -79,19 +126,26 @@ const ReasonForm = ({ open, onClose, onSubmit, editItem }) => {
             value={form.code}
             onChange={(e) => {
               setForm((f) => ({ ...f, code: e.target.value.toUpperCase() }));
-              if (errors.code) setErrors((prev) => ({ ...prev, code: '' }));
+              if (errors.code) setErrors((prev) => ({ ...prev, code: "" }));
             }}
             error={!!errors.code}
             helperText={errors.code}
-            inputProps={{ style: { textTransform: 'uppercase' } }}
+            inputProps={{ style: { textTransform: "uppercase" } }}
           />
         </Box>
       </DialogContent>
       <Divider />
       <DialogActions sx={{ px: 3, py: 2 }}>
-        <Button onClick={onClose} variant="outlined" disabled={loading}>Annuler</Button>
-        <Button type="submit" form="reason-form" variant="contained" disabled={loading}>
-          {editItem ? 'Modifier' : 'Créer'}
+        <Button onClick={onClose} variant="outlined" disabled={loading}>
+          Annuler
+        </Button>
+        <Button
+          type="submit"
+          form="reason-form"
+          variant="contained"
+          disabled={loading}
+        >
+          {editItem ? "Modifier" : "Créer"}
         </Button>
       </DialogActions>
     </Dialog>
@@ -106,10 +160,14 @@ const ReasonsList = () => {
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState("");
   const [formOpen, setFormOpen] = useState(false);
   const [editItem, setEditItem] = useState(null);
-  const [deleteDialog, setDeleteDialog] = useState({ open: false, code: '', name: '' });
+  const [deleteDialog, setDeleteDialog] = useState({
+    open: false,
+    code: "",
+    name: "",
+  });
   const [deleteLoading, setDeleteLoading] = useState(false);
 
   const canCreate = hasPermissionAny(REASON_PERMISSIONS.create);
@@ -123,7 +181,9 @@ const ReasonsList = () => {
     if (!canRead) {
       setReasons([]);
       setLoading(false);
-      enqueueSnackbar('Vous n\'avez pas la permission de lire les raisons.', { variant: 'warning' });
+      enqueueSnackbar("Vous n'avez pas la permission de lire les GD.", {
+        variant: "warning",
+      });
       return;
     }
 
@@ -132,7 +192,9 @@ const ReasonsList = () => {
       setReasons(data || []);
     } catch (error) {
       setReasons([]);
-      enqueueSnackbar(error.message || 'Erreur lors du chargement des raisons.', { variant: 'error' });
+      enqueueSnackbar(error.message || "Erreur lors du chargement des GD.", {
+        variant: "error",
+      });
     }
     setLoading(false);
   }, [canRead, enqueueSnackbar]);
@@ -143,54 +205,62 @@ const ReasonsList = () => {
 
   const filteredReasons = reasons.filter((item) => {
     if (!search) return true;
-    const target = `${item.name || ''} ${item.code || ''}`.toLowerCase();
+    const target = `${item.name || ""} ${item.code || ""}`.toLowerCase();
     return target.includes(search.toLowerCase());
   });
 
-  const displayed = filteredReasons.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
+  const displayed = filteredReasons.slice(
+    page * rowsPerPage,
+    page * rowsPerPage + rowsPerPage,
+  );
 
   const handleSubmit = async (payload) => {
     try {
       if (editItem) {
         if (!canUpdate) {
-          throw new Error('Vous n\'avez pas la permission de modifier les raisons.');
+          throw new Error("Vous n'avez pas la permission de modifier les GD.");
         }
         await subsidiariesAPI.update(editItem.code, payload);
-        enqueueSnackbar('Raison modifiée avec succès', { variant: 'success' });
+        enqueueSnackbar("GD modifié avec succès", { variant: "success" });
       } else {
         if (!canCreate) {
-          throw new Error('Vous n\'avez pas la permission de créer des raisons.');
+          throw new Error("Vous n'avez pas la permission de créer des GD.");
         }
         await subsidiariesAPI.create(payload);
-        enqueueSnackbar('Raison créée avec succès', { variant: 'success' });
+        enqueueSnackbar("GD créé avec succès", { variant: "success" });
       }
       setFormOpen(false);
       setEditItem(null);
       loadData();
     } catch (error) {
       enqueueSnackbar(
-        error.message || (editItem
-          ? 'Erreur lors de la modification de la raison.'
-          : 'Erreur lors de la création de la raison.'),
-        { variant: 'error' },
+        error.message ||
+          (editItem
+            ? "Erreur lors de la modification du GD."
+            : "Erreur lors de la création du GD."),
+        { variant: "error" },
       );
     }
   };
 
   const handleDelete = async () => {
     if (!canDelete) {
-      enqueueSnackbar('Vous n\'avez pas la permission de supprimer des raisons.', { variant: 'warning' });
+      enqueueSnackbar("Vous n'avez pas la permission de supprimer des GD.", {
+        variant: "warning",
+      });
       return;
     }
 
     setDeleteLoading(true);
     try {
       await subsidiariesAPI.delete(deleteDialog.code);
-      enqueueSnackbar('Raison supprimée avec succès', { variant: 'success' });
-      setDeleteDialog({ open: false, code: '', name: '' });
+      enqueueSnackbar("GD supprimé avec succès", { variant: "success" });
+      setDeleteDialog({ open: false, code: "", name: "" });
       loadData();
     } catch (error) {
-      enqueueSnackbar(error.message || 'Erreur lors de la suppression de la raison.', { variant: 'error' });
+      enqueueSnackbar(error.message || "Erreur lors de la suppression du GD.", {
+        variant: "error",
+      });
     }
     setDeleteLoading(false);
   };
@@ -198,13 +268,23 @@ const ReasonsList = () => {
   return (
     <Box>
       <PageHeader
-        title="Raisons"
-        subtitle={`${reasons.length} raison(s)`}
-        breadcrumbs={[{ label: 'Accueil', path: '/dashboard' }, { label: 'Raisons' }]}
+        title="GD"
+        subtitle={`${reasons.length} GD`}
+        breadcrumbs={[
+          { label: "Accueil", path: "/dashboard" },
+          { label: "GD" },
+        ]}
         action={
           canCreate ? (
-            <Button variant="contained" startIcon={<AddIcon />} onClick={() => { setEditItem(null); setFormOpen(true); }}>
-              Nouvelle Raison
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={() => {
+                setEditItem(null);
+                setFormOpen(true);
+              }}
+            >
+              Nouveau GD
             </Button>
           ) : null
         }
@@ -214,7 +294,7 @@ const ReasonsList = () => {
         <CardContent sx={{ py: 2 }}>
           <TextField
             fullWidth
-            placeholder="Rechercher par raison ou code..."
+            placeholder="Rechercher par GD ou code..."
             value={search}
             onChange={(e) => {
               setSearch(e.target.value);
@@ -236,7 +316,7 @@ const ReasonsList = () => {
           <Table size="small">
             <TableHead>
               <TableRow>
-                <TableCell>RAISON</TableCell>
+                <TableCell>GD</TableCell>
                 <TableCell>CODE</TableCell>
                 {canMutate && <TableCell align="center">Actions</TableCell>}
               </TableRow>
@@ -246,16 +326,28 @@ const ReasonsList = () => {
                 Array.from({ length: 6 }).map((_, i) => (
                   <TableRow key={i}>
                     {Array.from({ length: canMutate ? 3 : 2 }).map((_, j) => (
-                      <TableCell key={j}><Skeleton /></TableCell>
+                      <TableCell key={j}>
+                        <Skeleton />
+                      </TableCell>
                     ))}
                   </TableRow>
                 ))
               ) : displayed.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={canMutate ? 3 : 2} align="center" sx={{ py: 4 }}>
-                    <Box display="flex" flexDirection="column" alignItems="center" gap={1} color="text.secondary">
+                  <TableCell
+                    colSpan={canMutate ? 3 : 2}
+                    align="center"
+                    sx={{ py: 4 }}
+                  >
+                    <Box
+                      display="flex"
+                      flexDirection="column"
+                      alignItems="center"
+                      gap={1}
+                      color="text.secondary"
+                    >
                       <RuleIcon sx={{ fontSize: 40, opacity: 0.3 }} />
-                      <Typography variant="body2">Aucune raison trouvée</Typography>
+                      <Typography variant="body2">Aucun GD trouvé</Typography>
                     </Box>
                   </TableCell>
                 </TableRow>
@@ -263,17 +355,28 @@ const ReasonsList = () => {
                 displayed.map((item) => (
                   <TableRow key={item.code}>
                     <TableCell>
-                      <Typography variant="body2" fontWeight={600}>{item.name || '—'}</Typography>
+                      <Typography variant="body2" fontWeight={600}>
+                        {item.name || "—"}
+                      </Typography>
                     </TableCell>
                     <TableCell>
-                      <Typography variant="body2">{item.code || '—'}</Typography>
+                      <Typography variant="body2">
+                        {item.code || "—"}
+                      </Typography>
                     </TableCell>
                     {canMutate && (
                       <TableCell align="center">
                         <Box display="flex" gap={0.5} justifyContent="center">
                           {canUpdate && (
                             <Tooltip title="Modifier">
-                              <IconButton size="small" color="primary" onClick={() => { setEditItem(item); setFormOpen(true); }}>
+                              <IconButton
+                                size="small"
+                                color="primary"
+                                onClick={() => {
+                                  setEditItem(item);
+                                  setFormOpen(true);
+                                }}
+                              >
                                 <EditIcon fontSize="small" />
                               </IconButton>
                             </Tooltip>
@@ -283,7 +386,13 @@ const ReasonsList = () => {
                               <IconButton
                                 size="small"
                                 color="error"
-                                onClick={() => setDeleteDialog({ open: true, code: item.code, name: item.name })}
+                                onClick={() =>
+                                  setDeleteDialog({
+                                    open: true,
+                                    code: item.code,
+                                    name: item.name,
+                                  })
+                                }
                               >
                                 <DeleteIcon fontSize="small" />
                               </IconButton>
@@ -311,7 +420,9 @@ const ReasonsList = () => {
             setPage(0);
           }}
           labelRowsPerPage="Lignes par page:"
-          labelDisplayedRows={({ from, to, count }) => `${from}–${to} sur ${count}`}
+          labelDisplayedRows={({ from, to, count }) =>
+            `${from}–${to} sur ${count}`
+          }
         />
       </Card>
 
@@ -324,10 +435,10 @@ const ReasonsList = () => {
 
       <ConfirmDialog
         open={deleteDialog.open}
-        title="Supprimer la Raison"
-        message={`Êtes-vous sûr de vouloir supprimer "${deleteDialog.name}" ? Cette action est irréversible.`}
+        title="Supprimer le GD"
+        message={`Êtes-vous sûr de vouloir supprimer le GD "${deleteDialog.name}" ? Cette action est irréversible.`}
         onConfirm={handleDelete}
-        onClose={() => setDeleteDialog({ open: false, code: '', name: '' })}
+        onClose={() => setDeleteDialog({ open: false, code: "", name: "" })}
         loading={deleteLoading}
       />
     </Box>

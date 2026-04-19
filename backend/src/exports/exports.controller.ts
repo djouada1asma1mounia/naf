@@ -45,6 +45,7 @@ export class ExportsController {
             onMissingForeign: query.onMissingForeign ?? 'skip',
             batchSize: query.batchSize ?? 200,
             transactionMode: query.transactionMode ?? 'partial',
+            targetSheets: query.targetSheets,
         });
     }
 }

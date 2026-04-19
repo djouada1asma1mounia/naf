@@ -1,21 +1,22 @@
-import axiosInstance from './axios';
+import axiosInstance from "./axios";
 
 const configuredExcelTimeout = Number(process.env.REACT_APP_EXCEL_TIMEOUT_MS);
-const EXCEL_REQUEST_TIMEOUT_MS = Number.isFinite(configuredExcelTimeout) && configuredExcelTimeout > 0
-  ? configuredExcelTimeout
-  : 600000;
+const EXCEL_REQUEST_TIMEOUT_MS =
+  Number.isFinite(configuredExcelTimeout) && configuredExcelTimeout > 0
+    ? configuredExcelTimeout
+    : 600000;
 
 const getErrorMessage = (error, fallback) => {
-  if (error?.code === 'ECONNABORTED') {
-    return 'Operation trop longue: delai depasse. Reessayez ou reduisez le volume des donnees.';
+  if (error?.code === "ECONNABORTED") {
+    return "Operation trop longue: delai depasse. Reessayez ou reduisez le volume des donnees.";
   }
   const apiMessage = error?.response?.data?.message;
   if (Array.isArray(apiMessage)) return apiMessage[0] || fallback;
   return apiMessage || error?.message || fallback;
 };
 
-const extractFilename = (contentDisposition = '') => {
-  const raw = String(contentDisposition || '');
+const extractFilename = (contentDisposition = "") => {
+  const raw = String(contentDisposition || "");
   const utf8Match = raw.match(/filename\*=UTF-8''([^;]+)/i);
   if (utf8Match?.[1]) {
     try {
@@ -32,45 +33,53 @@ const extractFilename = (contentDisposition = '') => {
 export const exportsAPI = {
   exportAllDataExcel: async () => {
     try {
-      const response = await axiosInstance.get('/exports/excel', {
-        responseType: 'blob',
+      const response = await axiosInstance.get("/exports/excel", {
+        responseType: "blob",
         timeout: EXCEL_REQUEST_TIMEOUT_MS,
       });
 
       return {
         blob: response?.data,
-        filename: extractFilename(response?.headers?.['content-disposition']),
+        filename: extractFilename(response?.headers?.["content-disposition"]),
       };
     } catch (error) {
-      throw new Error(getErrorMessage(error, 'Erreur lors de l\'export Excel.'));
+      throw new Error(getErrorMessage(error, "Erreur lors de l'export Excel."));
     }
   },
 
   importAllDataExcel: async ({
     file,
-    onMissingForeign = 'skip',
+    onMissingForeign = "skip",
     batchSize = 200,
-    transactionMode = 'partial',
+    transactionMode = "partial",
+    targetSheets = [],
   }) => {
     try {
       const formData = new FormData();
-      formData.append('file', file);
+      formData.append("file", file);
 
-      const response = await axiosInstance.post('/exports/excel/import', formData, {
-        params: {
-          onMissingForeign,
-          batchSize,
-          transactionMode,
+      const response = await axiosInstance.post(
+        "/exports/excel/import",
+        formData,
+        {
+          params: {
+            onMissingForeign,
+            batchSize,
+            transactionMode,
+            ...(Array.isArray(targetSheets) && targetSheets.length > 0
+              ? { targetSheets: targetSheets.join(",") }
+              : {}),
+          },
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+          timeout: EXCEL_REQUEST_TIMEOUT_MS,
         },
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-        timeout: EXCEL_REQUEST_TIMEOUT_MS,
-      });
+      );
 
       return response?.data || {};
     } catch (error) {
-      throw new Error(getErrorMessage(error, 'Erreur lors de l\'import Excel.'));
+      throw new Error(getErrorMessage(error, "Erreur lors de l'import Excel."));
     }
   },
 };

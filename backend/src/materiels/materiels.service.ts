@@ -13,6 +13,7 @@ import { Category } from '../categories/entities/category.entity';
 import { ServiceEntity } from '../services/entities/service.entity';
 import { Subsidiary } from '../subsidiaries/entities/subsidiary.entity';
 import { User } from '../users/entities/user.entity';
+import { MaterielResponseDto } from './dto/materiel-response.dto';
 
 @Injectable()
 export class MaterielsService {
@@ -97,10 +98,35 @@ export class MaterielsService {
     }
   }
 
+  private async ensureNumeroSerieIsUnique(numeroSerie: string): Promise<void> {
+    const existing = await this.materielsRepository.findOne({
+      where: { numeroSerie },
+      select: ['numeroSerie'],
+    });
+
+    if (existing) {
+      throw new ConflictException(
+        `Le numéro de série "${numeroSerie}" existe déjà`,
+      );
+    }
+  }
+
+  private toResponse(materiel: Materiel): MaterielResponseDto {
+    return {
+      ...(materiel as unknown as MaterielResponseDto),
+      department: materiel.service?.department ?? null,
+    };
+  }
+
+  private toResponseList(materiels: Materiel[]): MaterielResponseDto[] {
+    return materiels.map((materiel) => this.toResponse(materiel));
+  }
+
   async create(createMaterielDto: CreateMaterielDto) {
     const { categorieId, serviceId, proprietaireId, subsidiaryCode, ...fields } =
       createMaterielDto;
 
+    await this.ensureNumeroSerieIsUnique(createMaterielDto.numeroSerie);
     await this.ensureNumeroInventaireIsUnique(createMaterielDto.numeroInventaire);
 
     const categorie = await this.categoriesRepository.findOne({
@@ -154,7 +180,7 @@ export class MaterielsService {
     const created = await this.findOneOrThrow(materiel.numeroSerie);
 
     return {
-      data: created,
+      data: this.toResponse(created),
       message: 'Matériel créé avec succès',
     };
   }
@@ -166,7 +192,7 @@ export class MaterielsService {
       .getMany();
 
     return {
-      data,
+      data: this.toResponseList(data),
       message: 'Liste des matériels sans filiale récupérée avec succès',
     };
   }
@@ -184,7 +210,7 @@ export class MaterielsService {
     const data = await query.orderBy('materiel.numeroSerie', 'ASC').getMany();
 
     return {
-      data,
+      data: this.toResponseList(data),
       message: subsidiaryCode
         ? 'Liste des matériels de la filiale récupérée avec succès'
         : 'Liste des matériels sans filiale récupérée avec succès',
@@ -202,7 +228,7 @@ export class MaterielsService {
       .getMany();
 
     return {
-      data,
+      data: this.toResponseList(data),
       message: 'Liste de mes matériels récupérée avec succès',
     };
   }
@@ -210,7 +236,7 @@ export class MaterielsService {
   async findOne(numeroSerie: string) {
     const materiel = await this.findOneOrThrow(numeroSerie);
     return {
-      data: materiel,
+      data: this.toResponse(materiel),
       message: 'Matériel récupéré avec succès',
     };
   }
@@ -294,7 +320,7 @@ export class MaterielsService {
     const updated = await this.findOneOrThrow(numeroSerie);
 
     return {
-      data: updated,
+      data: this.toResponse(updated),
       message: 'Matériel mis à jour avec succès',
     };
   }

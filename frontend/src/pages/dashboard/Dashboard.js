@@ -435,7 +435,7 @@ const Dashboard = () => {
           <StatTile title="Total interventions" value={stats.totalInterventions || 0} subtitle={`En cours: ${stats.ongoingInterventions || 0}`} icon={<BuildIcon fontSize="small" />} tone="warning" />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
-          <StatTile title="Départements" value={stats.totalDepartments || 0} subtitle="Structures actives" icon={<BusinessIcon fontSize="small" />} tone="success" />
+          <StatTile title="Structures" value={stats.totalDepartments || 0} subtitle="Structures actives" icon={<BusinessIcon fontSize="small" />} tone="success" />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
           <StatTile title="Services" value={stats.totalServices || 0} subtitle="Tous départements" icon={<SettingsSuggestIcon fontSize="small" />} tone="primary" />
@@ -444,7 +444,7 @@ const Dashboard = () => {
           <StatTile title="Catégories" value={stats.totalCategories || 0} subtitle="Classification matériel" icon={<CategoryIcon fontSize="small" />} tone="secondary" />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
-          <StatTile title="Raisons" value={stats.totalReasons || 0} subtitle="Référentiel des motifs" icon={<AssignmentTurnedInIcon fontSize="small" />} tone="error" />
+          <StatTile title="GD" value={stats.totalReasons || 0} subtitle="Référentiel des motifs" icon={<AssignmentTurnedInIcon fontSize="small" />} tone="error" />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
           <StatTile title="Rôles" value={stats.totalRoles || 0} subtitle="Rôles utilisateurs" icon={<BadgeIcon fontSize="small" />} tone="warning" />

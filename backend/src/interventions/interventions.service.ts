@@ -1,7 +1,11 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Response } from 'express';
+import PDFDocument = require('pdfkit');
+import { SelectQueryBuilder, Repository } from 'typeorm';
 import { User } from 'src/users/entities/user.entity';
+import { Materiel } from 'src/materiels/entities/materiel.entity';
+import { Department } from 'src/departments/entities/department.entity';
 import {
     CreateInterventionDto,
     InterventionResponseDto,
@@ -9,12 +13,17 @@ import {
 } from './dto';
 import { Intervention } from './entities/intervention.entity';
 import { InterventionItem } from './entities/intervention-item.entity';
+import { FindInterventionsQueryDto } from './dto/find-interventions-query.dto';
 
 @Injectable()
 export class InterventionsService {
     constructor(
         @InjectRepository(Intervention)
         private readonly interventionsRepository: Repository<Intervention>,
+        @InjectRepository(Materiel)
+        private readonly materielsRepository: Repository<Materiel>,
+        @InjectRepository(Department)
+        private readonly departmentsRepository: Repository<Department>,
     ) { }
 
     private baseQuery(repository: Repository<Intervention> = this.interventionsRepository) {
@@ -25,6 +34,228 @@ export class InterventionsService {
             .addSelect(['createdBy.id', 'createdBy.nom', 'createdBy.prenom', 'createdBy.email'])
             .orderBy('intervention.createdAt', 'DESC')
             .addOrderBy('item.id', 'ASC');
+    }
+
+    private parseDayBounds(dateInput: string): { start: Date; endExclusive: Date } {
+        const isDateOnly = /^\d{4}-\d{2}-\d{2}$/.test(dateInput);
+        const start = isDateOnly ? new Date(`${dateInput}T00:00:00.000Z`) : new Date(dateInput);
+
+        if (Number.isNaN(start.getTime())) {
+            throw new BadRequestException(`Date invalide: ${dateInput}`);
+        }
+
+        if (isDateOnly) {
+            const endExclusive = new Date(start);
+            endExclusive.setUTCDate(endExclusive.getUTCDate() + 1);
+            return { start, endExclusive };
+        }
+
+        const endExclusive = new Date(start);
+        endExclusive.setUTCHours(23, 59, 59, 999);
+        endExclusive.setUTCMilliseconds(endExclusive.getUTCMilliseconds() + 1);
+
+        return { start, endExclusive };
+    }
+
+    private applyFilters(
+        queryBuilder: SelectQueryBuilder<Intervention>,
+        filters?: FindInterventionsQueryDto,
+    ): SelectQueryBuilder<Intervention> {
+        if (!filters) {
+            return queryBuilder;
+        }
+
+        const { type, status, structure, date, dateFrom, dateTo } = filters;
+
+        if (date && (dateFrom || dateTo)) {
+            throw new BadRequestException(
+                'Le filtre date est exclusif: utilisez soit date, soit dateFrom/dateTo.',
+            );
+        }
+
+        if (type) {
+            queryBuilder.andWhere('intervention.interventionType = :type', { type });
+        }
+
+        if (status) {
+            queryBuilder.andWhere('intervention.status = :status', { status });
+        }
+
+        if (structure) {
+            queryBuilder.andWhere('LOWER(intervention.destinataire) LIKE LOWER(:structure)', {
+                structure: `%${structure.trim()}%`,
+            });
+        }
+
+        if (date) {
+            const { start, endExclusive } = this.parseDayBounds(date);
+            queryBuilder
+                .andWhere('intervention.createdAt >= :dateStart', { dateStart: start })
+                .andWhere('intervention.createdAt < :dateEndExclusive', {
+                    dateEndExclusive: endExclusive,
+                });
+
+            return queryBuilder;
+        }
+
+        if (dateFrom) {
+            const { start } = this.parseDayBounds(dateFrom);
+            queryBuilder.andWhere('intervention.createdAt >= :dateFrom', { dateFrom: start });
+        }
+
+        if (dateTo) {
+            const { endExclusive } = this.parseDayBounds(dateTo);
+            queryBuilder.andWhere('intervention.createdAt < :dateToExclusive', {
+                dateToExclusive: endExclusive,
+            });
+        }
+
+        if (dateFrom && dateTo) {
+            const from = new Date(dateFrom);
+            const to = new Date(dateTo);
+
+            if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) {
+                throw new BadRequestException('Plage de dates invalide.');
+            }
+
+            if (from > to) {
+                throw new BadRequestException('dateFrom doit etre inferieure ou egale a dateTo.');
+            }
+        }
+
+        return queryBuilder;
+    }
+
+    private async findAllEntities(filters?: FindInterventionsQueryDto): Promise<Intervention[]> {
+        const queryBuilder = this.baseQuery();
+        this.applyFilters(queryBuilder, filters);
+        return queryBuilder.getMany();
+    }
+
+    private formatPdfDate(date: Date): string {
+        return new Intl.DateTimeFormat('fr-FR', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+        }).format(date);
+    }
+
+    private truncateCellText(value: string, maxLength: number): string {
+        const normalized = value.trim();
+        if (normalized.length <= maxLength) {
+            return normalized;
+        }
+        return `${normalized.slice(0, Math.max(0, maxLength - 1))}...`;
+    }
+
+    private buildFilterSummary(filters?: FindInterventionsQueryDto): string {
+        if (!filters) {
+            return 'Aucun filtre';
+        }
+
+        const parts: string[] = [];
+        if (filters.type) {
+            parts.push(`Type: ${filters.type}`);
+        }
+        if (filters.status) {
+            parts.push(`Statut: ${filters.status}`);
+        }
+        if (filters.structure) {
+            parts.push(`Structure: ${filters.structure}`);
+        }
+        if (filters.date) {
+            parts.push(`Date: ${filters.date}`);
+        }
+        if (filters.dateFrom || filters.dateTo) {
+            const from = filters.dateFrom ?? '...';
+            const to = filters.dateTo ?? '...';
+            parts.push(`Plage: ${from} -> ${to}`);
+        }
+
+        return parts.length > 0 ? parts.join(' | ') : 'Aucun filtre';
+    }
+
+    private async resolveCategoryByInventaire(
+        interventions: Intervention[],
+    ): Promise<Map<string, string>> {
+        const numeroInventaires = Array.from(
+            new Set(
+                interventions
+                    .flatMap((intervention) => intervention.items ?? [])
+                    .map((item) => (item.numeroInventaire ?? '').trim())
+                    .filter((numeroInventaire) => numeroInventaire.length > 0),
+            ),
+        );
+
+        if (numeroInventaires.length === 0) {
+            return new Map<string, string>();
+        }
+
+        const materiels = await this.materielsRepository
+            .createQueryBuilder('materiel')
+            .leftJoinAndSelect('materiel.categorie', 'categorie')
+            .where('materiel.numeroInventaire IN (:...numeroInventaires)', { numeroInventaires })
+            .getMany();
+
+        const categoryByInventaire = new Map<string, string>();
+        for (const materiel of materiels) {
+            if (materiel.numeroInventaire) {
+                categoryByInventaire.set(
+                    materiel.numeroInventaire,
+                    materiel.categorie?.name?.trim() || '-',
+                );
+            }
+        }
+
+        return categoryByInventaire;
+    }
+
+    private async resolveDepartmentNameByDestinataire(
+        interventions: Intervention[],
+    ): Promise<Map<string, string>> {
+        const destinataires = Array.from(
+            new Set(
+                interventions
+                    .map((intervention) => (intervention.destinataire ?? '').trim())
+                    .filter((destinataire) => destinataire.length > 0),
+            ),
+        );
+
+        if (destinataires.length === 0) {
+            return new Map<string, string>();
+        }
+
+        const departments = await this.departmentsRepository
+            .createQueryBuilder('department')
+            .where('LOWER(department.name) IN (:...destinataires)', {
+                destinataires: destinataires.map((destinataire) => destinataire.toLowerCase()),
+            })
+            .getMany();
+
+        const departmentByName = new Map<string, string>();
+        for (const department of departments) {
+            if (department.name) {
+                departmentByName.set(department.name.trim().toLowerCase(), department.name.trim());
+            }
+        }
+
+        return departmentByName;
+    }
+
+    private async enrichWithItemCategories(
+        interventions: Intervention[],
+    ): Promise<InterventionResponseDto[]> {
+        const categoryByInventaire = await this.resolveCategoryByInventaire(interventions);
+
+        return interventions.map((intervention) => ({
+            ...(intervention as unknown as InterventionResponseDto),
+            items: (intervention.items || []).map((item) => ({
+                ...(item as unknown as InterventionResponseDto['items'][number]),
+                category: categoryByInventaire.get(item.numeroInventaire?.trim() || '') || '-',
+            })),
+        }));
     }
 
     private async generateReferenceForCurrentYear(transactionalRepository: Repository<Intervention>): Promise<string> {
@@ -114,13 +345,140 @@ export class InterventionsService {
         });
     }
 
-    async findAll(): Promise<{ data: InterventionResponseDto[]; message: string }> {
-        const data = await this.baseQuery().getMany();
+    async findAll(
+        filters?: FindInterventionsQueryDto,
+    ): Promise<{ data: InterventionResponseDto[]; message: string }> {
+        const interventions = await this.findAllEntities(filters);
+        const data = await this.enrichWithItemCategories(interventions);
 
         return {
-            data: data as InterventionResponseDto[],
+            data,
             message: 'Liste des interventions récupérée avec succès',
         };
+    }
+
+    async exportFilteredInterventionsToPdf(
+        filters: FindInterventionsQueryDto,
+        res: Response,
+    ): Promise<void> {
+        const interventions = await this.findAllEntities(filters);
+        const categoryByInventaire = await this.resolveCategoryByInventaire(interventions);
+        const departmentByName = await this.resolveDepartmentNameByDestinataire(interventions);
+
+        const fileName = `interventions-${new Date().toISOString().replace(/[.:]/g, '-')}.pdf`;
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+
+        const doc = new PDFDocument({ size: 'A4', margin: 40 });
+        doc.pipe(res);
+
+        doc.fontSize(16).text('Liste Intervetions', { align: 'center' });
+        doc.moveDown(0.4);
+        doc.fontSize(10).text(`Genere le: ${this.formatPdfDate(new Date())}`);
+        doc.moveDown(0.2);
+        doc.fontSize(10).text(`Total: ${interventions.length} intervention(s)`);
+        doc.moveDown(1);
+
+        const headers = ['Category', 'Designation', 'Type', 'Structure', 'Date'];
+        const widths = [110, 125, 60, 140, 110];
+        const rowHeight = 18;
+        const startX = doc.x;
+
+        const rows = interventions.flatMap((intervention) => {
+            if (!intervention.items || intervention.items.length === 0) {
+                const structure = intervention.destinataire?.trim() || '-';
+                const normalizedStructure = structure.toLowerCase();
+                return [
+                    {
+                        category: '-',
+                        designation: '-',
+                        type: intervention.interventionType ?? '-',
+                        structure: departmentByName.get(normalizedStructure) ?? structure,
+                        date: intervention.createdAt ? this.formatPdfDate(intervention.createdAt) : '-',
+                    },
+                ];
+            }
+
+            const structure = intervention.destinataire?.trim() || '-';
+            const normalizedStructure = structure.toLowerCase();
+
+            return intervention.items.map((item) => {
+                const numeroInventaire = item.numeroInventaire?.trim() || '';
+
+                return {
+                    category: categoryByInventaire.get(numeroInventaire) ?? '-',
+                    designation: item.designation ?? '-',
+                    type: intervention.interventionType ?? '-',
+                    structure: departmentByName.get(normalizedStructure) ?? structure,
+                    date: intervention.createdAt ? this.formatPdfDate(intervention.createdAt) : '-',
+                };
+            });
+        });
+
+        const drawHeader = () => {
+            let x = startX;
+            const y = doc.y;
+            doc.font('Helvetica-Bold').fontSize(9);
+            headers.forEach((header, index) => {
+                doc
+                    .rect(x, y, widths[index], rowHeight)
+                    .fillAndStroke('#FFFFFF', '#D0D5DD');
+                doc
+                    .fillColor('#101828')
+                    .text(header, x + 4, y + 5, {
+                        width: widths[index] - 8,
+                        align: 'center',
+                        ellipsis: true,
+                    });
+                x += widths[index];
+            });
+            doc.moveDown();
+            doc.y = y + rowHeight;
+            doc.font('Helvetica').fillColor('#101828');
+        };
+
+        const ensurePageSpace = () => {
+            if (doc.y + rowHeight > doc.page.height - doc.page.margins.bottom) {
+                doc.addPage();
+                drawHeader();
+            }
+        };
+
+        drawHeader();
+
+        rows.forEach((row) => {
+            ensurePageSpace();
+
+            const rowValues = [
+                this.truncateCellText(row.category, 22),
+                this.truncateCellText(row.designation, 28),
+                this.truncateCellText(row.type, 10),
+                this.truncateCellText(row.structure, 28),
+                this.truncateCellText(row.date, 18),
+            ];
+
+            let x = startX;
+            const y = doc.y;
+
+            rowValues.forEach((value, index) => {
+                doc
+                    .rect(x, y, widths[index], rowHeight)
+                    .fillAndStroke('#FFFFFF', '#D0D5DD');
+                doc
+                    .fillColor('#101828')
+                    .fontSize(8)
+                    .text(value, x + 4, y + 5, {
+                        width: widths[index] - 8,
+                        align: 'center',
+                        ellipsis: true,
+                    });
+                x += widths[index];
+            });
+
+            doc.y = y + rowHeight;
+        });
+
+        doc.end();
     }
 
     async findOne(id: number): Promise<{ data: InterventionResponseDto; message: string }> {

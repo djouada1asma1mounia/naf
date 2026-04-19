@@ -16,5 +16,6 @@ export class MaterielResponseDto {
     finGarontie?: string;
     categorie?: any;
     service?: any;
+    department?: any;
     subsidiary?: any;
 }

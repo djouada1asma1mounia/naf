@@ -19,6 +19,7 @@ type ImportOptions = {
     onMissingForeign: ImportMode;
     batchSize: number;
     transactionMode: TransactionMode;
+    targetSheets?: string[];
 };
 
 type ImportSummary = {
@@ -64,6 +65,8 @@ type RelationResolveResult =
 export class ExportsService {
     private readonly batchSize = 500;
     private readonly logger = new Logger(ExportsService.name);
+    private readonly enableLookupDebug =
+        String(process.env.EXPORTS_LOOKUP_DEBUG ?? '').toLowerCase() === 'true';
     private readonly relationFieldConfig: Record<string, string> = {
         categorie: 'name',
         service: 'name',
@@ -126,6 +129,7 @@ export class ExportsService {
             invalidRows: [],
         };
         const relationLookupCache = new Map<string, RelationLookup>();
+        const targetSheetSet = this.buildTargetSheetSet(options.targetSheets);
 
         if (options.transactionMode === 'full') {
             const queryRunner = this.dataSource.createQueryRunner();
@@ -134,6 +138,10 @@ export class ExportsService {
 
             try {
                 for (const worksheet of workbook.worksheets) {
+                    if (!this.shouldImportWorksheet(worksheet.name, targetSheetSet)) {
+                        continue;
+                    }
+
                     const metadata = metadataMap.get(worksheet.name);
                     if (!metadata) {
                         continue;
@@ -179,6 +187,10 @@ export class ExportsService {
             }
         } else {
             for (const worksheet of workbook.worksheets) {
+                if (!this.shouldImportWorksheet(worksheet.name, targetSheetSet)) {
+                    continue;
+                }
+
                 const metadata = metadataMap.get(worksheet.name);
                 if (!metadata) {
                     continue;
@@ -336,6 +348,7 @@ export class ExportsService {
 
         const identifierColumn = this.getIdentifierColumn(metadata, headerMap);
         const requiredColumns = this.getRequiredColumnsForCreate(metadata, scalarColumns);
+        const requiredRelations = this.getRequiredRelationsForCreate(importableRelationColumns);
 
         const relationLookupEntries = await Promise.all(
             importableRelationColumns.map(async (relation) => {
@@ -381,6 +394,7 @@ export class ExportsService {
                         relationLookups,
                         requiredColumns,
                         identifierColumn,
+                        onMissingForeign: options.onMissingForeign,
                     });
 
                     if (!parsed) {
@@ -426,18 +440,68 @@ export class ExportsService {
             for (const parsed of parsedRows) {
                 if (parsed.identifier && identifierColumn) {
                     const existingEntity = existingMap.get(this.normalizeLookupKey(parsed.identifier));
-                    if (!existingEntity) {
+                    if (existingEntity) {
+                        Object.assign(existingEntity, parsed.payload);
+                        toUpdate.push({ rowNumber: parsed.rowNumber, entity: existingEntity });
+                        continue;
+                    }
+
+                    // Upsert behavior: if identifier is provided but no row exists, create a new one.
+                    const createPayload: Record<string, unknown> = { ...parsed.payload };
+                    const identifierMetadata = metadata.columns.find(
+                        (column) => column.propertyName === identifierColumn,
+                    );
+
+                    if (
+                        identifierMetadata
+                        && !identifierMetadata.isGenerated
+                        && createPayload[identifierColumn] === undefined
+                    ) {
+                        try {
+                            createPayload[identifierColumn] = this.coerceScalarValue(
+                                parsed.identifier,
+                                identifierMetadata.type,
+                                identifierMetadata,
+                            );
+                        } catch {
+                            createPayload[identifierColumn] = parsed.identifier;
+                        }
+                    }
+
+                    const missingRequired = requiredColumns
+                        .filter((column) => {
+                            const value = createPayload[column.propertyName];
+                            return value === undefined || value === null || value === '';
+                        })
+                        .map((column) => column.propertyName);
+
+                    const missingRequiredRelations = requiredRelations
+                        .filter((relation) => {
+                            const value = createPayload[relation.propertyName];
+                            return value === undefined || value === null || value === '';
+                        })
+                        .map((relation) => relation.propertyName);
+
+                    if (missingRequired.length > 0 || missingRequiredRelations.length > 0) {
+                        const missingFields = [
+                            ...missingRequired,
+                            ...missingRequiredRelations,
+                        ];
                         this.pushInvalidRow(
                             summary,
                             worksheet.name,
                             parsed.rowNumber,
-                            [`enregistrement introuvable pour ${identifierColumn}=${parsed.identifier}`],
+                            [
+                                `creation impossible: champs requis manquants (${missingFields.join(', ')})`,
+                            ],
                         );
                         continue;
                     }
 
-                    Object.assign(existingEntity, parsed.payload);
-                    toUpdate.push({ rowNumber: parsed.rowNumber, entity: existingEntity });
+                    toCreate.push({
+                        rowNumber: parsed.rowNumber,
+                        entity: repository.create(createPayload),
+                    });
                 } else {
                     toCreate.push({
                         rowNumber: parsed.rowNumber,
@@ -568,9 +632,94 @@ export class ExportsService {
             }
             summary.validRowsProcessed += 1;
         } catch (error) {
+            if (isCreate && this.isDuplicateConstraintError(error)) {
+                const recovered = await this.tryRecoverCreateAsUpdate(
+                    repository,
+                    target,
+                    item.entity,
+                );
+
+                if (recovered) {
+                    summary.updated += 1;
+                    summary.validRowsProcessed += 1;
+                    summary.details.push(
+                        `Sheet ${sheetName}, ligne ${item.rowNumber}: creation detectee en doublon, conversion en mise a jour automatique.`,
+                    );
+                    return;
+                }
+            }
+
             this.pushInvalidRow(summary, sheetName, item.rowNumber, [
                 `erreur de persistence: ${this.extractErrorMessage(error)}`,
             ]);
+        }
+    }
+
+    private isDuplicateConstraintError(error: unknown): boolean {
+        if (!error || typeof error !== 'object') {
+            return false;
+        }
+
+        const errorRecord = error as Record<string, unknown>;
+        const code = String(errorRecord.code ?? '').toUpperCase();
+        if (
+            code === '23505'
+            || code === 'ER_DUP_ENTRY'
+            || code === 'SQLITE_CONSTRAINT'
+            || code === 'SQLITE_CONSTRAINT_UNIQUE'
+        ) {
+            return true;
+        }
+
+        const message = this.extractErrorMessage(error).toLowerCase();
+        return (
+            message.includes('duplicate')
+            || message.includes('already exists')
+            || message.includes('unique constraint')
+            || message.includes('violates unique')
+        );
+    }
+
+    private async tryRecoverCreateAsUpdate(
+        repository: ReturnType<EntityManager['getRepository']>,
+        target: EntityTarget<object>,
+        entity: object,
+    ): Promise<boolean> {
+        const entityRecord = entity as Record<string, unknown>;
+        const primaryColumns = repository.metadata.primaryColumns;
+        if (primaryColumns.length === 0) {
+            return false;
+        }
+
+        const where: Record<string, unknown> = {};
+        for (const column of primaryColumns) {
+            const value = entityRecord[column.propertyName];
+            if (value === undefined || value === null || value === '') {
+                return false;
+            }
+            where[column.propertyName] = value;
+        }
+
+        try {
+            let updated = false;
+            await repository.manager.transaction(async (transactionalManager) => {
+                const txRepo = transactionalManager.getRepository(target);
+                const existing = await txRepo.findOne({
+                    where: where as FindOptionsWhere<object>,
+                });
+
+                if (!existing) {
+                    return;
+                }
+
+                Object.assign(existing as Record<string, unknown>, entityRecord);
+                await txRepo.save(existing);
+                updated = true;
+            });
+
+            return updated;
+        } catch {
+            return false;
         }
     }
 
@@ -584,6 +733,7 @@ export class ExportsService {
         relationLookups: Map<string, RelationLookup>;
         requiredColumns: Array<EntityMetadata['columns'][number]>;
         identifierColumn?: string;
+        onMissingForeign: ImportMode;
     }): { identifier?: string; payload: Record<string, unknown> } | null {
         const {
             worksheet,
@@ -594,6 +744,7 @@ export class ExportsService {
             relationLookups,
             requiredColumns,
             identifierColumn,
+            onMissingForeign,
         } = params;
 
         const payload: Record<string, unknown> = {};
@@ -621,7 +772,7 @@ export class ExportsService {
             }
 
             try {
-                payload[column.propertyName] = this.coerceScalarValue(rawValue, column.type);
+                payload[column.propertyName] = this.coerceScalarValue(rawValue, column.type, column);
             } catch (error) {
                 rowErrors.push(`${column.propertyName}: ${(error as Error).message}`);
             }
@@ -633,9 +784,21 @@ export class ExportsService {
                 continue;
             }
 
-            const relationIdHeaders = relation.joinColumns
-                .map((joinColumn) => joinColumn.propertyName)
-                .filter((propertyName): propertyName is string => !!propertyName);
+            const relationIdHeaders = Array.from(
+                new Set(
+                    relation.joinColumns
+                        .flatMap((joinColumn) => [
+                            joinColumn.propertyName,
+                            joinColumn.databaseName,
+                            `${relation.propertyName}Id`,
+                        ])
+                        .map((header) => String(header || '').trim())
+                        .filter(
+                            (header): header is string =>
+                                header.length > 0 && header !== relation.propertyName,
+                        ),
+                ),
+            );
 
             let idResolvedForRelation = false;
             let hasAnyIdInput = false;
@@ -655,6 +818,9 @@ export class ExportsService {
                 hasAnyIdInput = true;
                 const resolvedById = this.resolveLookupById(lookup, idText, relation.propertyName, relationIdHeader);
                 if (!resolvedById.ok) {
+                    if (this.shouldSkipMissingForeign(relation, onMissingForeign)) {
+                        continue;
+                    }
                     rowErrors.push(resolvedById.error);
                     break;
                 }
@@ -694,6 +860,9 @@ export class ExportsService {
                 for (const token of tokens) {
                     const resolvedToken = this.resolveLookupToken(lookup, token, relation.propertyName);
                     if (!resolvedToken.ok) {
+                        if (this.shouldSkipMissingForeign(relation, onMissingForeign)) {
+                            continue;
+                        }
                         rowErrors.push(resolvedToken.error);
                         continue;
                     }
@@ -710,6 +879,9 @@ export class ExportsService {
 
             const resolvedSingle = this.resolveLookupToken(lookup, relationText, relation.propertyName);
             if (!resolvedSingle.ok) {
+                if (this.shouldSkipMissingForeign(relation, onMissingForeign)) {
+                    continue;
+                }
                 rowErrors.push(resolvedSingle.error);
                 continue;
             }
@@ -828,6 +1000,33 @@ export class ExportsService {
         });
     }
 
+    private getRequiredRelationsForCreate(
+        relationColumns: Array<EntityMetadata['relations'][number]>,
+    ): Array<EntityMetadata['relations'][number]> {
+        return relationColumns.filter((relation) => {
+            if (!(relation.isManyToOne || relation.isOneToOneOwner)) {
+                return false;
+            }
+
+            return relation.isNullable === false;
+        });
+    }
+
+    private shouldSkipMissingForeign(
+        relation: EntityMetadata['relations'][number],
+        onMissingForeign: ImportMode,
+    ): boolean {
+        if (onMissingForeign !== 'skip') {
+            return false;
+        }
+
+        if (relation.isManyToMany) {
+            return true;
+        }
+
+        return relation.isNullable !== false;
+    }
+
     private async buildRelationLookup(
         relationName: string,
         metadata: EntityMetadata,
@@ -840,7 +1039,7 @@ export class ExportsService {
         const configuredField = this.relationFieldConfig[relationName];
         const defaultCandidates = ['name', 'title', 'label', 'nom', 'prenom', 'code', 'reference', 'email'];
         const lookupCandidateFields = configuredField
-            ? [configuredField]
+            ? Array.from(new Set([configuredField, ...defaultCandidates]))
             : defaultCandidates;
 
         const candidateColumns = lookupCandidateFields.filter((propertyName) =>
@@ -887,6 +1086,15 @@ export class ExportsService {
                         normalizedId: normalizedPkValue,
                         keyPayload,
                     });
+
+                    // Allow direct relation-column matching by primary key/UUID as well.
+                    map.set(normalizedPkValue, keyPayload);
+
+                    labels.push({
+                        original: this.toDisplayText(pkValue),
+                        normalized: normalizedPkValue,
+                        keyPayload,
+                    });
                 }
             }
 
@@ -894,12 +1102,20 @@ export class ExportsService {
                 .map((columnName) => this.toDisplayText(row[columnName]).trim())
                 .filter((value) => value.length > 0);
 
-            if (!configuredField && candidateColumns.includes('nom') && candidateColumns.includes('prenom')) {
+            if (candidateColumns.includes('nom') && candidateColumns.includes('prenom')) {
                 const nom = this.toDisplayText(row.nom).trim();
                 const prenom = this.toDisplayText(row.prenom).trim();
                 const fullName = [nom, prenom].filter((value) => value.length > 0).join(' ').trim();
                 if (fullName.length > 0) {
                     possibleValues.push(fullName);
+                }
+
+                const reversedFullName = [prenom, nom]
+                    .filter((value) => value.length > 0)
+                    .join(' ')
+                    .trim();
+                if (reversedFullName.length > 0 && reversedFullName !== fullName) {
+                    possibleValues.push(reversedFullName);
                 }
             }
 
@@ -980,9 +1196,6 @@ export class ExportsService {
         relationName: string,
     ): RelationResolveResult {
         const normalizedToken = this.normalizeLookupKey(token);
-        this.logger.debug(
-            `[FK_LOOKUP] relation=${relationName} original='${token}' normalized='${normalizedToken}' keysSample=[${Array.from(lookup.map.keys()).slice(0, 10).join(', ')}]`,
-        );
 
         if (!normalizedToken) {
             return {
@@ -997,6 +1210,17 @@ export class ExportsService {
                 ok: true,
                 value: direct,
             };
+        }
+
+        const reversedToken = this.reverseTokenOrder(normalizedToken);
+        if (reversedToken && reversedToken !== normalizedToken) {
+            const reversedDirect = lookup.map.get(reversedToken);
+            if (reversedDirect) {
+                return {
+                    ok: true,
+                    value: reversedDirect,
+                };
+            }
         }
 
         const startsWithCandidates = lookup.labels.filter(
@@ -1023,6 +1247,12 @@ export class ExportsService {
                 .map((entry) => `'${entry.original}'`)
                 .join(', ');
 
+            if (this.enableLookupDebug) {
+                this.logger.debug(
+                    `[FK_LOOKUP] relation=${relationName} ambiguous original='${token}' normalized='${normalizedToken}' candidates=[${ambiguousCandidates}] keysSample=[${Array.from(lookup.map.keys()).slice(0, 10).join(', ')}]`,
+                );
+            }
+
             return {
                 ok: false,
                 error: `${relationName} ambiguous match: '${token}' (normalized: '${normalizedToken}'), candidates: [${ambiguousCandidates}]`,
@@ -1036,6 +1266,12 @@ export class ExportsService {
             .map((entry) => `'${entry}'`)
             .join(', ');
 
+        if (this.enableLookupDebug) {
+            this.logger.debug(
+                `[FK_LOOKUP] relation=${relationName} miss original='${token}' normalized='${normalizedToken}' keysSample=[${Array.from(lookup.map.keys()).slice(0, 10).join(', ')}]`,
+            );
+        }
+
         return {
             ok: false,
             error: `${relationName} not found: '${token}' (normalized: '${normalizedToken}')${candidates ? `, candidates: [${candidates}]` : ''
@@ -1043,8 +1279,41 @@ export class ExportsService {
         };
     }
 
+    private buildTargetSheetSet(targetSheets?: string[]): Set<string> {
+        if (!Array.isArray(targetSheets) || targetSheets.length === 0) {
+            return new Set<string>();
+        }
+
+        return new Set(
+            targetSheets
+                .map((sheet) => this.normalizeWorksheetName(sheet))
+                .filter((sheet) => sheet.length > 0),
+        );
+    }
+
+    private shouldImportWorksheet(worksheetName: string, targetSheetSet: Set<string>): boolean {
+        if (targetSheetSet.size === 0) {
+            return true;
+        }
+
+        return targetSheetSet.has(this.normalizeWorksheetName(worksheetName));
+    }
+
+    private normalizeWorksheetName(name: string): string {
+        return this.toWorksheetName(String(name || '')).trim().toLowerCase();
+    }
+
     private normalizeLookupKey(value: unknown): string {
         return this.normalizeText(this.toDisplayText(value));
+    }
+
+    private reverseTokenOrder(value: string): string {
+        const tokens = value.split(' ').filter((token) => token.length > 0);
+        if (tokens.length < 2) {
+            return value;
+        }
+
+        return tokens.reverse().join(' ');
     }
 
     private normalizeText(value: string): string {
@@ -1103,21 +1372,81 @@ export class ExportsService {
         return false;
     }
 
-    private coerceScalarValue(value: unknown, columnType: unknown): string | number | boolean {
-        if (typeof value === 'number') {
-            return value;
-        }
+    private coerceScalarValue(
+        value: unknown,
+        columnType: unknown,
+        columnMetadata?: EntityMetadata['columns'][number],
+    ): string | number | boolean {
+        const normalizedType = String(columnType ?? '').toLowerCase();
 
-        if (typeof value === 'boolean') {
-            return value;
+        const enumValues = Array.isArray(columnMetadata?.enum)
+            ? columnMetadata.enum.map((enumValue) => String(enumValue))
+            : [];
+
+        if (enumValues.length > 0) {
+            const input = this.toDisplayText(value).trim();
+            if (!input) {
+                return '';
+            }
+
+            const normalizedInput = this.normalizeText(input);
+            const matched = enumValues.find(
+                (enumValue) => this.normalizeText(enumValue) === normalizedInput,
+            );
+
+            if (!matched) {
+                throw new Error(
+                    `valeur invalide: ${input}. Valeurs attendues: ${enumValues.join(', ')}`,
+                );
+            }
+
+            return matched;
         }
 
         if (value instanceof Date) {
-            const normalizedType = String(columnType ?? '').toLowerCase();
             if (normalizedType === 'date') {
                 return value.toISOString().slice(0, 10);
             }
             return value.toISOString();
+        }
+
+        if (typeof value === 'number') {
+            if (['date', 'datetime', 'timestamp'].includes(normalizedType)) {
+                // Excel numeric dates are serial days since 1899-12-30.
+                const excelEpochUtc = Date.UTC(1899, 11, 30);
+                const millis = Math.round(value * 24 * 60 * 60 * 1000);
+                const parsed = new Date(excelEpochUtc + millis);
+                if (Number.isNaN(parsed.getTime())) {
+                    throw new Error(`date invalide: ${value}`);
+                }
+                if (normalizedType === 'date') {
+                    return parsed.toISOString().slice(0, 10);
+                }
+                return parsed.toISOString();
+            }
+
+            if (['int', 'integer', 'bigint', 'float', 'double', 'decimal', 'numeric', 'real'].includes(normalizedType)) {
+                return value;
+            }
+
+            if (['bool', 'boolean', 'bit'].includes(normalizedType)) {
+                if (value === 1) {
+                    return true;
+                }
+                if (value === 0) {
+                    return false;
+                }
+                throw new Error(`valeur booléenne invalide: ${value}`);
+            }
+
+            return String(value);
+        }
+
+        if (typeof value === 'boolean') {
+            if (['bool', 'boolean', 'bit'].includes(normalizedType)) {
+                return value;
+            }
+            return String(value);
         }
 
         const text = this.toDisplayText(value).trim();
@@ -1125,7 +1454,6 @@ export class ExportsService {
             return '';
         }
 
-        const normalizedType = String(columnType ?? '').toLowerCase();
         if (['int', 'integer', 'bigint', 'float', 'double', 'decimal', 'numeric', 'real'].includes(normalizedType)) {
             const parsed = Number(text);
             if (!Number.isFinite(parsed)) {
