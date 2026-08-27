@@ -16,7 +16,6 @@ import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import { authAPI } from '../../api/auth';
 import { rolesAPI } from '../../api/roles';
 import { permissionsAPI } from '../../api/permissions';
-import { materialsAPI } from '../../api/materials';
 import { structuresAPI } from '../../api/structures';
 import PageHeader from '../../components/common/PageHeader';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
@@ -407,9 +406,8 @@ const UserManagement = () => {
 
     setDeleteLoading(true);
     try {
-      await materialsAPI.deleteByOwner(deleteDialog.id);
       await authAPI.deleteUser(deleteDialog.id);
-      enqueueSnackbar('Utilisateur et ses matériels supprimés', { variant: 'success' });
+      enqueueSnackbar('Utilisateur supprimé', { variant: 'success' });
       setDeleteDialog({ open: false, id: null, name: '' });
       loadData();
     } catch (err) { enqueueSnackbar(err.message || 'Erreur', { variant: 'error' }); }

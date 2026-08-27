@@ -7,8 +7,8 @@ export class CreateMaterielDto {
     numeroSerie: string;
 
     @IsString()
-    @IsNotEmpty()
-    numeroInventaire: string;
+    @IsOptional()
+    numeroInventaire?: string;
 
     @IsInt()
     categorieId: number;
@@ -43,4 +43,8 @@ export class CreateMaterielDto {
     @IsOptional()
     @IsString()
     modele?: string;
+
+    @IsOptional()
+    @IsString()
+    utilisateur?: string;
 }

@@ -127,7 +127,10 @@ export class MaterielsService {
       createMaterielDto;
 
     await this.ensureNumeroSerieIsUnique(createMaterielDto.numeroSerie);
-    await this.ensureNumeroInventaireIsUnique(createMaterielDto.numeroInventaire);
+
+    if (createMaterielDto.numeroInventaire) {
+      await this.ensureNumeroInventaireIsUnique(createMaterielDto.numeroInventaire);
+    }
 
     const categorie = await this.categoriesRepository.findOne({
       where: { id: categorieId },

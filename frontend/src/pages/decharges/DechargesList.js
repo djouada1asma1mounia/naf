@@ -171,7 +171,7 @@ const DechargesList = () => {
       <Card sx={{ mb: 2 }}>
         <CardContent sx={{ py: 2 }}>
           <Grid container spacing={2}>
-            <Grid item xs={12} sm={4}>
+            <Grid item xs={12} sm={6} md={3}>
               <TextField
                 fullWidth
                 size="small"
@@ -181,8 +181,8 @@ const DechargesList = () => {
                 onChange={handleFilterChange('search')}
               />
             </Grid>
-            <Grid item xs={12} sm={3}>
-              <FormControl fullWidth size="small">
+            <Grid item xs={12} sm={6} md={3}>
+              <FormControl fullWidth size="small" sx={{ minWidth: 180 }}>
                 <InputLabel>Type</InputLabel>
                 <Select value={filters.maintenanceType} onChange={handleFilterChange('maintenanceType')} label="Type">
                   <MenuItem value="">Tous</MenuItem>

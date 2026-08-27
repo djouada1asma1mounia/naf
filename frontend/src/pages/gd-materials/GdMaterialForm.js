@@ -26,6 +26,7 @@ const initialForm = {
   status: "En Service",
   owner: "",
   ownerId: "",
+  utilisateur: "",
   subsidiaryName: "",
   subsidiaryCode: "",
   purchaseDate: "",
@@ -95,21 +96,28 @@ const GdMaterialForm = ({
   const handleOwnerChange = (e) => {
     const selectedId = e.target.value;
     const owner = owners.find((o) => String(o.id) === String(selectedId));
-    setForm((f) => ({ ...f, ownerId: selectedId, owner: owner?.label || "" }));
+    setForm((f) => ({
+      ...f,
+      ownerId: selectedId,
+      owner: selectedId ? owner?.label || "" : f.owner,
+      utilisateur: selectedId ? "" : f.utilisateur,
+    }));
+    if (errors.ownerId) setErrors((err) => ({ ...err, ownerId: "" }));
+    if (errors.utilisateur) setErrors((err) => ({ ...err, utilisateur: "" }));
   };
 
   const validate = () => {
     const newErrors = {};
     if (!form.brand || !form.brand.trim()) newErrors.brand = "Champ requis";
     if (!form.model || !form.model.trim()) newErrors.model = "Champ requis";
-    if (!form.inventoryNumber || !form.inventoryNumber.trim())
-      newErrors.inventoryNumber = "Champ requis";
     if (!form.serialNumber || !form.serialNumber.trim())
       newErrors.serialNumber = "Champ requis";
     if (!form.categoryId) newErrors.categoryId = "Champ requis";
     if (!form.subsidiaryCode) newErrors.subsidiaryCode = "Champ requis";
     if (!form.status) newErrors.status = "Champ requis";
-    if (!form.ownerId) newErrors.ownerId = "Propriétaire introuvable";
+    if (!form.ownerId && !String(form.utilisateur || "").trim()) {
+      newErrors.utilisateur = "Saisissez un nom si aucun compte n'est sélectionné";
+    }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -163,7 +171,7 @@ const GdMaterialForm = ({
             <Grid item xs={12} sm={6}>
               <TextField
                 fullWidth
-                label="Numéro d'Inventaire *"
+                label="Numéro d'Inventaire"
                 value={form.inventoryNumber}
                 onChange={handleChange("inventoryNumber")}
                 error={!!errors.inventoryNumber}
@@ -243,31 +251,46 @@ const GdMaterialForm = ({
             </Grid>
             <Grid item xs={12} sm={6}>
               {canSelectOwner ? (
-                <TextField
-                  fullWidth
-                  select
-                  label="Utilisateur *"
-                  value={form.ownerId || ""}
-                  onChange={handleOwnerChange}
-                  error={!!errors.ownerId}
-                  helperText={
-                    errors.ownerId || "Choisissez le propriétaire du matériel"
-                  }
-                >
-                  {form.ownerId &&
-                    !owners.some(
-                      (o) => String(o.id) === String(form.ownerId),
-                    ) && (
-                      <MenuItem value={form.ownerId}>
-                        {form.owner || form.ownerId}
+                <>
+                  <TextField
+                    fullWidth
+                    select
+                    label="Utilisateur"
+                    value={form.ownerId || ""}
+                    onChange={handleOwnerChange}
+                    error={!!errors.ownerId}
+                    helperText={
+                      errors.ownerId ||
+                      "Sélectionnez un compte ou choisissez Aucun pour saisir un nom libre"
+                    }
+                  >
+                    <MenuItem value="">Aucun</MenuItem>
+                    {form.ownerId &&
+                      !owners.some(
+                        (o) => String(o.id) === String(form.ownerId),
+                      ) && (
+                        <MenuItem value={form.ownerId}>
+                          {form.owner || form.ownerId}
+                        </MenuItem>
+                      )}
+                    {owners.map((o) => (
+                      <MenuItem key={o.id} value={o.id}>
+                        {o.label}
                       </MenuItem>
-                    )}
-                  {owners.map((o) => (
-                    <MenuItem key={o.id} value={o.id}>
-                      {o.label}
-                    </MenuItem>
-                  ))}
-                </TextField>
+                    ))}
+                  </TextField>
+                  {form.ownerId === "" && (
+                    <TextField
+                      fullWidth
+                      label="Nom de l'utilisateur *"
+                      value={form.utilisateur}
+                      onChange={handleChange("utilisateur")}
+                      error={!!errors.utilisateur}
+                      helperText={errors.utilisateur || "À renseigner uniquement si Aucun est sélectionné"}
+                      sx={{ mt: 2 }}
+                    />
+                  )}
+                </>
               ) : (
                 <TextField
                   fullWidth

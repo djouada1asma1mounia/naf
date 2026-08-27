@@ -1,22 +1,43 @@
-import axios from 'axios';
+﻿import axios from "axios";
 
-const configuredApiUrl = (process.env.REACT_APP_API_URL || '').trim();
-const isDevelopment = process.env.NODE_ENV === 'development';
-const BASE_URL = isDevelopment ? '' : configuredApiUrl;
+const sanitizeApiUrl = (url = "") =>
+  String(url || "")
+    .trim()
+    .replace(/\/+$/, "");
+const configuredApiUrl = sanitizeApiUrl(process.env.REACT_APP_API_URL || "");
+const isDevelopment = process.env.NODE_ENV === "development";
+
+const resolveBaseUrl = () => {
+  if (configuredApiUrl) return configuredApiUrl;
+  if (isDevelopment) return "";
+  if (typeof window === "undefined") return "";
+
+  const { protocol, hostname, port } = window.location;
+  const localFrontendPorts = new Set(["3000", "4173", "5173", "8080" , "50404"]);
+
+  if (localFrontendPorts.has(String(port || ""))) {
+    return `${protocol}//${hostname}:3001`;
+  }
+
+  return "";
+};
+
+const BASE_URL = resolveBaseUrl();
 
 const axiosInstance = axios.create({
   baseURL: BASE_URL,
-  headers: { 'Content-Type': 'application/json' },
+  headers: { "Content-Type": "application/json" },
   withCredentials: true,
   timeout: 15000,
 });
 
-const AUTH_ENDPOINTS = ['/auth/login', '/auth/register', '/auth/refresh'];
+const AUTH_ENDPOINTS = ["/auth/login", "/auth/register", "/auth/refresh"];
 
 let isRefreshing = false;
 let refreshSubscribers = [];
 
-const isAuthEndpoint = (url = '') => AUTH_ENDPOINTS.some((endpoint) => String(url).includes(endpoint));
+const isAuthEndpoint = (url = "") =>
+  AUTH_ENDPOINTS.some((endpoint) => String(url).includes(endpoint));
 
 const subscribeTokenRefresh = (callback) => {
   refreshSubscribers.push(callback);
@@ -28,19 +49,19 @@ const onRefreshed = (token) => {
 };
 
 const clearSession = () => {
-  localStorage.removeItem('naftal_token');
-  localStorage.removeItem('naftal_user');
+  localStorage.removeItem("naftal_token");
+  localStorage.removeItem("naftal_user");
 };
 
 axiosInstance.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('naftal_token');
+    const token = localStorage.getItem("naftal_token");
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
   },
-  (error) => Promise.reject(error)
+  (error) => Promise.reject(error),
 );
 
 axiosInstance.interceptors.response.use(
@@ -48,7 +69,7 @@ axiosInstance.interceptors.response.use(
   async (error) => {
     const originalRequest = error?.config || {};
     const status = error?.response?.status;
-    const hasStoredToken = Boolean(localStorage.getItem('naftal_token'));
+    const hasStoredToken = Boolean(localStorage.getItem("naftal_token"));
 
     if (status !== 401) {
       return Promise.reject(error);
@@ -80,14 +101,14 @@ axiosInstance.interceptors.response.use(
     isRefreshing = true;
 
     try {
-      const refreshResponse = await axiosInstance.post('/auth/refresh');
+      const refreshResponse = await axiosInstance.post("/auth/refresh");
       const newAccessToken = refreshResponse?.data?.accessToken;
 
       if (!newAccessToken) {
-        throw new Error('Access token manquant après refresh');
+        throw new Error("Access token manquant après refresh");
       }
 
-      localStorage.setItem('naftal_token', newAccessToken);
+      localStorage.setItem("naftal_token", newAccessToken);
       onRefreshed(newAccessToken);
 
       originalRequest.headers = originalRequest.headers || {};
@@ -97,12 +118,12 @@ axiosInstance.interceptors.response.use(
     } catch (refreshError) {
       onRefreshed(null);
       clearSession();
-      window.location.href = '/login';
+      window.location.href = "/login";
       return Promise.reject(refreshError);
     } finally {
       isRefreshing = false;
     }
-  }
+  },
 );
 
 export default axiosInstance;

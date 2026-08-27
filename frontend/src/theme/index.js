@@ -99,16 +99,24 @@ const getTheme = (mode, secondaryMain = '#1976D2') =>
           },
         },
       },
+      // Sets default table size to medium app-wide
+      MuiTable: {
+        defaultProps: {
+          size: 'medium',
+        },
+      },
+      // Table Header Configuration (1.10rem)
       MuiTableHead: {
         styleOverrides: {
           root: {
             '& .MuiTableCell-head': {
               backgroundColor: mode === 'light' ? secondaryMain : darken(secondaryMain, 0.25),
-              color: '#fff',
+              color: '#ffffff',
               fontWeight: 700,
-              fontSize: '0.8rem',
+              fontSize: '1.10rem !important',
               textTransform: 'uppercase',
               letterSpacing: '0.05em',
+              padding: '16px 16px',
             },
           },
         },
@@ -129,8 +137,62 @@ const getTheme = (mode, secondaryMain = '#1976D2') =>
           },
         },
       },
+      // Table Body Cells Configuration (1rem)
+      MuiTableCell: {
+        styleOverrides: {
+          root: {
+            padding: '14px 20px',
+          },
+          body: {
+            fontSize: '1rem !important',
+            fontWeight: 500,
+          },
+        },
+      },
+      // Chip Configuration (1rem font, sizing, & color overrides)
       MuiChip: {
-        styleOverrides: { root: { fontWeight: 600 } },
+        styleOverrides: {
+          root: {
+            fontWeight: 600,
+            fontSize: '1rem !important',
+            height: 'auto',
+            padding: '6px 12px',
+            borderRadius: '16px',
+          },
+          label: {
+            fontSize: '1rem !important',
+            paddingLeft: '8px',
+            paddingRight: '8px',
+          },
+          // Color variant overrides
+          colorSuccess: {
+            backgroundColor: '#2E7D32',
+            color: '#ffffff',
+          },
+          colorWarning: {
+            backgroundColor: '#ED6C02',
+            color: '#ffffff',
+          },
+          colorError: {
+            backgroundColor: '#D32F2F',
+            color: '#ffffff',
+          },
+          colorPrimary: {
+            backgroundColor: mode === 'light' ? `${secondaryMain}20` : 'rgba(255,255,255,0.1)',
+            color: mode === 'light' ? secondaryMain : '#90CAF9',
+            border: `1px solid ${secondaryMain}`,
+          },
+        },
+      },
+      MuiTypography: {
+        styleOverrides: {
+          caption: {
+            fontSize: '0.9rem !important',
+          },
+          body2: {
+            fontSize: '1rem !important',
+          },
+        },
       },
       MuiDrawer: {
         styleOverrides: {

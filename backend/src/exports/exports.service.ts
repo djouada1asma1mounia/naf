@@ -375,10 +375,10 @@ export class ExportsService {
         for (let start = 0; start < rowNumbers.length; start += batchSize) {
             const batchRows = rowNumbers.slice(start, start + batchSize);
             const parsedRows: Array<{
-                rowNumber: number;
-                identifier?: string;
-                payload: Record<string, unknown>;
-            }> = [];
+                 rowNumber: number;
+                 identifier?: string | number;
+                 payload: Record<string, unknown>;
+                    }> = [];
 
             for (const rowNumber of batchRows) {
                 const row = worksheet.getRow(rowNumber);
@@ -412,15 +412,35 @@ export class ExportsService {
                 }
             }
 
-            const updateIds = parsedRows
+             const updateIds = parsedRows
                 .map((item) => item.identifier)
-                .filter((id): id is string => typeof id === 'string' && id.length > 0);
-
-            const existingMap = new Map<string, object>();
+                .filter((id): id is string | number => id !== undefined && id !== null && String(id).trim() !== '');
+          
+              const existingMap = new Map<string, object>();
             if (identifierColumn && updateIds.length > 0) {
+                const identifierColMeta = metadata.columns.find(
+                    (col) => col.propertyName === identifierColumn,
+                );
+
+                // Safely convert string IDs to numbers if DB primary column is numeric
+                const typedIds = updateIds.map((id) => {
+                    if (
+                        identifierColMeta &&
+                        (identifierColMeta.type === Number ||
+                            identifierColMeta.type === 'int' ||
+                            identifierColMeta.type === 'bigint' ||
+                            identifierColMeta.type === 'smallint' ||
+                            identifierColMeta.type === 'tinyint')
+                    ) {
+                        const num = Number(id);
+                        return !isNaN(num) ? num : id;
+                    }
+                    return id;
+                });
+
                 const existing = await repository.find({
                     where: {
-                        [identifierColumn]: In(updateIds),
+                        [identifierColumn]: In(typedIds),
                     } as FindOptionsWhere<object>,
                     relationLoadStrategy: 'query',
                 });
@@ -438,16 +458,23 @@ export class ExportsService {
             const toUpdate: Array<{ rowNumber: number; entity: object }> = [];
 
             for (const parsed of parsedRows) {
-                if (parsed.identifier && identifierColumn) {
-                    const existingEntity = existingMap.get(this.normalizeLookupKey(parsed.identifier));
-                    if (existingEntity) {
-                        Object.assign(existingEntity, parsed.payload);
-                        toUpdate.push({ rowNumber: parsed.rowNumber, entity: existingEntity });
-                        continue;
-                    }
+                // Safe lookup ID fallback: check parsed.identifier first, or grab primary key directly from payload
+                const targetCol = identifierColumn || metadata.primaryColumns[0]?.propertyName;
+                const rawId = parsed.identifier ?? (targetCol ? parsed.payload[targetCol] : undefined);
+                const lookupKey = rawId !== undefined && rawId !== null ? this.normalizeLookupKey(rawId) : null;
 
-                    // Upsert behavior: if identifier is provided but no row exists, create a new one.
-                    const createPayload: Record<string, unknown> = { ...parsed.payload };
+                const existingEntity = lookupKey ? existingMap.get(lookupKey) : undefined;
+
+                if (existingEntity) {
+                    Object.assign(existingEntity, parsed.payload);
+                    toUpdate.push({ rowNumber: parsed.rowNumber, entity: existingEntity });
+                    continue;
+                }
+
+                // Upsert behavior: if identifier is provided but no row exists in DB, create a new one.
+                const createPayload: Record<string, unknown> = { ...parsed.payload };
+
+                if (identifierColumn) {
                     const identifierMetadata = metadata.columns.find(
                         (column) => column.propertyName === identifierColumn,
                     );
@@ -456,58 +483,54 @@ export class ExportsService {
                         identifierMetadata
                         && !identifierMetadata.isGenerated
                         && createPayload[identifierColumn] === undefined
+                        && rawId !== undefined
                     ) {
                         try {
                             createPayload[identifierColumn] = this.coerceScalarValue(
-                                parsed.identifier,
+                                rawId,
                                 identifierMetadata.type,
                                 identifierMetadata,
                             );
                         } catch {
-                            createPayload[identifierColumn] = parsed.identifier;
+                            createPayload[identifierColumn] = rawId;
                         }
                     }
-
-                    const missingRequired = requiredColumns
-                        .filter((column) => {
-                            const value = createPayload[column.propertyName];
-                            return value === undefined || value === null || value === '';
-                        })
-                        .map((column) => column.propertyName);
-
-                    const missingRequiredRelations = requiredRelations
-                        .filter((relation) => {
-                            const value = createPayload[relation.propertyName];
-                            return value === undefined || value === null || value === '';
-                        })
-                        .map((relation) => relation.propertyName);
-
-                    if (missingRequired.length > 0 || missingRequiredRelations.length > 0) {
-                        const missingFields = [
-                            ...missingRequired,
-                            ...missingRequiredRelations,
-                        ];
-                        this.pushInvalidRow(
-                            summary,
-                            worksheet.name,
-                            parsed.rowNumber,
-                            [
-                                `creation impossible: champs requis manquants (${missingFields.join(', ')})`,
-                            ],
-                        );
-                        continue;
-                    }
-
-                    toCreate.push({
-                        rowNumber: parsed.rowNumber,
-                        entity: repository.create(createPayload),
-                    });
-                } else {
-                    toCreate.push({
-                        rowNumber: parsed.rowNumber,
-                        entity: repository.create(parsed.payload),
-                    });
                 }
+
+                const missingRequired = requiredColumns
+                    .filter((column) => {
+                        const value = createPayload[column.propertyName];
+                        return value === undefined || value === null || value === '';
+                    })
+                    .map((column) => column.propertyName);
+
+                const missingRequiredRelations = requiredRelations
+                    .filter((relation) => {
+                        const value = createPayload[relation.propertyName];
+                        return value === undefined || value === null || value === '';
+                    })
+                    .map((relation) => relation.propertyName);
+
+                if (missingRequired.length > 0 || missingRequiredRelations.length > 0) {
+                    const missingFields = [
+                        ...missingRequired,
+                        ...missingRequiredRelations,
+                    ];
+                    this.pushInvalidRow(
+                        summary,
+                        worksheet.name,
+                        parsed.rowNumber,
+                        [
+                            `creation impossible: champs requis manquants (${missingFields.join(', ')})`,
+                        ],
+                    );
+                    continue;
+                }
+
+                toCreate.push({
+                    rowNumber: parsed.rowNumber,
+                    entity: repository.create(createPayload),
+                });
             }
 
             await this.persistImportBatch({
@@ -953,18 +976,21 @@ export class ExportsService {
     }
 
     private getIdentifierColumn(
-        metadata: EntityMetadata,
-        headerMap: Map<string, number>,
-    ): string | undefined {
-        if (headerMap.has('id')) {
-            return 'id';
-        }
+    metadata: EntityMetadata,
+    headerMap: Map<string, number>,
+): string | undefined {
+    // 1. Force primary key 'id' if it exists in entity columns
+    const pkColumn = metadata.primaryColumns[0];
+    if (pkColumn) {
+        return pkColumn.propertyName; // Returns 'id'
+    }
 
-        if (metadata.primaryColumns.length === 1) {
-            return metadata.primaryColumns[0].propertyName;
-        }
+    // 2. Fallback to 'id' string if header has it
+    if (headerMap.has('id')) {
+        return 'id';
+    }
 
-        return undefined;
+    return undefined;
     }
 
     private getRequiredColumnsForCreate(
@@ -1079,25 +1105,18 @@ export class ExportsService {
             }
 
             for (const pk of primaryKeys) {
-                const pkValue = row[pk];
-                const normalizedPkValue = this.normalizeLookupKey(pkValue);
-                if (normalizedPkValue) {
-                    idEntries.push({
-                        normalizedId: normalizedPkValue,
-                        keyPayload,
-                    });
+              const pkValue = row[pk];
+              const normalizedPkValue = this.normalizeLookupKey(pkValue);
+              if (normalizedPkValue) {
+                  idEntries.push({
+                   normalizedId: normalizedPkValue,
+                   keyPayload,
+              });
 
-                    // Allow direct relation-column matching by primary key/UUID as well.
-                    map.set(normalizedPkValue, keyPayload);
-
-                    labels.push({
-                        original: this.toDisplayText(pkValue),
-                        normalized: normalizedPkValue,
-                        keyPayload,
-                    });
-                }
-            }
-
+        // FIX: Prefix ID lookup keys to avoid colliding with text labels (e.g., 'id:123')
+        map.set(`id:${normalizedPkValue}`, keyPayload);
+    }
+}
             const possibleValues = candidateColumns
                 .map((columnName) => this.toDisplayText(row[columnName]).trim())
                 .filter((value) => value.length > 0);
@@ -1149,11 +1168,16 @@ export class ExportsService {
         relationIdHeader: string,
     ): RelationResolveResult {
         const normalizedId = this.normalizeLookupKey(idValue);
-        const direct = lookup.idEntries.find((entry) => entry.normalizedId === normalizedId);
-        if (direct) {
+        
+        const directFromMap = lookup.map.get(`id:${normalizedId}`);
+        const directFromEntries = lookup.idEntries.find((entry) => entry.normalizedId === normalizedId)?.keyPayload;
+        
+        const keyPayload = directFromMap ?? directFromEntries;
+
+        if (keyPayload) {
             return {
                 ok: true,
-                value: direct.keyPayload,
+                value: keyPayload,
             };
         }
 
@@ -1166,8 +1190,7 @@ export class ExportsService {
 
         return {
             ok: false,
-            error: `${relationName} not found by ${relationIdHeader}: '${idValue}' (normalized: '${normalizedId}')${candidates ? `, candidates: [${candidates}]` : ''
-                }`,
+            error: `${relationName} not found by ${relationIdHeader}: '${idValue}' (normalized: '${normalizedId}')${candidates ? `, candidates: [${candidates}]` : ''}`,
         };
     }
 
@@ -1308,13 +1331,13 @@ export class ExportsService {
     }
 
     private reverseTokenOrder(value: string): string {
-        const tokens = value.split(' ').filter((token) => token.length > 0);
-        if (tokens.length < 2) {
-            return value;
-        }
-
-        return tokens.reverse().join(' ');
+    const tokens = value.split(/\s+/).filter((token) => token.length > 0);
+    if (tokens.length < 2) {
+        return value;
     }
+
+    return tokens.reverse().join(' ');
+}
 
     private normalizeText(value: string): string {
         return value
@@ -1411,11 +1434,17 @@ export class ExportsService {
         }
 
         if (typeof value === 'number') {
-            if (['date', 'datetime', 'timestamp'].includes(normalizedType)) {
-                // Excel numeric dates are serial days since 1899-12-30.
+           // Replace numeric date parsing inside coerceScalarValue:
+
+                if (['date', 'datetime', 'timestamp'].includes(normalizedType)) {
+                // FIX: Explicitly handle Excel date epoch conversion accurately in UTC
                 const excelEpochUtc = Date.UTC(1899, 11, 30);
-                const millis = Math.round(value * 24 * 60 * 60 * 1000);
-                const parsed = new Date(excelEpochUtc + millis);
+                const millisPerDay = 24 * 60 * 60 * 1000;
+                
+                // Account for Excel leap year bug adjustment if serial number > 60
+                const adjustedValue = value > 60 ? value - 1 : value; 
+                const parsed = new Date(excelEpochUtc + Math.round(adjustedValue * millisPerDay));
+
                 if (Number.isNaN(parsed.getTime())) {
                     throw new Error(`date invalide: ${value}`);
                 }

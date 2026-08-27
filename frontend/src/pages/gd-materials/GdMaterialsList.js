@@ -2,13 +2,12 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box, Button, Card, CardContent, Table, TableBody, TableCell,
   TableContainer, TableHead, TableRow, TablePagination, TextField,
-  InputAdornment, IconButton, Tooltip, MenuItem, Select, FormControl,
+  IconButton, Tooltip, MenuItem, Select, FormControl,
   InputLabel, Grid, Typography, Skeleton, Chip,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
-import SearchIcon from '@mui/icons-material/Search';
 import LocalGasStationIcon from '@mui/icons-material/LocalGasStation';
 import { useAuth } from '../../context/AuthContext';
 import { materialsAPI } from '../../api/materials';
@@ -184,17 +183,8 @@ const GdMaterialsList = () => {
         serviceId: null,
       };
 
-      if (editItem) {
-        payload.ownerId = data?.ownerId || editItem.ownerId || user?.id;
-      } else {
-        if (!canCreateAny) {
-          throw new Error('Vous n\'avez pas la permission de créer des matériels GD.');
-        }
-        payload.ownerId = data?.ownerId || user?.id;
-      }
-
-      if (!payload.ownerId) {
-        throw new Error('Utilisateur introuvable. Reconnectez-vous puis réessayez.');
+      if (!editItem && !canCreateAny) {
+        throw new Error('Vous n\'avez pas la permission de créer des matériels GD.');
       }
 
       if (!payload.subsidiaryCode) {
@@ -272,24 +262,19 @@ const GdMaterialsList = () => {
 
       <Card sx={{ mb: 2 }}>
         <CardContent sx={{ py: 2 }}>
-          <Grid container spacing={2} alignItems="center">
-            <Grid item xs={12} sm={4} md={5}>
+          <Grid container spacing={2}>
+            <Grid item xs={12} sm={6} md={3}>
               <TextField
                 fullWidth
+                size="small"
+                label="Recherche"
                 placeholder="Rechercher par raison, code, utilisateur, désignation, N° série, N° inv..."
                 value={filters.search}
                 onChange={handleFilterChange('search')}
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <SearchIcon color="action" />
-                    </InputAdornment>
-                  ),
-                }}
               />
             </Grid>
-            <Grid item xs={6} sm={3} md={2}>
-              <FormControl fullWidth size="small">
+            <Grid item xs={12} sm={6} md={3}>
+              <FormControl fullWidth size="small" sx={{ minWidth: 180 }}>
                 <InputLabel>Statut</InputLabel>
                 <Select value={filters.status} onChange={handleFilterChange('status')} label="Statut">
                   <MenuItem value="">Tous</MenuItem>
@@ -299,8 +284,8 @@ const GdMaterialsList = () => {
                 </Select>
               </FormControl>
             </Grid>
-            <Grid item xs={6} sm={3} md={2}>
-              <FormControl fullWidth size="small">
+            <Grid item xs={12} sm={6} md={3}>
+              <FormControl fullWidth size="small" sx={{ minWidth: 180 }}>
                 <InputLabel>Catégorie</InputLabel>
                 <Select value={filters.categoryId} onChange={handleFilterChange('categoryId')} label="Catégorie">
                   <MenuItem value="">Toutes</MenuItem>
@@ -310,8 +295,8 @@ const GdMaterialsList = () => {
                 </Select>
               </FormControl>
             </Grid>
-            <Grid item xs={6} sm={3} md={2}>
-              <FormControl fullWidth size="small">
+            <Grid item xs={12} sm={6} md={3}>
+              <FormControl fullWidth size="small" sx={{ minWidth: 180 }}>
                 <InputLabel>RAISON</InputLabel>
                 <Select value={filters.subsidiaryCode} onChange={handleFilterChange('subsidiaryCode')} label="RAISON">
                   <MenuItem value="">Tous</MenuItem>
@@ -322,8 +307,8 @@ const GdMaterialsList = () => {
               </FormControl>
             </Grid>
             {canReadAny && (
-              <Grid item xs={6} sm={3} md={3}>
-                <FormControl fullWidth size="small">
+              <Grid item xs={12} sm={6} md={3}>
+                <FormControl fullWidth size="small" sx={{ minWidth: 180 }}>
                   <InputLabel>Utilisateur</InputLabel>
                   <Select value={filters.ownerId} onChange={handleFilterChange('ownerId')} label="Utilisateur">
                     <MenuItem value="">Tous</MenuItem>

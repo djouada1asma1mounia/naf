@@ -55,6 +55,16 @@ export class InterventionsController {
         return this.interventionsService.exportFilteredInterventionsToPdf(filters, res);
     }
 
+    @Get('export/excel')
+    @UseGuards(JwtAuthGuard, PermissionsGuard)
+    @Permissions('read-interventions')
+    exportExcel(
+        @Query() filters: FindInterventionsQueryDto,
+        @Res() res: Response,
+    ): Promise<void> {
+        return this.interventionsService.exportFilteredInterventionsToExcel(filters, res);
+    }
+
     @Get(':id')
     @UseGuards(JwtAuthGuard, PermissionsGuard)
     @Permissions('read-interventions')

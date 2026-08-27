@@ -32,7 +32,7 @@ import { ExportsModule } from './exports/exports.module';
         username: config.get<string>('USERNAMEDB')!,
         password: config.get<string>('PASSWORD')!,
         database: config.get<string>('DATABASE')!,
-        synchronize: false,
+        synchronize: true,
         autoLoadEntities: true,
         ssl: {
           rejectUnauthorized: false

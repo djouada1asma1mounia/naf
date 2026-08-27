@@ -1,29 +1,36 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { authAPI } from '../api/auth';
-import { ROLES, FULL_ACCESS_MODE } from '../utils/constants';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+} from "react";
+import { authAPI } from "../api/auth";
+import { ROLES, FULL_ACCESS_MODE } from "../utils/constants";
 
 export { ROLES };
 
 const AuthContext = createContext(null);
 
-const normalizePermissionName = (value) => String(value || '')
-  .normalize('NFD')
-  .replace(/[\u0300-\u036f]/g, '')
-  .toLowerCase()
-  .replace(/[^a-z0-9]+/g, ' ')
-  .replace(/\s+/g, ' ')
-  .trim();
+const normalizePermissionName = (value) =>
+  String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 
 const extractPermissionNames = (permissions = []) => {
   if (!Array.isArray(permissions)) return [];
 
   return permissions
     .map((permission) => {
-      if (typeof permission === 'string') return permission;
-      if (permission && typeof permission === 'object') {
-        return permission.name || permission.code || permission.label || '';
+      if (typeof permission === "string") return permission;
+      if (permission && typeof permission === "object") {
+        return permission.name || permission.code || permission.label || "";
       }
-      return '';
+      return "";
     })
     .map((name) => normalizePermissionName(name))
     .filter(Boolean);
@@ -40,13 +47,21 @@ const collectPermissions = (rawUser = {}) => {
     sources.push(rawUser.permissionNames);
   }
 
-  if (rawUser.role && typeof rawUser.role === 'object' && Array.isArray(rawUser.role.permissions)) {
+  if (
+    rawUser.role &&
+    typeof rawUser.role === "object" &&
+    Array.isArray(rawUser.role.permissions)
+  ) {
     sources.push(rawUser.role.permissions);
   }
 
   if (Array.isArray(rawUser.roles)) {
     rawUser.roles.forEach((roleItem) => {
-      if (roleItem && typeof roleItem === 'object' && Array.isArray(roleItem.permissions)) {
+      if (
+        roleItem &&
+        typeof roleItem === "object" &&
+        Array.isArray(roleItem.permissions)
+      ) {
         sources.push(roleItem.permissions);
       }
     });
@@ -57,7 +72,7 @@ const collectPermissions = (rawUser = {}) => {
 
 export const useAuth = () => {
   const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error('useAuth must be used within AuthProvider');
+  if (!ctx) throw new Error("useAuth must be used within AuthProvider");
   return ctx;
 };
 
@@ -67,23 +82,30 @@ const normalizeRole = (roleValue) => {
   const mapRoleAlias = (value) => {
     if (!value) return null;
     const normalized = String(value).trim().toUpperCase();
-    if (['ADMIN', 'ADMINISTRATEUR', 'ADMINISTRATOR'].includes(normalized)) return ROLES.ADMIN;
-    if (['USER', 'UTILISATEUR'].includes(normalized)) return ROLES.USER;
+    if (["ADMIN", "ADMINISTRATEUR", "ADMINISTRATOR"].includes(normalized))
+      return ROLES.ADMIN;
+    if (["USER", "UTILISATEUR"].includes(normalized)) return ROLES.USER;
     return normalized;
   };
 
-  if (typeof roleValue === 'string') return mapRoleAlias(roleValue);
+  if (typeof roleValue === "string") return mapRoleAlias(roleValue);
 
   if (Array.isArray(roleValue)) {
     const first = roleValue[0];
     if (!first) return null;
-    if (typeof first === 'string') return mapRoleAlias(first);
-    const raw = first.name || first.code || first.label || first.roleName || null;
+    if (typeof first === "string") return mapRoleAlias(first);
+    const raw =
+      first.name || first.code || first.label || first.roleName || null;
     return mapRoleAlias(raw);
   }
 
-  if (typeof roleValue === 'object') {
-    const raw = roleValue.name || roleValue.code || roleValue.label || roleValue.roleName || null;
+  if (typeof roleValue === "object") {
+    const raw =
+      roleValue.name ||
+      roleValue.code ||
+      roleValue.label ||
+      roleValue.roleName ||
+      null;
     return mapRoleAlias(raw);
   }
   return null;
@@ -96,18 +118,18 @@ const roleFromId = (roleId) => {
   return null;
 };
 
-const splitFullName = (fullName = '') => {
+const splitFullName = (fullName = "") => {
   const parts = String(fullName).trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return { firstName: '', lastName: '' };
-  if (parts.length === 1) return { firstName: parts[0], lastName: '' };
+  if (parts.length === 0) return { firstName: "", lastName: "" };
+  if (parts.length === 1) return { firstName: parts[0], lastName: "" };
   return {
-    firstName: parts.slice(0, -1).join(' '),
+    firstName: parts.slice(0, -1).join(" "),
     lastName: parts[parts.length - 1],
   };
 };
 
 const normalizeUser = (rawUser) => {
-  if (!rawUser || typeof rawUser !== 'object') return null;
+  if (!rawUser || typeof rawUser !== "object") return null;
 
   const rawPermissions = collectPermissions(rawUser);
 
@@ -117,19 +139,27 @@ const normalizeUser = (rawUser) => {
     normalizeRole(rawUser.roles) ||
     roleFromId(rawUser.roleId);
 
-  const fromFullName = splitFullName(rawUser.fullName || '');
+  const fromFullName = splitFullName(rawUser.fullName || "");
 
-  const roleId = typeof rawUser.role === 'object' ? rawUser.role?.id : rawUser.roleId;
-  const departmentId = typeof rawUser.department === 'object' ? rawUser.department?.id : rawUser.departmentId;
-  const departmentName = typeof rawUser.department === 'object'
-    ? rawUser.department?.name || ''
-    : rawUser.department || '';
-  const username = rawUser.username || (rawUser.email ? String(rawUser.email).split('@')[0] : '');
+  const roleId =
+    typeof rawUser.role === "object" ? rawUser.role?.id : rawUser.roleId;
+  const departmentId =
+    typeof rawUser.department === "object"
+      ? rawUser.department?.id
+      : rawUser.departmentId;
+  const departmentName =
+    typeof rawUser.department === "object"
+      ? rawUser.department?.name || ""
+      : rawUser.department || "";
+  const username =
+    rawUser.username ||
+    (rawUser.email ? String(rawUser.email).split("@")[0] : "");
 
   return {
     ...rawUser,
-    firstName: rawUser.prenom || fromFullName.firstName || rawUser.firstName || '',
-    lastName: rawUser.nom || fromFullName.lastName || rawUser.lastName || '',
+    firstName:
+      rawUser.prenom || fromFullName.firstName || rawUser.firstName || "",
+    lastName: rawUser.nom || fromFullName.lastName || rawUser.lastName || "",
     role: normalizedRole || ROLES.USER,
     username,
     department: departmentName,
@@ -142,12 +172,14 @@ const normalizeUser = (rawUser) => {
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [token, setToken] = useState(() => localStorage.getItem('naftal_token'));
+  const [token, setToken] = useState(() =>
+    localStorage.getItem("naftal_token"),
+  );
   const [loading, setLoading] = useState(true);
 
   const loadUser = useCallback(async () => {
-    const storedToken = localStorage.getItem('naftal_token');
-    const storedUser = localStorage.getItem('naftal_user');
+    const storedToken = localStorage.getItem("naftal_token");
+    const storedUser = localStorage.getItem("naftal_user");
     if (storedToken && storedUser) {
       try {
         setToken(storedToken);
@@ -160,7 +192,10 @@ export const AuthProvider = ({ children }) => {
             const freshUser = await authAPI.getUserById(parsedStoredUser.id);
             const normalizedFreshUser = normalizeUser(freshUser);
             if (normalizedFreshUser) {
-              localStorage.setItem('naftal_user', JSON.stringify(normalizedFreshUser));
+              localStorage.setItem(
+                "naftal_user",
+                JSON.stringify(normalizedFreshUser),
+              );
               setUser(normalizedFreshUser);
             }
           } catch {
@@ -168,8 +203,8 @@ export const AuthProvider = ({ children }) => {
           }
         }
       } catch {
-        localStorage.removeItem('naftal_token');
-        localStorage.removeItem('naftal_user');
+        localStorage.removeItem("naftal_token");
+        localStorage.removeItem("naftal_user");
       }
     }
     setLoading(false);
@@ -179,17 +214,20 @@ export const AuthProvider = ({ children }) => {
     loadUser();
   }, [loadUser]);
 
+  // to-do
   const login = async (email, password) => {
     const response = await authAPI.login(email, password);
-    const newToken = response.accessToken;
-    const newUser = normalizeUser(response.data);
+    const newToken = response?.accessToken || response?.token;
+    const newUser = normalizeUser(response?.data || response?.user);
 
     if (!newToken || !newUser) {
-      throw new Error('Réponse de connexion invalide depuis le serveur.');
+      throw new Error(
+        response?.message || "Réponse de connexion invalide depuis le serveur.",
+      );
     }
 
-    localStorage.setItem('naftal_token', newToken);
-    localStorage.setItem('naftal_user', JSON.stringify(newUser));
+    localStorage.setItem("naftal_token", newToken);
+    localStorage.setItem("naftal_user", JSON.stringify(newUser));
     setToken(newToken);
     setUser(newUser);
     return newUser;
@@ -198,21 +236,27 @@ export const AuthProvider = ({ children }) => {
   const register = async (payload) => authAPI.register(payload);
 
   const logout = () => {
-    localStorage.removeItem('naftal_token');
-    localStorage.removeItem('naftal_user');
+    localStorage.removeItem("naftal_token");
+    localStorage.removeItem("naftal_user");
     setToken(null);
     setUser(null);
   };
 
   const updateUser = (updatedUser) => {
     const mergedRaw = { ...user, ...updatedUser };
-    if (updatedUser?.fullName && !updatedUser?.firstName && !updatedUser?.lastName && !updatedUser?.prenom && !updatedUser?.nom) {
+    if (
+      updatedUser?.fullName &&
+      !updatedUser?.firstName &&
+      !updatedUser?.lastName &&
+      !updatedUser?.prenom &&
+      !updatedUser?.nom
+    ) {
       const { firstName, lastName } = splitFullName(updatedUser.fullName);
       mergedRaw.firstName = firstName;
       mergedRaw.lastName = lastName;
     }
     const merged = normalizeUser(mergedRaw);
-    localStorage.setItem('naftal_user', JSON.stringify(merged));
+    localStorage.setItem("naftal_user", JSON.stringify(merged));
     setUser(merged);
   };
 
@@ -227,8 +271,11 @@ export const AuthProvider = ({ children }) => {
   };
   const hasPermissionAny = (permissionNames = []) => {
     if (FULL_ACCESS_MODE) return true;
-    if (!Array.isArray(permissionNames) || permissionNames.length === 0) return false;
-    return permissionNames.some((permissionName) => hasPermission(permissionName));
+    if (!Array.isArray(permissionNames) || permissionNames.length === 0)
+      return false;
+    return permissionNames.some((permissionName) =>
+      hasPermission(permissionName),
+    );
   };
 
   return (

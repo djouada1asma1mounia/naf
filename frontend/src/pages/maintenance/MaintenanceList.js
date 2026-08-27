@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   Box,
   Button,
@@ -31,10 +31,14 @@ import BuildIcon from "@mui/icons-material/Build";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
+import GridOnIcon from "@mui/icons-material/GridOn";
+import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import {
   INTERVENTION_FILTER_OPTIONS,
   maintenanceAPI,
 } from "../../api/maintenance";
+import { materialsAPI } from "../../api/materials";
+import { subsidiariesAPI } from "../../api/subsidiaries";
 import { structuresAPI } from "../../api/structures";
 import PageHeader from "../../components/common/PageHeader";
 import MaintenanceForm from "./MaintenanceForm";
@@ -67,6 +71,55 @@ const toApiDate = (value) => {
   return value.format("YYYY-MM-DD");
 };
 
+const buildCategoryMapFromMaterials = (materials = []) => {
+  const map = new Map();
+
+  materials.forEach((mat) => {
+    const category = String(mat?.category || "").trim() || "-";
+    const inventory = String(mat?.inventoryNumber || "").trim();
+    const serial = String(mat?.serialNumber || mat?.code || "").trim();
+
+    if (inventory) map.set(inventory, category);
+    if (serial) map.set(serial, category);
+  });
+
+  return map;
+};
+
+const needsCategoryEnrichment = (interventions = []) =>
+  interventions.some((inv) =>
+    (inv.items || []).some((item) => {
+      const category = String(item?.category || "").trim();
+      return !category || category === "-";
+    }),
+  );
+
+const enrichInterventionsWithCategories = (interventions = [], categoryMap) => {
+  if (!categoryMap || categoryMap.size === 0) return interventions;
+
+  return interventions.map((inv) => {
+    const items = Array.isArray(inv.items)
+      ? inv.items.map((item) => {
+          const existing = String(item?.category || "").trim();
+          if (existing && existing !== "-") return item;
+
+          const inventaire = String(item?.numeroInventaire || "").trim();
+          const serie = String(item?.numeroSerie || "").trim();
+          const resolved =
+            categoryMap.get(inventaire) || categoryMap.get(serie) || "-";
+
+          return { ...item, category: resolved };
+        })
+      : [];
+
+    const firstItem = items[0] || {};
+    const category =
+      String(firstItem.category || "").trim() || inv.category || "-";
+
+    return { ...inv, items, category };
+  });
+};
+
 const MaintenanceList = () => {
   const { hasPermissionAny } = useAuth();
   const { enqueueSnackbar } = useSnackbar();
@@ -88,6 +141,14 @@ const MaintenanceList = () => {
   });
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [exportLoading, setExportLoading] = useState(false);
+  const [importLoading, setImportLoading] = useState(false);
+  const [importDialog, setImportDialog] = useState({
+    open: false,
+    transactionMode: "partial",
+    onMissingForeign: "skip",
+  });
+  const importFileInputRef = useRef(null);
+  const materialCategoryMapRef = useRef(null);
 
   const canRead = hasPermissionAny(INTERVENTION_PERMISSIONS.read);
   const canCreate = hasPermissionAny(INTERVENTION_PERMISSIONS.create);
@@ -118,7 +179,46 @@ const MaintenanceList = () => {
     setLoading(true);
     try {
       const data = await maintenanceAPI.getAll(debouncedFilters);
-      setInterventions(data);
+      let next = data;
+
+      if (needsCategoryEnrichment(data)) {
+        if (!materialCategoryMapRef.current) {
+          try {
+            const [standardMaterials, subsidiaries] = await Promise.all([
+              materialsAPI.getAll(),
+              subsidiariesAPI.getAll(),
+            ]);
+
+            const gdResults = await Promise.allSettled(
+              (subsidiaries || []).map((subsidiary) =>
+                materialsAPI.getBySubsidiary(subsidiary.code),
+              ),
+            );
+
+            const gdMaterials = gdResults
+              .filter((result) => result.status === "fulfilled")
+              .flatMap((result) => result.value || []);
+
+            const merged = [...(standardMaterials || []), ...gdMaterials];
+
+            const unique = Array.from(
+              new Map(merged.map((item) => [item.id, item])).values(),
+            );
+
+            materialCategoryMapRef.current =
+              buildCategoryMapFromMaterials(unique);
+          } catch {
+            materialCategoryMapRef.current = null;
+          }
+        }
+
+        next = enrichInterventionsWithCategories(
+          data,
+          materialCategoryMapRef.current,
+        );
+      }
+
+      setInterventions(next);
     } catch {
       enqueueSnackbar("Erreur lors du chargement", { variant: "error" });
     }
@@ -275,6 +375,84 @@ const MaintenanceList = () => {
     }
   };
 
+  const handleExportExcel = async () => {
+    if (!canRead) {
+      enqueueSnackbar(
+        "Vous n'avez pas la permission de lire les interventions.",
+        { variant: "warning" },
+      );
+      return;
+    }
+
+    setExportLoading(true);
+    try {
+      await maintenanceAPI.exportExcel(debouncedFilters);
+      enqueueSnackbar("Export Excel généré avec succès.", {
+        variant: "success",
+      });
+    } catch (err) {
+      enqueueSnackbar(err.message || "Erreur lors de l export Excel.", {
+        variant: "error",
+      });
+    } finally {
+      setExportLoading(false);
+    }
+  };
+
+  const handleImportClick = () => {
+    if (!canCreate) {
+      enqueueSnackbar(
+        "Vous n'avez pas la permission de créer des interventions.",
+        { variant: "warning" },
+      );
+      return;
+    }
+    importFileInputRef.current?.click();
+  };
+
+  const handleImportFile = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    if (!file.name.toLowerCase().endsWith(".xlsx")) {
+      enqueueSnackbar("Veuillez sélectionner un fichier Excel (.xlsx).", {
+        variant: "warning",
+      });
+      importFileInputRef.current.value = "";
+      return;
+    }
+
+    setImportLoading(true);
+    try {
+      const result = await maintenanceAPI.importExcel(file, {
+        transactionMode: importDialog.transactionMode,
+        onMissingForeign: importDialog.onMissingForeign,
+        targetSheets: ["interventions"],
+      });
+
+      const message = `Import réussi: ${result.created || 0} créée(s), ${result.updated || 0} mise(s) à jour.`;
+      enqueueSnackbar(message, { variant: "success" });
+
+      if (result.details && result.details.length > 0) {
+        result.details.forEach((detail) => {
+          enqueueSnackbar(detail, { variant: "info" });
+        });
+      }
+
+      loadData();
+      setImportDialog({ ...importDialog, open: false });
+    } catch (err) {
+      enqueueSnackbar(err.message || "Erreur lors de l import Excel.", {
+        variant: "error",
+      });
+    } finally {
+      setImportLoading(false);
+      importFileInputRef.current.value = "";
+    }
+  };
+
   return (
     <LocalizationProvider dateAdapter={AdapterDayjs}>
       <Box>
@@ -289,15 +467,42 @@ const MaintenanceList = () => {
             (canRead || canCreate) && (
               <Box display="flex" gap={1}>
                 {canRead && (
-                  <Button
-                    variant="outlined"
-                    color="error"
-                    startIcon={<PictureAsPdfIcon />}
-                    onClick={handleExportPdf}
-                    disabled={exportLoading}
-                  >
-                    Export PDF
-                  </Button>
+                  <>
+                    <Button
+                      variant="outlined"
+                      color="error"
+                      startIcon={<PictureAsPdfIcon />}
+                      onClick={handleExportPdf}
+                      disabled={exportLoading}
+                    >
+                      Export PDF
+                    </Button>
+                    <Button
+                      variant="outlined"
+                      color="success"
+                      startIcon={<GridOnIcon />}
+                      onClick={handleExportExcel}
+                      disabled={exportLoading}
+                    >
+                      Export Excel
+                    </Button>
+                    <Button
+                      variant="outlined"
+                      color="primary"
+                      startIcon={<CloudUploadIcon />}
+                      onClick={handleImportClick}
+                      disabled={importLoading}
+                    >
+                      Import Excel
+                    </Button>
+                    <input
+                      ref={importFileInputRef}
+                      type="file"
+                      accept=".xlsx"
+                      style={{ display: "none" }}
+                      onChange={handleImportFile}
+                    />
+                  </>
                 )}
                 {canCreate && (
                   <Button

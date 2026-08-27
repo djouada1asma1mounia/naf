@@ -20,7 +20,7 @@ export class Department {
     @OneToMany(() => ServiceEntity, service => service.department)
     services: ServiceEntity[];
 
-    @OneToOne(() => User, User => User.departmentManager)
+    @OneToOne(() => User, User => User.departmentManager, { nullable: true, onDelete: "SET NULL" })
     @JoinColumn({ name: 'managerId' })
     managerId?: User;
 }

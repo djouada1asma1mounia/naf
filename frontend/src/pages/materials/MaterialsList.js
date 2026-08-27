@@ -12,13 +12,13 @@ import {
   TableRow,
   TablePagination,
   TextField,
-  InputAdornment,
   IconButton,
   Tooltip,
   MenuItem,
   Select,
   FormControl,
   InputLabel,
+  Grid,
   Typography,
   Skeleton,
   Chip,
@@ -31,7 +31,6 @@ import {
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
-import SearchIcon from "@mui/icons-material/Search";
 import ComputerIcon from "@mui/icons-material/Computer";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import { useAuth } from "../../context/AuthContext";
@@ -296,20 +295,14 @@ const MaterialsList = () => {
       const payload = { ...data };
 
       if (editItem) {
-        payload.ownerId = data?.ownerId || editItem.ownerId || user?.id;
+        payload.ownerId = data?.ownerId;
       } else {
         if (!canCreateAny) {
           throw new Error(
             "Vous n'avez pas la permission de créer des matériels.",
           );
         }
-        payload.ownerId = data?.ownerId || user?.id;
-      }
-
-      if (!payload.ownerId) {
-        throw new Error(
-          "Utilisateur introuvable. Reconnectez-vous puis réessayez.",
-        );
+        payload.ownerId = data?.ownerId || undefined;
       }
 
       if (editItem) {
@@ -381,34 +374,19 @@ const MaterialsList = () => {
       {/* Filters */}
       <Card sx={{ mb: 2 }}>
         <CardContent sx={{ py: 2 }}>
-          <Box display="flex" flexWrap="wrap" gap={2} alignItems="center">
-            <Box
-              sx={{
-                flex: { xs: "1 1 100%", md: "2 1 360px" },
-                minWidth: { md: 360 },
-              }}
-            >
+          <Grid container spacing={2}>
+            <Grid item xs={12} sm={6} md={3}>
               <TextField
                 fullWidth
+                size="small"
+                label="Recherche"
                 placeholder="Rechercher par utilisateur, N° série ou N° inventaire..."
                 value={filters.search}
                 onChange={handleFilterChange("search")}
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <SearchIcon color="action" />
-                    </InputAdornment>
-                  ),
-                }}
               />
-            </Box>
-            <Box
-              sx={{
-                flex: { xs: "1 1 calc(50% - 8px)", md: "1 1 220px" },
-                minWidth: { md: 220 },
-              }}
-            >
-              <FormControl fullWidth>
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <FormControl fullWidth size="small" sx={{ minWidth: 180 }}>
                 <InputLabel>Statut</InputLabel>
                 <Select
                   value={filters.status}
@@ -423,14 +401,9 @@ const MaterialsList = () => {
                   ))}
                 </Select>
               </FormControl>
-            </Box>
-            <Box
-              sx={{
-                flex: { xs: "1 1 calc(50% - 8px)", md: "1 1 220px" },
-                minWidth: { md: 220 },
-              }}
-            >
-              <FormControl fullWidth>
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <FormControl fullWidth size="small" sx={{ minWidth: 180 }}>
                 <InputLabel>Catégorie</InputLabel>
                 <Select
                   value={filters.categoryId}
@@ -445,14 +418,9 @@ const MaterialsList = () => {
                   ))}
                 </Select>
               </FormControl>
-            </Box>
-            <Box
-              sx={{
-                flex: { xs: "1 1 calc(50% - 8px)", md: "1 1 220px" },
-                minWidth: { md: 220 },
-              }}
-            >
-              <FormControl fullWidth>
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <FormControl fullWidth size="small" sx={{ minWidth: 180 }}>
                 <InputLabel>Service</InputLabel>
                 <Select
                   value={filters.serviceId}
@@ -467,15 +435,10 @@ const MaterialsList = () => {
                   ))}
                 </Select>
               </FormControl>
-            </Box>
+            </Grid>
             {canReadAll && (
-              <Box
-                sx={{
-                  flex: { xs: "1 1 calc(50% - 8px)", md: "1 1 220px" },
-                  minWidth: { md: 220 },
-                }}
-              >
-                <FormControl fullWidth>
+              <Grid item xs={12} sm={6} md={3}>
+                <FormControl fullWidth size="small" sx={{ minWidth: 180 }}>
                   <InputLabel>Structure</InputLabel>
                   <Select
                     value={filters.departmentId}
@@ -490,9 +453,9 @@ const MaterialsList = () => {
                     ))}
                   </Select>
                 </FormControl>
-              </Box>
+              </Grid>
             )}
-          </Box>
+          </Grid>
         </CardContent>
       </Card>
 
@@ -507,6 +470,7 @@ const MaterialsList = () => {
                 <TableCell>N° INV</TableCell>
                 <TableCell>N° Série</TableCell>
                 <TableCell>Structure</TableCell>
+                <TableCell>Service</TableCell>
                 <TableCell>Utilisateur</TableCell>
                 <TableCell>Statut</TableCell>
                 {canMutateAny && <TableCell align="center">Actions</TableCell>}
@@ -581,6 +545,11 @@ const MaterialsList = () => {
                     <TableCell>
                       <Typography variant="body2">
                         {mat.department || mat.serviceName || "—"}
+                      </Typography>
+                    </TableCell>
+                                        <TableCell>
+                      <Typography variant="body2">
+                        {mat.serviceName || "—"}
                       </Typography>
                     </TableCell>
                     <TableCell>

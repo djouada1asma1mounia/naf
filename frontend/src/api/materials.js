@@ -24,6 +24,7 @@ const normalizeMaterial = (item = {}) => {
   const ownerFirstName = item?.proprietaire?.prenom || "";
   const ownerLastName = item?.proprietaire?.nom || "";
   const ownerLabel =
+    String(item?.utilisateur || "").trim() ||
     `${ownerFirstName} ${ownerLastName}`.trim() ||
     item?.proprietaire?.email ||
     "";
@@ -51,6 +52,7 @@ const normalizeMaterial = (item = {}) => {
     subsidiaryName: subsidiary?.name || "",
     ownerId: item?.proprietaire?.id || "",
     owner: ownerLabel,
+    utilisateur: item?.utilisateur || "",
     departmentId: department?.id || "",
     department: department?.name || "",
     status: toUiStatus(item?.etat),
@@ -73,35 +75,49 @@ const toIntOrNull = (value) => {
   return Number.isNaN(parsed) ? null : parsed;
 };
 
-const buildPayload = (data = {}) => ({
-  numeroSerie: String(data?.serialNumber || "").trim(),
-  numeroInventaire: String(data?.inventoryNumber || "").trim() || undefined,
-  categorieId: toIntOrUndefined(data?.categoryId),
-  serviceId: Object.prototype.hasOwnProperty.call(data, "serviceId")
-    ? toIntOrNull(data?.serviceId)
-    : undefined,
-  subsidiaryCode: Object.prototype.hasOwnProperty.call(data, "subsidiaryCode")
-    ? data?.subsidiaryCode
-      ? String(data.subsidiaryCode).trim()
-      : null
-    : undefined,
-  departmentId: toIntOrUndefined(data?.departmentId),
-  proprietaireId: data?.ownerId || undefined,
-  dateEntree: data?.purchaseDate || undefined,
-  finGarontie: data?.warrantyExpiry || undefined,
-  etat: toBackendEtat(data?.status),
-  marque: String(data?.brand || data?.name || "").trim() || undefined,
-  modele: String(data?.model || "").trim() || undefined,
-});
+const buildPayload = (data = {}) => {
+  const hasOwnerId = Object.prototype.hasOwnProperty.call(data, "ownerId");
+  const ownerIdValue = hasOwnerId ? data?.ownerId : undefined;
+  const trimmedUtilisateur = String(data?.utilisateur || "").trim();
 
-const applyFilters = (materials, filters = {}) => {
-  let result = [...materials];
+  return {
+    numeroSerie: String(data?.serialNumber || "").trim(),
+    numeroInventaire: Object.prototype.hasOwnProperty.call(
+      data,
+      "inventoryNumber",
+    )
+      ? String(data?.inventoryNumber || "").trim() || null
+      : undefined,
+    categorieId: toIntOrUndefined(data?.categoryId),
+    serviceId: Object.prototype.hasOwnProperty.call(data, "serviceId")
+      ? toIntOrNull(data?.serviceId)
+      : undefined,
+    subsidiaryCode: Object.prototype.hasOwnProperty.call(data, "subsidiaryCode")
+      ? data?.subsidiaryCode
+        ? String(data.subsidiaryCode).trim()
+        : null
+      : undefined,
+    departmentId: toIntOrUndefined(data?.departmentId),
+    proprietaireId: hasOwnerId
+      ? ownerIdValue === ""
+        ? null
+        : ownerIdValue ?? null
+      : undefined,
+    utilisateur: hasOwnerId
+      ? ownerIdValue
+        ? null
+        : trimmedUtilisateur || null
+      : trimmedUtilisateur || undefined,
+    dateEntree: data?.purchaseDate || undefined,
+    finGarontie: data?.warrantyExpiry || undefined,
+    etat: toBackendEtat(data?.status),
+    marque: String(data?.brand || data?.name || "").trim() || undefined,
+    modele: String(data?.model || "").trim() || undefined,
+  };
+};
 
-  if (filters.ownerId) {
-    result = result.filter(
-      (m) => String(m.ownerId) === String(filters.ownerId),
-    );
-  }
+const applyFilters = (items = [], filters = {}) => {
+  let result = [...items];
   if (filters.departmentId) {
     result = result.filter(
       (m) => String(m.departmentId) === String(filters.departmentId),
@@ -239,4 +255,5 @@ export const materialsAPI = {
       );
     }
   },
+  
 };

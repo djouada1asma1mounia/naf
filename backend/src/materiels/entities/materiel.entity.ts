@@ -15,8 +15,8 @@ export class Materiel {
     @PrimaryColumn()
     numeroSerie: string;
 
-    @Column({ unique: true })
-    numeroInventaire: string;
+    @Column({ unique: true, nullable: true })
+    numeroInventaire?: string;
 
     @Column({ type: 'date', nullable: true })
     dateEntree?: string;
@@ -36,6 +36,9 @@ export class Materiel {
     @Column({ nullable: true })
     modele?: string;
 
+    @Column({ nullable: true })
+    utilisateur?: string;
+
     @ManyToOne(() => Category, { nullable: false })
     @JoinColumn({ name: 'categorieId' })
     categorie: Category;
@@ -44,12 +47,13 @@ export class Materiel {
     @JoinColumn({ name: 'serviceId' })
     service?: ServiceEntity;
 
-    @ManyToOne(() => User, (user) => user.materiels, { nullable: true })
+    @ManyToOne(() => User, (user) => user.materiels, { nullable: true, onDelete: 'SET NULL' })
     @JoinColumn({ name: 'proprietaireId' })
     proprietaire?: User;
 
     @ManyToOne(() => Subsidiary, (subsidiary) => subsidiary.materiels, {
         nullable: true,
+        onDelete: 'SET NULL',
     })
     @JoinColumn({ name: 'subsidiaryCode' })
     subsidiary?: Subsidiary;

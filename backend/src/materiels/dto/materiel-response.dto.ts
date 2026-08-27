@@ -7,7 +7,7 @@ export class ProprietaireResponseDto {
 
 export class MaterielResponseDto {
     numeroSerie: string;
-    numeroInventaire: string;
+    numeroInventaire?: string;
     etat: string;
     proprietaire?: ProprietaireResponseDto;
     marque?: string;
@@ -18,4 +18,5 @@ export class MaterielResponseDto {
     service?: any;
     department?: any;
     subsidiary?: any;
+    utilisateur?: string;
 }

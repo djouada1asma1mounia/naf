@@ -488,7 +488,7 @@ const Dashboard = () => {
               {chartData.materialsByCategory.map((item, i) => (
                 <Chip
                   key={`cat-chip-${item.name}`}
-                  size="small"
+                  size="medium"
                   label={`${item.name}: ${item.value}`}
                   sx={{
                     borderColor: PIE_COLORS[i % PIE_COLORS.length],
@@ -644,7 +644,7 @@ const Dashboard = () => {
                   <Typography variant="body2" color="text.secondary" mb={0.75}>Types d'intervention</Typography>
                   <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
                     {chartData.interventionTypes.map((item) => (
-                      <Chip key={`itype-chip-${item.name}`} size="small" label={`${item.name}: ${item.value}`} variant="outlined" />
+                      <Chip key={`itype-chip-${item.name}`} size="medium" label={`${item.name}: ${item.value}`} variant="outlined" />
                     ))}
                   </Stack>
                 </Box>

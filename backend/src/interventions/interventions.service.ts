@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import * as ExcelJS from 'exceljs';
 import { Response } from 'express';
 import PDFDocument = require('pdfkit');
 import { SelectQueryBuilder, Repository } from 'typeorm';
@@ -479,6 +480,102 @@ export class InterventionsService {
         });
 
         doc.end();
+    }
+
+    async exportFilteredInterventionsToExcel(
+        filters: FindInterventionsQueryDto,
+        res: Response,
+    ): Promise<void> {
+        const interventions = await this.findAllEntities(filters);
+        const categoryByInventaire = await this.resolveCategoryByInventaire(interventions);
+        const departmentByName = await this.resolveDepartmentNameByDestinataire(interventions);
+
+        const workbook = new ExcelJS.Workbook();
+        workbook.creator = 'Naftal Backend';
+        workbook.created = new Date();
+
+        const worksheet = workbook.addWorksheet('Interventions');
+        worksheet.columns = [
+            { header: 'Reference', key: 'reference', width: 18 },
+            { header: 'Type', key: 'type', width: 12 },
+            { header: 'Statut', key: 'status', width: 14 },
+            { header: 'Structure', key: 'structure', width: 28 },
+            { header: 'Date', key: 'date', width: 20 },
+            { header: 'Category', key: 'category', width: 20 },
+            { header: 'Designation', key: 'designation', width: 34 },
+            { header: 'Quantite', key: 'quantity', width: 12 },
+            { header: 'Marque', key: 'marque', width: 18 },
+            { header: 'Numero Serie', key: 'numeroSerie', width: 22 },
+            { header: 'Numero Inventaire', key: 'numeroInventaire', width: 22 },
+            { header: 'Interventionnaire', key: 'interventionnaire', width: 28 },
+            { header: 'Fonction', key: 'fonction', width: 20 },
+            { header: 'Observation', key: 'observation', width: 36 },
+        ];
+
+        worksheet.views = [{ state: 'frozen', ySplit: 1 }];
+        const headerRow = worksheet.getRow(1);
+        headerRow.font = { bold: true };
+
+        interventions.forEach((intervention) => {
+            const structure = intervention.destinataire?.trim() || '-';
+            const normalizedStructure = structure.toLowerCase();
+            const resolvedStructure = departmentByName.get(normalizedStructure) ?? structure;
+            const staffName = `${intervention.interventionnaireNom ?? ''} ${intervention.interventionnairePrenom ?? ''}`.trim() || '-';
+            const createdAt = intervention.createdAt ? this.formatPdfDate(intervention.createdAt) : '-';
+            const items = intervention.items ?? [];
+
+            if (items.length === 0) {
+                worksheet.addRow({
+                    reference: intervention.reference ?? '-',
+                    type: intervention.interventionType ?? '-',
+                    status: intervention.status ?? '-',
+                    structure: resolvedStructure,
+                    date: createdAt,
+                    category: '-',
+                    designation: '-',
+                    quantity: '-',
+                    marque: '-',
+                    numeroSerie: '-',
+                    numeroInventaire: '-',
+                    interventionnaire: staffName,
+                    fonction: intervention.interventionnaireFonction ?? '-',
+                    observation: intervention.observation ?? '-',
+                });
+                return;
+            }
+
+            items.forEach((item) => {
+                const numeroInventaire = item.numeroInventaire?.trim() || '';
+                worksheet.addRow({
+                    reference: intervention.reference ?? '-',
+                    type: intervention.interventionType ?? '-',
+                    status: intervention.status ?? '-',
+                    structure: resolvedStructure,
+                    date: createdAt,
+                    category: categoryByInventaire.get(numeroInventaire) ?? '-',
+                    designation: item.designation ?? '-',
+                    quantity: item.quantity ?? '-',
+                    marque: item.marque ?? '-',
+                    numeroSerie: item.numeroSerie ?? '-',
+                    numeroInventaire: item.numeroInventaire ?? '-',
+                    interventionnaire: staffName,
+                    fonction: intervention.interventionnaireFonction ?? '-',
+                    observation: intervention.observation ?? '-',
+                });
+            });
+        });
+
+        const fileName = `interventions-${new Date().toISOString().replace(/[.:]/g, '-')}.xlsx`;
+        res.setHeader(
+            'Content-Type',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        );
+        res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+
+        const buffer = await workbook.xlsx.writeBuffer();
+        const nodeBuffer = Buffer.isBuffer(buffer) ? buffer : Buffer.from(buffer);
+        res.setHeader('Content-Length', String(nodeBuffer.length));
+        res.send(nodeBuffer);
     }
 
     async findOne(id: number): Promise<{ data: InterventionResponseDto; message: string }> {

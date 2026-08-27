@@ -1,0 +1,28 @@
+les étapes poure l'installation du naftal parc :
+    1- installation NODE.js
+    2- installation SQL server ( dans " ttype and network" choisie : server computer ; les parametre :
+        HOST=localhost
+	DB_PORT=3306
+	USERNAMEDB=root
+	PASSWORD=root
+	DATABASE=naftal
+	PORT=3001
+	)
+    3- dans l'ancien serveur dans cmd tapez : mysqldump -u root -p --databases naftal > D:\naftal.sql 
+          et transfer vers les nv serveur dans le repartiore  D:\naftal.sql
+    4- dans le nouveau serveur tapez  dans cmd : mysql -u root -p < D:\naftal.sql
+    
+    lancez le script : scripte-run.bat
+
+    si il n'execute pas fait [ 
+
+    1- dans nouveau server dans cmd accedez au repertoire du backend : npx pm2 start dist/main.js --name backend 
+                                               	2eme commande    : npx pm2 save 
+    2- dans le nouveau server dans cmd accedez au repertoire frontend  tapez : npx pm2 start node --name frontend -- node_modules/serve/build/main.js -s build -l 3000
+                                                2eme commande    : npx pm2 save 
+    ]
+
+   5- win + r dans shell:startup copie le fichier : start-naftal.bat " si vous voulez changer l'emplacement ; changez l'emplacemnt dans le fichier : start-naftal.bat
+
+
+    

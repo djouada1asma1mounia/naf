@@ -251,6 +251,78 @@ export const maintenanceAPI = {
     }
   },
 
+  exportExcel: async (filters = {}) => {
+    try {
+      const params = buildBackendFilterParams(filters);
+      const response = await axiosInstance.get("/interventions/export/excel", {
+        params,
+        responseType: "blob",
+      });
+
+      const contentDisposition =
+        response?.headers?.["content-disposition"] || "";
+      const fileNameMatch = /filename="?([^";]+)"?/i.exec(contentDisposition);
+      const fileName = fileNameMatch?.[1] || `interventions-${Date.now()}.xlsx`;
+
+      const blob = new Blob([response.data], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", fileName);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      throw new Error(
+        getErrorMessage(
+          error,
+          "Erreur lors de l export Excel des interventions.",
+        ),
+      );
+    }
+  },
+
+  importExcel: async (file, options = {}) => {
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      if (options.onMissingForeign) {
+        formData.append("onMissingForeign", options.onMissingForeign);
+      }
+      if (options.batchSize) {
+        formData.append("batchSize", options.batchSize);
+      }
+      if (options.transactionMode) {
+        formData.append("transactionMode", options.transactionMode);
+      }
+      if (options.targetSheets && Array.isArray(options.targetSheets)) {
+        formData.append("targetSheets", options.targetSheets.join(","));
+      }
+
+      const response = await axiosInstance.post(
+        "/exports/excel/import",
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        },
+      );
+
+      return response.data;
+    } catch (error) {
+      throw new Error(
+        getErrorMessage(
+          error,
+          "Erreur lors de l import Excel des interventions.",
+        ),
+      );
+    }
+  },
+
   create: async (data) => {
     try {
       const payload = buildPayload(data);
