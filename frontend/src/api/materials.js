@@ -101,7 +101,7 @@ const buildPayload = (data = {}) => {
     proprietaireId: hasOwnerId
       ? ownerIdValue === ""
         ? null
-        : ownerIdValue ?? null
+        : (ownerIdValue ?? null)
       : undefined,
     utilisateur: hasOwnerId
       ? ownerIdValue
@@ -144,24 +144,71 @@ const applyFilters = (items = [], filters = {}) => {
   if (filters.search) {
     const s = String(filters.search).toLowerCase();
     result = result.filter((m) => {
-      const userNameMatch = String(m.owner || "")
-        .toLowerCase()
-        .includes(s);
-      const userIdMatch = String(m.ownerId || "")
-        .toLowerCase()
-        .includes(s);
-      const serialMatch = String(m.serialNumber || "")
-        .toLowerCase()
-        .includes(s);
-      const inventoryMatch = String(m.inventoryNumber || "")
-        .toLowerCase()
-        .includes(s);
-      return userNameMatch || userIdMatch || serialMatch || inventoryMatch;
+      const haystack = [
+        m.owner,
+        m.ownerId,
+        m.serialNumber,
+        m.inventoryNumber,
+        m.name,
+        m.brand,
+        m.model,
+        m.category,
+        m.serviceName,
+        m.department,
+        m.subsidiaryCode,
+        m.subsidiaryName,
+      ]
+        .map((v) => String(v || "").toLowerCase())
+        .join(" ");
+
+      return haystack.includes(s);
     });
+  }
+
+  // per-column specific filters
+  if (filters.inventoryNumber) {
+    const q = String(filters.inventoryNumber).toLowerCase();
+    result = result.filter((m) =>
+      String(m.inventoryNumber || "")
+        .toLowerCase()
+        .includes(q),
+    );
+  }
+  if (filters.serialNumber) {
+    const q = String(filters.serialNumber).toLowerCase();
+    result = result.filter((m) =>
+      String(m.serialNumber || "")
+        .toLowerCase()
+        .includes(q),
+    );
+  }
+  if (filters.owner) {
+    const q = String(filters.owner).toLowerCase();
+    result = result.filter(
+      (m) =>
+        String(m.owner || "")
+          .toLowerCase()
+          .includes(q) ||
+        String(m.ownerId || "")
+          .toLowerCase()
+          .includes(q),
+    );
+  }
+  if (filters.designation) {
+    const q = String(filters.designation).toLowerCase();
+    result = result.filter((m) =>
+      ([m.name, m.brand, m.model] || [])
+        .map((v) => String(v || "").toLowerCase())
+        .join(" ")
+        .includes(q),
+    );
   }
 
   return result;
 };
+
+// expose applyFilters for UI components to reuse client-side filtering
+export { applyFilters };
 
 export const materialsAPI = {
   getAll: async (filters = {}) => {
@@ -215,6 +262,70 @@ export const materialsAPI = {
     }
   },
 
+  exportPdf: async (filters = {}) => {
+    try {
+      const params = {};
+      if (filters.subsidiaryCode)
+        params.subsidiaryCode = filters.subsidiaryCode;
+      if (filters.onlyGd) params.onlyGd = "true";
+      const response = await axiosInstance.get("/materiels/export/pdf", {
+        params,
+        responseType: "blob",
+      });
+
+      const contentDisposition =
+        response?.headers?.["content-disposition"] || "";
+      const fileNameMatch = /filename="?([^\"]+)"?/.exec(contentDisposition);
+      const fileName = fileNameMatch?.[1] || `materiels-${Date.now()}.pdf`;
+      const blob = new Blob([response.data], { type: "application/pdf" });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", fileName);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      throw new Error(
+        getErrorMessage(error, "Erreur lors de l export PDF des matériels."),
+      );
+    }
+  },
+
+  exportExcel: async (filters = {}) => {
+    try {
+      const params = {};
+      if (filters.subsidiaryCode)
+        params.subsidiaryCode = filters.subsidiaryCode;
+      if (filters.onlyGd) params.onlyGd = "true";
+      const response = await axiosInstance.get("/materiels/export/excel", {
+        params,
+        responseType: "blob",
+      });
+
+      const contentDisposition =
+        response?.headers?.["content-disposition"] || "";
+      const fileNameMatch = /filename="?([^\"]+)"?/.exec(contentDisposition);
+      const fileName = fileNameMatch?.[1] || `materiels-${Date.now()}.xlsx`;
+      const blob = new Blob([response.data], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", fileName);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      throw new Error(
+        getErrorMessage(error, "Erreur lors de l export Excel des matériels."),
+      );
+    }
+  },
+
   update: async (id, data) => {
     try {
       const payload = buildPayload(data);
@@ -255,5 +366,4 @@ export const materialsAPI = {
       );
     }
   },
-  
 };

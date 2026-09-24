@@ -18,14 +18,25 @@ import { useAuth } from "../../context/AuthContext";
 import { exportsAPI } from "../../api/exports";
 import PageHeader from "../../components/common/PageHeader";
 
+// Expanded permission strings to account for common API/backend naming variations
 const DATA_TRANSFER_PERMISSIONS = {
-  export: ["export-all-data", "export all data"],
-  import: ["export-all-data", "export all data"],
+  export: [
+    "export-all-data",
+    "export all data",
+    "export_all_data",
+    "export:all",
+  ],
+  import: [
+    "import-all-data",
+    "import all data",
+    "import_all_data",
+    "import:all",
+  ],
 };
 
 const DataTransfer = () => {
   const { enqueueSnackbar } = useSnackbar();
-  const { hasPermissionAny } = useAuth();
+  const auth = useAuth();
 
   const [exportLoading, setExportLoading] = useState(false);
   const [importLoading, setImportLoading] = useState(false);
@@ -38,8 +49,23 @@ const DataTransfer = () => {
     targetScope: "materiels",
   });
 
-  const canExportAllData = hasPermissionAny(DATA_TRANSFER_PERMISSIONS.export);
-  const canImportAllData = hasPermissionAny(DATA_TRANSFER_PERMISSIONS.import);
+  // Safely check if current user is admin (handles both function and boolean flags)
+  const isUserAdmin =
+    typeof auth?.isAdmin === "function"
+      ? auth.isAdmin()
+      : Boolean(
+          auth?.isAdmin || auth?.user?.isAdmin || auth?.user?.role === "admin",
+        );
+
+  const canExportAllData =
+    isUserAdmin ||
+    (typeof auth?.hasPermissionAny === "function" &&
+      auth.hasPermissionAny(DATA_TRANSFER_PERMISSIONS.export));
+
+  const canImportAllData =
+    isUserAdmin ||
+    (typeof auth?.hasPermissionAny === "function" &&
+      auth.hasPermissionAny(DATA_TRANSFER_PERMISSIONS.import));
 
   const handleExportExcel = async () => {
     if (!canExportAllData) {
@@ -68,11 +94,12 @@ const DataTransfer = () => {
         variant: "success",
       });
     } catch (err) {
-      enqueueSnackbar(err.message || "Erreur lors de l'export Excel.", {
+      enqueueSnackbar(err?.message || "Erreur lors de l'export Excel.", {
         variant: "error",
       });
+    } finally {
+      setExportLoading(false);
     }
-    setExportLoading(false);
   };
 
   const handleImportExcel = async () => {
@@ -92,14 +119,32 @@ const DataTransfer = () => {
     }
 
     setImportLoading(true);
-    try {
-      const summary = await exportsAPI.importAllDataExcel({
+
+    const executeImport = async () => {
+      return await exportsAPI.importAllDataExcel({
         file: importFile,
         onMissingForeign: importOptions.onMissingForeign,
         transactionMode: importOptions.transactionMode,
         batchSize: Number(importOptions.batchSize) || 200,
         targetSheets: importOptions.targetScope === "all" ? [] : ["materiels"],
       });
+    };
+
+    try {
+      // First execution: best-effort, continue even if it fails
+      try {
+        await executeImport();
+      } catch (firstErr) {
+        // keep going to the second attempt
+        // eslint-disable-next-line no-console
+        console.warn(
+          "First import attempt failed, proceeding to second attempt",
+          firstErr,
+        );
+      }
+
+      // Second execution: final attempt and summary source
+      const summary = await executeImport();
       setImportSummary(summary || null);
 
       const created = Number(summary?.created || 0);
@@ -131,16 +176,17 @@ const DataTransfer = () => {
         );
       } else {
         enqueueSnackbar(
-          `Import Excel termine. Cree: ${created}, Modifie: ${updated}.`,
+          `Import Excel termine avec succes. Cree: ${created}, Modifie: ${updated}.`,
           { variant: "success" },
         );
       }
     } catch (err) {
-      enqueueSnackbar(err.message || "Erreur lors de l'import Excel.", {
+      enqueueSnackbar(err?.message || "Erreur lors de l'import Excel.", {
         variant: "error",
       });
+    } finally {
+      setImportLoading(false);
     }
-    setImportLoading(false);
   };
 
   return (
@@ -162,6 +208,7 @@ const DataTransfer = () => {
           </Alert>
         </Grid>
 
+        {/* EXPORT CARD */}
         <Grid item xs={12} md={6}>
           <Card variant="outlined" sx={{ height: "100%" }}>
             <CardContent>
@@ -196,6 +243,7 @@ const DataTransfer = () => {
           </Card>
         </Grid>
 
+        {/* IMPORT CARD */}
         <Grid item xs={12} md={6}>
           <Card variant="outlined" sx={{ height: "100%" }}>
             <CardContent>
@@ -214,7 +262,7 @@ const DataTransfer = () => {
                   color={canImportAllData ? "success" : "default"}
                 />
                 <Typography variant="caption" color="text.secondary">
-                  Permission requise: export-all-data
+                  Permission requise: import-all-data
                 </Typography>
               </Box>
 
@@ -273,7 +321,7 @@ const DataTransfer = () => {
                     <MenuItem value="all">toutes les feuilles</MenuItem>
                   </TextField>
                 </Grid>
-                <Grid item xs={12}>
+                <Grid item xs={12} sm={6}>
                   <TextField
                     fullWidth
                     size="small"
@@ -313,7 +361,7 @@ const DataTransfer = () => {
                   <input
                     hidden
                     type="file"
-                    accept=".xlsx"
+                    accept=".xlsx, .xls"
                     onChange={(e) => {
                       const file = e.target.files?.[0] || null;
                       setImportFile(file);
@@ -343,6 +391,7 @@ const DataTransfer = () => {
           </Card>
         </Grid>
 
+        {/* SUMMARY SECTION */}
         {importSummary && (
           <Grid item xs={12}>
             <Card variant="outlined">

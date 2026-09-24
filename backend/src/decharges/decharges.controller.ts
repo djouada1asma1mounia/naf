@@ -1,14 +1,14 @@
 import {
-    Body,
-    Controller,
-    Delete,
-    Get,
-    Param,
-    ParseIntPipe,
-    Post,
-    Res,
-    Req,
-    UseGuards,
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  ParseIntPipe,
+  Post,
+  Res,
+  Req,
+  UseGuards,
 } from '@nestjs/common';
 import { Response } from 'express';
 import { JwtAuthGuard } from 'src/auth/jwt.guard';
@@ -20,48 +20,67 @@ import { DechargesService } from './decharges.service';
 
 @Controller('decharges')
 export class DechargesController {
-    constructor(private readonly dechargesService: DechargesService) { }
+  constructor(private readonly dechargesService: DechargesService) {}
 
-    @Post()
-    @UseGuards(JwtAuthGuard, PermissionsGuard)
-    @Permissions('create-decharge')
-    create(@Body() createDechargeDto: CreateDechargeDto, @Req() req: any) {
-        const userId = (req.user as { id?: string } | undefined)?.id;
-        return this.dechargesService.create(createDechargeDto, userId);
-    }
+  @Post()
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Permissions('create-decharge')
+  create(@Body() createDechargeDto: CreateDechargeDto, @Req() req: any) {
+    const userId = (req.user as { id?: string } | undefined)?.id;
+    return this.dechargesService.create(createDechargeDto, userId);
+  }
 
-    @Get()
-    @UseGuards(JwtAuthGuard, PermissionsGuard)
-    @Permissions('read-decharges')
-    findAll(): Promise<{ data: DechargeResponseDto[]; message: string }> {
-        return this.dechargesService.findAll();
-    }
+  @Get()
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Permissions('read-decharges')
+  findAll(): Promise<{ data: DechargeResponseDto[]; message: string }> {
+    return this.dechargesService.findAll();
+  }
 
-    @Get(':id/pdf')
-    @UseGuards(JwtAuthGuard, PermissionsGuard)
-    @Permissions('read-decharges')
-    async generatePdf(
-        @Param('id', ParseIntPipe) id: number,
-        @Res() res: Response,
-    ): Promise<void> {
-        const result = await this.dechargesService.generatePdf(id);
+  @Get('export/pdf')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Permissions('read-decharges')
+  exportPdf(@Res() res: Response): Promise<void> {
+    return this.dechargesService.exportDechargesToPdf(res);
+  }
 
-        res.setHeader('Content-Type', 'application/pdf');
-        res.setHeader('Content-Disposition', `inline; filename="${result.filename}"`);
-        res.send(result.buffer);
-    }
+  @Get('export/excel')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Permissions('read-decharges')
+  exportExcel(@Res() res: Response): Promise<void> {
+    return this.dechargesService.exportDechargesToExcel(res);
+  }
 
-    @Get(':id')
-    @UseGuards(JwtAuthGuard, PermissionsGuard)
-    @Permissions('read-decharges')
-    findOne(@Param('id', ParseIntPipe) id: number): Promise<{ data: DechargeResponseDto; message: string }> {
-        return this.dechargesService.findOne(id);
-    }
+  @Get(':id/pdf')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Permissions('read-decharges')
+  async generatePdf(
+    @Param('id', ParseIntPipe) id: number,
+    @Res() res: Response,
+  ): Promise<void> {
+    const result = await this.dechargesService.generatePdf(id);
 
-    @Delete(':id')
-    @UseGuards(JwtAuthGuard, PermissionsGuard)
-    @Permissions('delete-decharge')
-    remove(@Param('id', ParseIntPipe) id: number): Promise<{ message: string }> {
-        return this.dechargesService.remove(id);
-    }
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader(
+      'Content-Disposition',
+      `inline; filename="${result.filename}"`,
+    );
+    res.send(result.buffer);
+  }
+
+  @Get(':id')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Permissions('read-decharges')
+  findOne(
+    @Param('id', ParseIntPipe) id: number,
+  ): Promise<{ data: DechargeResponseDto; message: string }> {
+    return this.dechargesService.findOne(id);
+  }
+
+  @Delete(':id')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Permissions('delete-decharge')
+  remove(@Param('id', ParseIntPipe) id: number): Promise<{ message: string }> {
+    return this.dechargesService.remove(id);
+  }
 }

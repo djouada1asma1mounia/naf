@@ -64,6 +64,7 @@ const StructuresList = () => {
   const [materials, setMaterials] = useState([]);
   const [services, setServices] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
 
   // Dialog state
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -83,14 +84,28 @@ const StructuresList = () => {
   const [serviceDeleteTarget, setServiceDeleteTarget] = useState(null);
   const [serviceDeleting, setServiceDeleting] = useState(false);
 
-  const canReadDepartments = hasPermissionAny(STRUCTURE_PERMISSIONS.readDepartments);
-  const canCreateDepartment = hasPermissionAny(STRUCTURE_PERMISSIONS.createDepartment);
-  const canUpdateDepartment = hasPermissionAny(STRUCTURE_PERMISSIONS.updateDepartment);
-  const canDeleteDepartment = hasPermissionAny(STRUCTURE_PERMISSIONS.deleteDepartment);
+  const canReadDepartments = hasPermissionAny(
+    STRUCTURE_PERMISSIONS.readDepartments,
+  );
+  const canCreateDepartment = hasPermissionAny(
+    STRUCTURE_PERMISSIONS.createDepartment,
+  );
+  const canUpdateDepartment = hasPermissionAny(
+    STRUCTURE_PERMISSIONS.updateDepartment,
+  );
+  const canDeleteDepartment = hasPermissionAny(
+    STRUCTURE_PERMISSIONS.deleteDepartment,
+  );
   const canReadServices = hasPermissionAny(STRUCTURE_PERMISSIONS.readServices);
-  const canCreateService = hasPermissionAny(STRUCTURE_PERMISSIONS.createService);
-  const canUpdateService = hasPermissionAny(STRUCTURE_PERMISSIONS.updateService);
-  const canDeleteService = hasPermissionAny(STRUCTURE_PERMISSIONS.deleteService);
+  const canCreateService = hasPermissionAny(
+    STRUCTURE_PERMISSIONS.createService,
+  );
+  const canUpdateService = hasPermissionAny(
+    STRUCTURE_PERMISSIONS.updateService,
+  );
+  const canDeleteService = hasPermissionAny(
+    STRUCTURE_PERMISSIONS.deleteService,
+  );
 
   const refreshData = useCallback(
     async ({ showGlobalError = true } = {}) => {
@@ -100,9 +115,12 @@ const StructuresList = () => {
         setMaterials([]);
         setServices([]);
         if (showGlobalError) {
-          enqueueSnackbar("Vous n'avez pas la permission de lire les structures.", {
-            variant: "warning",
-          });
+          enqueueSnackbar(
+            "Vous n'avez pas la permission de lire les structures.",
+            {
+              variant: "warning",
+            },
+          );
         }
         return;
       }
@@ -149,7 +167,7 @@ const StructuresList = () => {
         }
       }
     },
-      [enqueueSnackbar, canReadDepartments, canReadServices],
+    [enqueueSnackbar, canReadDepartments, canReadServices],
   );
 
   useEffect(() => {
@@ -200,9 +218,12 @@ const StructuresList = () => {
 
   const handleSave = async () => {
     if (editTarget && !canUpdateDepartment) {
-      enqueueSnackbar("Vous n'avez pas la permission de modifier un département", {
-        variant: "warning",
-      });
+      enqueueSnackbar(
+        "Vous n'avez pas la permission de modifier un département",
+        {
+          variant: "warning",
+        },
+      );
       return;
     }
 
@@ -258,9 +279,12 @@ const StructuresList = () => {
     if (!deleteTarget) return;
 
     if (!canDeleteDepartment) {
-      enqueueSnackbar("Vous n'avez pas la permission de supprimer un département", {
-        variant: "warning",
-      });
+      enqueueSnackbar(
+        "Vous n'avez pas la permission de supprimer un département",
+        {
+          variant: "warning",
+        },
+      );
       return;
     }
 
@@ -434,11 +458,74 @@ const StructuresList = () => {
     );
   }
 
+  const filteredDepartments = departments.filter((d) => {
+    if (!search) return true;
+    const q = String(search).toLowerCase();
+    if (
+      String(d.name || "")
+        .toLowerCase()
+        .includes(q)
+    )
+      return true;
+    if (
+      String(d.code || "")
+        .toLowerCase()
+        .includes(q)
+    )
+      return true;
+    if (
+      String(d.manager?.fullName || "")
+        .toLowerCase()
+        .includes(q)
+    )
+      return true;
+
+    const deptServices = getDeptServices(d.id || d.code);
+    if (
+      Array.isArray(deptServices) &&
+      deptServices.some(
+        (s) =>
+          String(s.name || "")
+            .toLowerCase()
+            .includes(q) ||
+          String(s.code || "")
+            .toLowerCase()
+            .includes(q),
+      )
+    )
+      return true;
+
+    const deptStaff = getDeptStaff(d.id || d.code);
+    if (
+      Array.isArray(deptStaff) &&
+      deptStaff.some((p) =>
+        (String(p.fullName || "") + " " + String(p.email || ""))
+          .toLowerCase()
+          .includes(q),
+      )
+    )
+      return true;
+
+    const deptMats = getDeptMaterials(d.id || d.code);
+    if (
+      Array.isArray(deptMats) &&
+      deptMats.some((m) =>
+        [m.name, m.brand, m.model, m.inventoryNumber, m.serialNumber]
+          .map((v) => String(v || "").toLowerCase())
+          .join(" ")
+          .includes(q),
+      )
+    )
+      return true;
+
+    return false;
+  });
+
   return (
     <Box>
       <PageHeader
         title="Structures"
-        subtitle={`${departments.length} département(s) · ${staff.length} agent(s) · ${services.length} service(s)`}
+        subtitle={`${filteredDepartments.length} département(s) · ${staff.length} agent(s) · ${services.length} service(s)`}
         breadcrumbs={[
           { label: "Accueil", path: "/dashboard" },
           { label: "Structures" },
@@ -455,6 +542,20 @@ const StructuresList = () => {
           )
         }
       />
+
+      <Card sx={{ mb: 2 }}>
+        <CardContent>
+          <TextField
+            fullWidth
+            size="small"
+            placeholder="Rechercher par département, code ou service..."
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+            }}
+          />
+        </CardContent>
+      </Card>
 
       {/* Stats Row */}
       <Grid container spacing={2.5} mb={3}>
@@ -560,7 +661,7 @@ const StructuresList = () => {
       <Typography variant="h6" fontWeight={700} mb={2}>
         Départements & Personnel
       </Typography>
-      {departments.map((dept) => {
+      {filteredDepartments.map((dept) => {
         const deptStaff = getDeptStaff(dept.id);
         const deptMats = getDeptMaterials(dept.id);
         const deptServices = getDeptServices(dept.id);
@@ -608,7 +709,13 @@ const StructuresList = () => {
                     Chef: {dept.manager?.fullName || "—"}
                   </Typography>
                 </Box>
-                <Box display="flex" gap={1} mr={2} flexWrap="wrap" justifyContent="flex-end">
+                <Box
+                  display="flex"
+                  gap={1}
+                  mr={2}
+                  flexWrap="wrap"
+                  justifyContent="flex-end"
+                >
                   <Chip
                     label={`${deptStaff.length} agents`}
                     size="small"
@@ -665,11 +772,22 @@ const StructuresList = () => {
                 )}
               </Box>
             </AccordionSummary>
-            <AccordionDetails sx={{ pt: 1.5, pb: 2.25, px: 2.5, bgcolor: "background.default" }}>
+            <AccordionDetails
+              sx={{ pt: 1.5, pb: 2.25, px: 2.5, bgcolor: "background.default" }}
+            >
               <Divider sx={{ mb: 2.2 }} />
               <Grid container spacing={2}>
                 <Grid item xs={12} md={4}>
-                  <Box sx={{ p: 1.5, border: 1, borderColor: "divider", borderRadius: 2.5, bgcolor: "background.paper", height: "100%" }}>
+                  <Box
+                    sx={{
+                      p: 1.5,
+                      border: 1,
+                      borderColor: "divider",
+                      borderRadius: 2.5,
+                      bgcolor: "background.paper",
+                      height: "100%",
+                    }}
+                  >
                     <Typography
                       variant="subtitle2"
                       fontWeight={800}
@@ -719,7 +837,8 @@ const StructuresList = () => {
                                   color="text.secondary"
                                 >
                                   {person.email} ·{" "}
-                                  {getUserMaterials(person.id).length} matériel(s)
+                                  {getUserMaterials(person.id).length}{" "}
+                                  matériel(s)
                                 </Typography>
                               }
                             />
@@ -730,7 +849,16 @@ const StructuresList = () => {
                   </Box>
                 </Grid>
                 <Grid item xs={12} md={4}>
-                  <Box sx={{ p: 1.5, border: 1, borderColor: "divider", borderRadius: 2.5, bgcolor: "background.paper", height: "100%" }}>
+                  <Box
+                    sx={{
+                      p: 1.5,
+                      border: 1,
+                      borderColor: "divider",
+                      borderRadius: 2.5,
+                      bgcolor: "background.paper",
+                      height: "100%",
+                    }}
+                  >
                     <Box
                       display="flex"
                       alignItems="center"
@@ -794,7 +922,9 @@ const StructuresList = () => {
                                     <IconButton
                                       size="small"
                                       color="primary"
-                                      onClick={(e) => openEditService(service, e)}
+                                      onClick={(e) =>
+                                        openEditService(service, e)
+                                      }
                                     >
                                       <EditIcon fontSize="small" />
                                     </IconButton>
@@ -805,7 +935,9 @@ const StructuresList = () => {
                                     <IconButton
                                       size="small"
                                       color="error"
-                                      onClick={(e) => openDeleteService(service, e)}
+                                      onClick={(e) =>
+                                        openDeleteService(service, e)
+                                      }
                                     >
                                       <DeleteIcon fontSize="small" />
                                     </IconButton>
@@ -820,7 +952,16 @@ const StructuresList = () => {
                   </Box>
                 </Grid>
                 <Grid item xs={12} md={4}>
-                  <Box sx={{ p: 1.5, border: 1, borderColor: "divider", borderRadius: 2.5, bgcolor: "background.paper", height: "100%" }}>
+                  <Box
+                    sx={{
+                      p: 1.5,
+                      border: 1,
+                      borderColor: "divider",
+                      borderRadius: 2.5,
+                      bgcolor: "background.paper",
+                      height: "100%",
+                    }}
+                  >
                     <Typography
                       variant="subtitle2"
                       fontWeight={800}
@@ -878,7 +1019,11 @@ const StructuresList = () => {
                                         ? "warning"
                                         : "error"
                                   }
-                                  sx={{ fontSize: "0.62rem", height: 20, fontWeight: 700 }}
+                                  sx={{
+                                    fontSize: "0.62rem",
+                                    height: 20,
+                                    fontWeight: 700,
+                                  }}
                                 />
                               </Box>
                             </Box>
@@ -1013,7 +1158,7 @@ const StructuresList = () => {
               required
               disabled={serviceSaving}
             >
-              {departments.map((dept) => (
+              {filteredDepartments.map((dept) => (
                 <MenuItem key={dept.id} value={dept.id}>
                   {dept.name}
                 </MenuItem>

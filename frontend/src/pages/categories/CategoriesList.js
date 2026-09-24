@@ -1,39 +1,61 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from "react";
 import {
-  Box, Button, Card, CardContent, Grid, Typography, TextField, Dialog,
-  DialogTitle, DialogContent, DialogActions, IconButton, Tooltip,
-  Divider, Skeleton, Avatar, Chip,
-} from '@mui/material';
-import AddIcon from '@mui/icons-material/Add';
-import DeleteIcon from '@mui/icons-material/Delete';
-import EditIcon from '@mui/icons-material/Edit';
-import CategoryIcon from '@mui/icons-material/Category';
-import { categoriesAPI } from '../../api/categories';
-import PageHeader from '../../components/common/PageHeader';
-import ConfirmDialog from '../../components/common/ConfirmDialog';
-import { useSnackbar } from 'notistack';
-import { useAuth } from '../../context/AuthContext';
+  Box,
+  Button,
+  Card,
+  CardContent,
+  Grid,
+  Typography,
+  TextField,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  IconButton,
+  Tooltip,
+  Divider,
+  Skeleton,
+  Avatar,
+  Chip,
+} from "@mui/material";
+import AddIcon from "@mui/icons-material/Add";
+import DeleteIcon from "@mui/icons-material/Delete";
+import EditIcon from "@mui/icons-material/Edit";
+import CategoryIcon from "@mui/icons-material/Category";
+import { categoriesAPI } from "../../api/categories";
+import PageHeader from "../../components/common/PageHeader";
+import ConfirmDialog from "../../components/common/ConfirmDialog";
+import { useSnackbar } from "notistack";
+import { useAuth } from "../../context/AuthContext";
 
 const CATEGORY_PERMISSIONS = {
-  create: ['create-category', 'create category'],
-  read: ['read-categories', 'read categories', 'read-category', 'read category'],
-  update: ['update-category', 'update category'],
-  remove: ['delete-category', 'delete category'],
+  create: ["create-category", "create category"],
+  read: [
+    "read-categories",
+    "read categories",
+    "read-category",
+    "read category",
+  ],
+  update: ["update-category", "update category"],
+  remove: ["delete-category", "delete category"],
 };
 
 const CategoryForm = ({ open, onClose, onSubmit, editItem }) => {
-  const [form, setForm] = useState({ name: '' });
+  const [form, setForm] = useState({ name: "" });
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    setForm(editItem ? { name: editItem.name } : { name: '' });
+    setForm(editItem ? { name: editItem.name } : { name: "" });
     setErrors({});
   }, [editItem, open]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.name.trim()) { setErrors({ name: 'Champ requis' }); return; }
+    if (!form.name.trim()) {
+      setErrors({ name: "Champ requis" });
+      return;
+    }
     setLoading(true);
     await onSubmit(form);
     setLoading(false);
@@ -43,17 +65,25 @@ const CategoryForm = ({ open, onClose, onSubmit, editItem }) => {
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
       <DialogTitle>
         <Typography variant="h6" fontWeight={700}>
-          {editItem ? 'Modifier la Catégorie' : 'Nouvelle Catégorie'}
+          {editItem ? "Modifier la Catégorie" : "Nouvelle Catégorie"}
         </Typography>
       </DialogTitle>
       <Divider />
       <DialogContent>
-        <Box component="form" id="cat-form" onSubmit={handleSubmit} sx={{ pt: 1 }}>
+        <Box
+          component="form"
+          id="cat-form"
+          onSubmit={handleSubmit}
+          sx={{ pt: 1 }}
+        >
           <TextField
             fullWidth
             label="Nom de la catégorie *"
             value={form.name}
-            onChange={(e) => { setForm((f) => ({ ...f, name: e.target.value })); setErrors({}); }}
+            onChange={(e) => {
+              setForm((f) => ({ ...f, name: e.target.value }));
+              setErrors({});
+            }}
             error={!!errors.name}
             helperText={errors.name}
             sx={{ mb: 1 }}
@@ -62,9 +92,16 @@ const CategoryForm = ({ open, onClose, onSubmit, editItem }) => {
       </DialogContent>
       <Divider />
       <DialogActions sx={{ px: 3, py: 2 }}>
-        <Button onClick={onClose} variant="outlined" disabled={loading}>Annuler</Button>
-        <Button type="submit" form="cat-form" variant="contained" disabled={loading}>
-          {editItem ? 'Modifier' : 'Créer'}
+        <Button onClick={onClose} variant="outlined" disabled={loading}>
+          Annuler
+        </Button>
+        <Button
+          type="submit"
+          form="cat-form"
+          variant="contained"
+          disabled={loading}
+        >
+          {editItem ? "Modifier" : "Créer"}
         </Button>
       </DialogActions>
     </Dialog>
@@ -76,9 +113,14 @@ const CategoriesList = () => {
   const { enqueueSnackbar } = useSnackbar();
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
   const [formOpen, setFormOpen] = useState(false);
   const [editItem, setEditItem] = useState(null);
-  const [deleteDialog, setDeleteDialog] = useState({ open: false, id: null, name: '' });
+  const [deleteDialog, setDeleteDialog] = useState({
+    open: false,
+    id: null,
+    name: "",
+  });
   const [deleteLoading, setDeleteLoading] = useState(false);
 
   const canCreate = hasPermissionAny(CATEGORY_PERMISSIONS.create);
@@ -91,69 +133,127 @@ const CategoriesList = () => {
     if (!canRead) {
       setLoading(false);
       setCategories([]);
-      enqueueSnackbar('Vous n\'avez pas la permission de lire les catégories.', { variant: 'warning' });
+      enqueueSnackbar("Vous n'avez pas la permission de lire les catégories.", {
+        variant: "warning",
+      });
       return;
     }
 
     setLoading(true);
-    try { setCategories(await categoriesAPI.getAll()); } catch {}
+    try {
+      setCategories(await categoriesAPI.getAll());
+    } catch {}
     setLoading(false);
   }, [canRead, enqueueSnackbar]);
 
-  useEffect(() => { loadData(); }, [loadData]);
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const handleFormSubmit = async (data) => {
     try {
       if (editItem) {
-        if (!canUpdate) throw new Error('Vous n\'avez pas la permission de modifier les catégories.');
+        if (!canUpdate)
+          throw new Error(
+            "Vous n'avez pas la permission de modifier les catégories.",
+          );
         await categoriesAPI.update(editItem.id, data);
-        enqueueSnackbar('Catégorie modifiée', { variant: 'success' });
+        enqueueSnackbar("Catégorie modifiée", { variant: "success" });
       } else {
-        if (!canCreate) throw new Error('Vous n\'avez pas la permission de créer des catégories.');
+        if (!canCreate)
+          throw new Error(
+            "Vous n'avez pas la permission de créer des catégories.",
+          );
         await categoriesAPI.create(data);
-        enqueueSnackbar('Catégorie créée', { variant: 'success' });
+        enqueueSnackbar("Catégorie créée", { variant: "success" });
       }
       setFormOpen(false);
       loadData();
     } catch (err) {
-      enqueueSnackbar(err.message || 'Erreur', { variant: 'error' });
+      enqueueSnackbar(err.message || "Erreur", { variant: "error" });
     }
   };
 
   const handleDelete = async () => {
     if (!canDelete) {
-      enqueueSnackbar('Vous n\'avez pas la permission de supprimer des catégories.', { variant: 'warning' });
+      enqueueSnackbar(
+        "Vous n'avez pas la permission de supprimer des catégories.",
+        { variant: "warning" },
+      );
       return;
     }
 
     setDeleteLoading(true);
     try {
       await categoriesAPI.delete(deleteDialog.id);
-      enqueueSnackbar('Catégorie supprimée', { variant: 'success' });
-      setDeleteDialog({ open: false, id: null, name: '' });
+      enqueueSnackbar("Catégorie supprimée", { variant: "success" });
+      setDeleteDialog({ open: false, id: null, name: "" });
       loadData();
     } catch (err) {
-      enqueueSnackbar(err.message || 'Erreur', { variant: 'error' });
+      enqueueSnackbar(err.message || "Erreur", { variant: "error" });
     }
     setDeleteLoading(false);
   };
 
-  const COLORS = ['primary', 'secondary', 'success', 'warning', 'error', 'info'];
+  const COLORS = [
+    "primary",
+    "secondary",
+    "success",
+    "warning",
+    "error",
+    "info",
+  ];
+
+  const filtered = categories.filter((c) => {
+    if (!search) return true;
+    const q = String(search).toLowerCase();
+    return (
+      String(c.name || "")
+        .toLowerCase()
+        .includes(q) ||
+      String(c.id || "")
+        .toLowerCase()
+        .includes(q)
+    );
+  });
 
   return (
     <Box>
       <PageHeader
         title="Catégories de Matériels"
         subtitle={`${categories.length} catégorie(s)`}
-        breadcrumbs={[{ label: 'Accueil', path: '/dashboard' }, { label: 'Catégories' }]}
+        breadcrumbs={[
+          { label: "Accueil", path: "/dashboard" },
+          { label: "Catégories" },
+        ]}
         action={
           canCreate ? (
-            <Button variant="contained" startIcon={<AddIcon />} onClick={() => { setEditItem(null); setFormOpen(true); }}>
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={() => {
+                setEditItem(null);
+                setFormOpen(true);
+              }}
+            >
               Nouvelle Catégorie
             </Button>
           ) : null
         }
       />
+      <Card sx={{ mb: 2 }}>
+        <CardContent>
+          <TextField
+            fullWidth
+            size="small"
+            placeholder="Rechercher par nom ou ID..."
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+            }}
+          />
+        </CardContent>
+      </Card>
 
       <Grid container spacing={2.5}>
         {loading ? (
@@ -162,40 +262,53 @@ const CategoriesList = () => {
               <Skeleton variant="rounded" height={140} />
             </Grid>
           ))
-        ) : categories.length === 0 ? (
+        ) : filtered.length === 0 ? (
           <Grid item xs={12}>
             <Card>
-              <CardContent sx={{ textAlign: 'center', py: 5 }}>
-                <CategoryIcon sx={{ fontSize: 50, color: 'text.disabled', mb: 1 }} />
+              <CardContent sx={{ textAlign: "center", py: 5 }}>
+                <CategoryIcon
+                  sx={{ fontSize: 50, color: "text.disabled", mb: 1 }}
+                />
                 <Typography color="text.secondary">Aucune catégorie</Typography>
               </CardContent>
             </Card>
           </Grid>
         ) : (
-          categories.map((cat, idx) => (
+          filtered.map((cat, idx) => (
             <Grid item xs={12} sm={6} md={4} key={cat.id}>
               <Card
                 sx={{
-                  height: '100%',
-                  position: 'relative',
-                  transition: 'transform 0.15s',
-                  '&:hover': { transform: 'translateY(-2px)' },
+                  height: "100%",
+                  position: "relative",
+                  transition: "transform 0.15s",
+                  "&:hover": { transform: "translateY(-2px)" },
                 }}
               >
                 <CardContent>
-                  <Box display="flex" alignItems="flex-start" justifyContent="space-between">
+                  <Box
+                    display="flex"
+                    alignItems="flex-start"
+                    justifyContent="space-between"
+                  >
                     <Box display="flex" alignItems="center" gap={1.5}>
-                      <Avatar sx={{ bgcolor: `${COLORS[idx % COLORS.length]}.main`, borderRadius: 2 }}>
+                      <Avatar
+                        sx={{
+                          bgcolor: `${COLORS[idx % COLORS.length]}.main`,
+                          borderRadius: 2,
+                        }}
+                      >
                         <CategoryIcon />
                       </Avatar>
                       <Box>
-                        <Typography variant="subtitle1" fontWeight={700}>{cat.name}</Typography>
+                        <Typography variant="subtitle1" fontWeight={700}>
+                          {cat.name}
+                        </Typography>
                         <Chip
                           label={`ID #${cat.id}`}
                           size="small"
                           color={COLORS[idx % COLORS.length]}
                           variant="outlined"
-                          sx={{ height: 18, fontSize: '0.65rem' }}
+                          sx={{ height: 18, fontSize: "0.65rem" }}
                         />
                       </Box>
                     </Box>
@@ -203,14 +316,31 @@ const CategoriesList = () => {
                       <Box display="flex" gap={0.5}>
                         {canUpdate && (
                           <Tooltip title="Modifier">
-                            <IconButton size="small" color="primary" onClick={() => { setEditItem(cat); setFormOpen(true); }}>
+                            <IconButton
+                              size="small"
+                              color="primary"
+                              onClick={() => {
+                                setEditItem(cat);
+                                setFormOpen(true);
+                              }}
+                            >
                               <EditIcon fontSize="small" />
                             </IconButton>
                           </Tooltip>
                         )}
                         {canDelete && (
                           <Tooltip title="Supprimer">
-                            <IconButton size="small" color="error" onClick={() => setDeleteDialog({ open: true, id: cat.id, name: cat.name })}>
+                            <IconButton
+                              size="small"
+                              color="error"
+                              onClick={() =>
+                                setDeleteDialog({
+                                  open: true,
+                                  id: cat.id,
+                                  name: cat.name,
+                                })
+                              }
+                            >
                               <DeleteIcon fontSize="small" />
                             </IconButton>
                           </Tooltip>
@@ -237,7 +367,7 @@ const CategoriesList = () => {
         title="Supprimer la Catégorie"
         message={`Supprimer "${deleteDialog.name}" ? Les matériels associés ne seront pas supprimés.`}
         onConfirm={handleDelete}
-        onClose={() => setDeleteDialog({ open: false, id: null, name: '' })}
+        onClose={() => setDeleteDialog({ open: false, id: null, name: "" })}
         loading={deleteLoading}
       />
     </Box>

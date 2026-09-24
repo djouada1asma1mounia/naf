@@ -33,8 +33,10 @@ import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import ComputerIcon from "@mui/icons-material/Computer";
 import VisibilityIcon from "@mui/icons-material/Visibility";
+import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
+import GridOnIcon from "@mui/icons-material/GridOn";
 import { useAuth } from "../../context/AuthContext";
-import { materialsAPI } from "../../api/materials";
+import { materialsAPI, applyFilters } from "../../api/materials";
 import { categoriesAPI } from "../../api/categories";
 import { structuresAPI } from "../../api/structures";
 import { servicesAPI } from "../../api/services";
@@ -95,6 +97,11 @@ const MaterialsList = () => {
     categoryId: "",
     serviceId: "",
     departmentId: "",
+    inventoryNumber: "",
+    serialNumber: "",
+    owner: "",
+    designation: "",
+    subsidiaryCode: "",
   });
   const [formOpen, setFormOpen] = useState(false);
   const [editItem, setEditItem] = useState(null);
@@ -229,6 +236,52 @@ const MaterialsList = () => {
     loadData();
   }, [loadData]);
 
+  const [exportLoading, setExportLoading] = useState(false);
+
+  const handleExportPdf = async () => {
+    if (!canReadAny) {
+      enqueueSnackbar("Vous n'avez pas la permission de lire les matériels.", {
+        variant: "warning",
+      });
+      return;
+    }
+    setExportLoading(true);
+    try {
+      await materialsAPI.exportPdf({ subsidiaryCode: filters.subsidiaryCode });
+      enqueueSnackbar("Export PDF généré avec succès.", { variant: "success" });
+    } catch (err) {
+      enqueueSnackbar(err.message || "Erreur lors de l export PDF.", {
+        variant: "error",
+      });
+    } finally {
+      setExportLoading(false);
+    }
+  };
+
+  const handleExportExcel = async () => {
+    if (!canReadAny) {
+      enqueueSnackbar("Vous n'avez pas la permission de lire les matériels.", {
+        variant: "warning",
+      });
+      return;
+    }
+    setExportLoading(true);
+    try {
+      await materialsAPI.exportExcel({
+        subsidiaryCode: filters.subsidiaryCode,
+      });
+      enqueueSnackbar("Export Excel généré avec succès.", {
+        variant: "success",
+      });
+    } catch (err) {
+      enqueueSnackbar(err.message || "Erreur lors de l export Excel.", {
+        variant: "error",
+      });
+    } finally {
+      setExportLoading(false);
+    }
+  };
+
   const handleFilterChange = (field) => (e) => {
     setFilters((f) => ({ ...f, [field]: e.target.value }));
     setPage(0);
@@ -344,7 +397,9 @@ const MaterialsList = () => {
     setDeleteLoading(false);
   };
 
-  const displayedMaterials = materials.slice(
+  const filtered = applyFilters(materials, filters);
+
+  const displayedMaterials = filtered.slice(
     page * rowsPerPage,
     page * rowsPerPage + rowsPerPage,
   );
@@ -353,20 +408,46 @@ const MaterialsList = () => {
     <Box>
       <PageHeader
         title="Matériels"
-        subtitle={`${materials.length} matériel(s) trouvé(s)`}
+        subtitle={`${filtered.length} matériel(s) trouvé(s)`}
         breadcrumbs={[
           { label: "Accueil", path: "/dashboard" },
           { label: "Matériels" },
         ]}
         action={
-          canCreateAny && (
-            <Button
-              variant="contained"
-              startIcon={<AddIcon />}
-              onClick={handleAdd}
-            >
-              Nouveau Matériel
-            </Button>
+          (canReadAny || canCreateAny) && (
+            <Box display="flex" gap={1}>
+              {canReadAny && (
+                <>
+                  <Button
+                    variant="outlined"
+                    color="error"
+                    startIcon={<PictureAsPdfIcon />}
+                    onClick={handleExportPdf}
+                    disabled={exportLoading}
+                  >
+                    Export PDF
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    color="success"
+                    startIcon={<GridOnIcon />}
+                    onClick={handleExportExcel}
+                    disabled={exportLoading}
+                  >
+                    Export Excel
+                  </Button>
+                </>
+              )}
+              {canCreateAny && (
+                <Button
+                  variant="contained"
+                  startIcon={<AddIcon />}
+                  onClick={handleAdd}
+                >
+                  Nouveau Matériel
+                </Button>
+              )}
+            </Box>
           )
         }
       />
@@ -387,23 +468,6 @@ const MaterialsList = () => {
             </Grid>
             <Grid item xs={12} sm={6} md={3}>
               <FormControl fullWidth size="small" sx={{ minWidth: 180 }}>
-                <InputLabel>Statut</InputLabel>
-                <Select
-                  value={filters.status}
-                  onChange={handleFilterChange("status")}
-                  label="Statut"
-                >
-                  <MenuItem value="">Tous</MenuItem>
-                  {MATERIAL_STATUSES.map((s) => (
-                    <MenuItem key={s} value={s}>
-                      {s}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Grid>
-            <Grid item xs={12} sm={6} md={3}>
-              <FormControl fullWidth size="small" sx={{ minWidth: 180 }}>
                 <InputLabel>Catégorie</InputLabel>
                 <Select
                   value={filters.categoryId}
@@ -419,23 +483,7 @@ const MaterialsList = () => {
                 </Select>
               </FormControl>
             </Grid>
-            <Grid item xs={12} sm={6} md={3}>
-              <FormControl fullWidth size="small" sx={{ minWidth: 180 }}>
-                <InputLabel>Service</InputLabel>
-                <Select
-                  value={filters.serviceId}
-                  onChange={handleFilterChange("serviceId")}
-                  label="Service"
-                >
-                  <MenuItem value="">Tous</MenuItem>
-                  {services.map((s) => (
-                    <MenuItem key={s.id} value={s.id}>
-                      {s.name}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Grid>
+
             {canReadAll && (
               <Grid item xs={12} sm={6} md={3}>
                 <FormControl fullWidth size="small" sx={{ minWidth: 180 }}>
@@ -455,6 +503,110 @@ const MaterialsList = () => {
                 </FormControl>
               </Grid>
             )}
+            <Grid item xs={12} sm={6} md={3}>
+              <FormControl fullWidth size="small" sx={{ minWidth: 180 }}>
+                <InputLabel>Service</InputLabel>
+                <Select
+                  value={filters.serviceId}
+                  onChange={handleFilterChange("serviceId")}
+                  label="Service"
+                >
+                  <MenuItem value="">Tous</MenuItem>
+                  {services.map((s) => (
+                    <MenuItem key={s.id} value={s.id}>
+                      {s.name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <FormControl fullWidth size="small" sx={{ minWidth: 180 }}>
+                <InputLabel>Statut</InputLabel>
+                <Select
+                  value={filters.status}
+                  onChange={handleFilterChange("status")}
+                  label="Statut"
+                >
+                  <MenuItem value="">Tous</MenuItem>
+                  {MATERIAL_STATUSES.map((s) => (
+                    <MenuItem key={s} value={s}>
+                      {s}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <TextField
+                fullWidth
+                size="small"
+                label="N° INV"
+                placeholder="N° inventaire"
+                value={filters.inventoryNumber}
+                onChange={handleFilterChange("inventoryNumber")}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <TextField
+                fullWidth
+                size="small"
+                label="N° Série"
+                placeholder="N° série"
+                value={filters.serialNumber}
+                onChange={handleFilterChange("serialNumber")}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <FormControl fullWidth size="small" sx={{ minWidth: 180 }}>
+                <InputLabel>Utilisateur</InputLabel>
+                <Select
+                  value={filters.owner}
+                  label="Utilisateur"
+                  onChange={handleFilterChange("owner")}
+                >
+                  <MenuItem value="">Tous</MenuItem>
+                  {owners.map((o) => (
+                    <MenuItem key={o.id} value={o.id}>
+                      {o.label}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <FormControl fullWidth size="small" sx={{ minWidth: 180 }}>
+                <InputLabel>Désignation</InputLabel>
+                <Select
+                  value={filters.designation}
+                  label="Désignation"
+                  onChange={handleFilterChange("designation")}
+                >
+                  <MenuItem value="">Toutes</MenuItem>
+                  {Array.from(
+                    new Set(
+                      materials.map(
+                        (m) => `${m.brand || ""} ${m.model || ""}`.trim() || m.name,
+                      ),
+                    ),
+                  ).map((d) => (
+                    <MenuItem key={d || "-"} value={d}>
+                      {d || "—"}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <TextField
+                fullWidth
+                size="small"
+                label="Filiale"
+                placeholder="Code filiale"
+                value={filters.subsidiaryCode}
+                onChange={handleFilterChange("subsidiaryCode")}
+              />
+            </Grid>
           </Grid>
         </CardContent>
       </Card>
@@ -547,7 +699,7 @@ const MaterialsList = () => {
                         {mat.department || mat.serviceName || "—"}
                       </Typography>
                     </TableCell>
-                                        <TableCell>
+                    <TableCell>
                       <Typography variant="body2">
                         {mat.serviceName || "—"}
                       </Typography>
@@ -612,7 +764,7 @@ const MaterialsList = () => {
         <TablePagination
           rowsPerPageOptions={[5, 10, 25, 50]}
           component="div"
-          count={materials.length}
+          count={filtered.length}
           rowsPerPage={rowsPerPage}
           page={page}
           onPageChange={(_, np) => setPage(np)}

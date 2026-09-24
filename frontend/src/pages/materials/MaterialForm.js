@@ -115,7 +115,8 @@ const MaterialForm = ({
     if (!form.serviceId) newErrors.serviceId = "Champ requis";
     if (!form.status) newErrors.status = "Champ requis";
     if (!form.ownerId && !String(form.utilisateur || "").trim()) {
-      newErrors.utilisateur = "Saisissez un nom si aucun compte n'est sélectionné";
+      newErrors.utilisateur =
+        "Saisissez un nom si aucun compte n'est sélectionné";
     }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -188,7 +189,7 @@ const MaterialForm = ({
                 helperText={errors.serialNumber}
               />
             </Grid>
-            <Grid item xs={12} sm={6}>
+            <Grid item xs={12} sx={{ minWidth: 150 }}>
               <TextField
                 fullWidth
                 select
@@ -222,7 +223,7 @@ const MaterialForm = ({
                 ))}
               </TextField>
             </Grid>
-            <Grid item xs={12} sm={6}>
+            <Grid item xs={12} sx={{ minWidth: 150 }}>
               <TextField
                 fullWidth
                 select
@@ -276,7 +277,10 @@ const MaterialForm = ({
                       value={form.utilisateur}
                       onChange={handleChange("utilisateur")}
                       error={!!errors.utilisateur}
-                      helperText={errors.utilisateur || "À renseigner uniquement si Aucun est sélectionné"}
+                      helperText={
+                        errors.utilisateur ||
+                        "À renseigner uniquement si Aucun est sélectionné"
+                      }
                       sx={{ mt: 2 }}
                     />
                   )}

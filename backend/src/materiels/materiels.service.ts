@@ -14,6 +14,9 @@ import { ServiceEntity } from '../services/entities/service.entity';
 import { Subsidiary } from '../subsidiaries/entities/subsidiary.entity';
 import { User } from '../users/entities/user.entity';
 import { MaterielResponseDto } from './dto/materiel-response.dto';
+import * as ExcelJS from 'exceljs';
+import PDFDocument = require('pdfkit');
+import { Response } from 'express';
 
 @Injectable()
 export class MaterielsService {
@@ -28,7 +31,7 @@ export class MaterielsService {
     private readonly subsidiariesRepository: Repository<Subsidiary>,
     @InjectRepository(User)
     private readonly usersRepository: Repository<User>,
-  ) { }
+  ) {}
 
   private baseQuery() {
     return this.materielsRepository
@@ -52,9 +55,7 @@ export class MaterielsService {
     });
 
     if (!subsidiary) {
-      throw new NotFoundException(
-        `Filiale avec le code "${code}" introuvable`,
-      );
+      throw new NotFoundException(`Filiale avec le code "${code}" introuvable`);
     }
 
     return subsidiary;
@@ -123,13 +124,20 @@ export class MaterielsService {
   }
 
   async create(createMaterielDto: CreateMaterielDto) {
-    const { categorieId, serviceId, proprietaireId, subsidiaryCode, ...fields } =
-      createMaterielDto;
+    const {
+      categorieId,
+      serviceId,
+      proprietaireId,
+      subsidiaryCode,
+      ...fields
+    } = createMaterielDto;
 
     await this.ensureNumeroSerieIsUnique(createMaterielDto.numeroSerie);
 
     if (createMaterielDto.numeroInventaire) {
-      await this.ensureNumeroInventaireIsUnique(createMaterielDto.numeroInventaire);
+      await this.ensureNumeroInventaireIsUnique(
+        createMaterielDto.numeroInventaire,
+      );
     }
 
     const categorie = await this.categoriesRepository.findOne({
@@ -343,5 +351,215 @@ export class MaterielsService {
     return {
       message: 'Matériel supprimé avec succès',
     };
+  }
+
+  /**
+   * Update dateSortie on materials matching the provided items.
+   * items may contain numeroSerie and/or numeroInventaire fields.
+   */
+  async updateDateSortieForItems(
+    items: { numeroSerie?: string; numeroInventaire?: string }[] = [],
+    date?: Date | string,
+  ): Promise<void> {
+    if (!Array.isArray(items) || items.length === 0) return;
+
+    const dateValue = date
+      ? date instanceof Date
+        ? date.toISOString().slice(0, 10)
+        : new Date(String(date)).toISOString().slice(0, 10)
+      : new Date().toISOString().slice(0, 10);
+
+    for (const it of items) {
+      try {
+        if (it.numeroSerie) {
+          const mat = await this.materielsRepository.findOne({
+            where: { numeroSerie: it.numeroSerie },
+          });
+          if (mat) {
+            (mat as any).dateSortie = dateValue;
+            await this.materielsRepository.save(mat);
+          }
+        } else if (it.numeroInventaire) {
+          const mat = await this.materielsRepository.findOne({
+            where: { numeroInventaire: it.numeroInventaire },
+          });
+          if (mat) {
+            (mat as any).dateSortie = dateValue;
+            await this.materielsRepository.save(mat);
+          }
+        }
+      } catch (err) {
+        // ignore individual failures to avoid blocking the main operation
+      }
+    }
+  }
+
+  async exportMaterialsToExcel(
+    subsidiaryCode: string | undefined,
+    onlyGd: boolean,
+    res: Response,
+  ): Promise<void> {
+    const query = this.baseQuery();
+    if (onlyGd) {
+      query.where('materiel.subsidiaryCode IS NOT NULL');
+    } else if (subsidiaryCode) {
+      query.where('subsidiary.code = :subsidiaryCode', { subsidiaryCode });
+    } else {
+      query.where('materiel.subsidiaryCode IS NULL');
+    }
+
+    const materials = await query
+      .orderBy('materiel.numeroSerie', 'ASC')
+      .getMany();
+    const rows = this.toResponseList(materials);
+
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = 'Naftal Backend';
+    workbook.created = new Date();
+
+    const worksheet = workbook.addWorksheet('Materials');
+    worksheet.columns = [
+      { header: 'Numéro série', key: 'numeroSerie', width: 20 },
+      { header: 'Numéro inventaire', key: 'numeroInventaire', width: 18 },
+      { header: 'Désignation', key: 'name', width: 30 },
+      { header: 'Marque', key: 'marque', width: 18 },
+      { header: 'Modèle', key: 'modele', width: 18 },
+      { header: 'État', key: 'etat', width: 14 },
+      { header: 'Date sortie', key: 'dateSortie', width: 14 },
+      { header: 'Catégorie', key: 'categorie', width: 20 },
+      { header: 'Service', key: 'service', width: 20 },
+      { header: 'Propriétaire', key: 'proprietaire', width: 22 },
+      { header: 'Filiale', key: 'subsidiaryCode', width: 12 },
+      { header: 'Date entrée', key: 'dateEntree', width: 14 },
+      { header: 'Fin garantie', key: 'finGarontie', width: 14 },
+    ];
+
+     rows.forEach((m) => {
+      worksheet.addRow({
+        numeroSerie: m.numeroSerie || '-',
+        numeroInventaire: m.numeroInventaire || '-',
+        name: (m as any).designation || (m as any).name || '-', 
+        marque: m.marque || '-',
+        modele: m.modele || '-',
+        etat: m.etat || '-',
+        dateSortie: m.dateSortie || '-',
+        categorie: typeof m.categorie === 'object' ? m.categorie?.name || '-' : m.categorie || '-',
+        service: typeof m.service === 'object' ? m.service?.name || '-' : m.service || '-',
+        proprietaire: m.proprietaire
+          ? `${m.proprietaire.prenom || ''} ${m.proprietaire.nom || ''}`.trim()
+          : '-',
+        subsidiaryCode: typeof m.subsidiary === 'object' ? m.subsidiary?.code || m.subsidiary?.name || '-' : m.subsidiary || '-',
+        dateEntree: m.dateEntree || '-',
+        finGarontie: m.finGarontie || '-',
+      });
+    });
+
+    const fileName = `materiels-${new Date().toISOString().replace(/[.:]/g, '-')}.xlsx`;
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    const nodeBuffer = Buffer.isBuffer(buffer) ? buffer : Buffer.from(buffer);
+    res.setHeader('Content-Length', String(nodeBuffer.length));
+    res.send(nodeBuffer);
+  }
+
+  async exportMaterialsToPdf(
+    subsidiaryCode: string | undefined,
+    onlyGd: boolean,
+    res: Response,
+  ): Promise<void> {
+    const query = this.baseQuery();
+    if (onlyGd) {
+      query.where('materiel.subsidiaryCode IS NOT NULL');
+    } else if (subsidiaryCode) {
+      query.where('subsidiary.code = :subsidiaryCode', { subsidiaryCode });
+    } else {
+      query.where('materiel.subsidiaryCode IS NULL');
+    }
+
+    const materials = await query
+      .orderBy('materiel.numeroSerie', 'ASC')
+      .getMany();
+
+    const doc = new PDFDocument({ size: 'A4', margin: 36 });
+    const fileName = `materiels-${new Date().toISOString().replace(/[.:]/g, '-')}.pdf`;
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+    doc.pipe(res);
+
+    doc.fontSize(16).text('Liste Matériels', { align: 'center' });
+    doc.moveDown(0.5);
+    doc.fontSize(10).text(`Généré le: ${new Date().toLocaleString('fr-FR')}`);
+    doc.moveDown(0.8);
+
+    const tableTop = doc.y;
+    const columnWidths = [90, 80, 120, 70, 60];
+
+    // Header
+    doc.fontSize(9).font('Helvetica-Bold');
+    doc.text('Série', 36, tableTop, { width: columnWidths[0] });
+    doc.text('Inventaire', 36 + columnWidths[0], tableTop, {
+      width: columnWidths[1],
+    });
+    doc.text('Désignation', 36 + columnWidths[0] + columnWidths[1], tableTop, {
+      width: columnWidths[2],
+    });
+    doc.text(
+      'Marque',
+      36 + columnWidths[0] + columnWidths[1] + columnWidths[2],
+      tableTop,
+      { width: columnWidths[3] },
+    );
+    doc.text(
+      'Filiale',
+      36 +
+        columnWidths[0] +
+        columnWidths[1] +
+        columnWidths[2] +
+        columnWidths[3],
+      tableTop,
+      { width: columnWidths[4] },
+    );
+    doc.moveDown(0.6);
+    doc.font('Helvetica');
+
+    materials.forEach((m) => {
+      const y = doc.y;
+      doc
+        .fontSize(9)
+        .text(m.numeroSerie || '-', 36, y, { width: columnWidths[0] });
+      doc.text(m.numeroInventaire || '-', 36 + columnWidths[0], y, {
+        width: columnWidths[1],
+      });
+      doc.text(
+        (m as any).name || m.modele || '-',
+        36 + columnWidths[0] + columnWidths[1],
+        y,
+        { width: columnWidths[2] },
+      );
+      doc.text(
+        m.marque || '-',
+        36 + columnWidths[0] + columnWidths[1] + columnWidths[2],
+        y,
+        { width: columnWidths[3] },
+      );
+      doc.text(
+        m.subsidiary?.code || '-',
+        36 +
+          columnWidths[0] +
+          columnWidths[1] +
+          columnWidths[2] +
+          columnWidths[3],
+        y,
+        { width: columnWidths[4] },
+      );
+      doc.moveDown(0.6);
+    });
+
+    doc.end();
   }
 }

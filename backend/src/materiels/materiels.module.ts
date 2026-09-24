@@ -9,8 +9,17 @@ import { Subsidiary } from '../subsidiaries/entities/subsidiary.entity';
 import { User } from '../users/entities/user.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Materiel, Category, ServiceEntity, Subsidiary, User])],
+  imports: [
+    TypeOrmModule.forFeature([
+      Materiel,
+      Category,
+      ServiceEntity,
+      Subsidiary,
+      User,
+    ]),
+  ],
   controllers: [MaterielsController],
   providers: [MaterielsService],
+  exports: [MaterielsService],
 })
-export class MaterielsModule { }
+export class MaterielsModule {}

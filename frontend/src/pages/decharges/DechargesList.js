@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from "react";
 import {
   Box,
   Button,
@@ -21,39 +21,41 @@ import {
   TextField,
   Tooltip,
   Typography,
-} from '@mui/material';
-import AddIcon from '@mui/icons-material/Add';
-import PrintIcon from '@mui/icons-material/Print';
-import DescriptionIcon from '@mui/icons-material/Description';
-import DeleteIcon from '@mui/icons-material/Delete';
-import { useSnackbar } from 'notistack';
-import { useAuth } from '../../context/AuthContext';
-import PageHeader from '../../components/common/PageHeader';
-import ConfirmDialog from '../../components/common/ConfirmDialog';
-import DechargeForm from './DechargeForm';
-import { dechargesAPI } from '../../api/decharges';
+} from "@mui/material";
+import AddIcon from "@mui/icons-material/Add";
+import PrintIcon from "@mui/icons-material/Print";
+import DescriptionIcon from "@mui/icons-material/Description";
+import DeleteIcon from "@mui/icons-material/Delete";
+import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
+import GridOnIcon from "@mui/icons-material/GridOn";
+import { useSnackbar } from "notistack";
+import { useAuth } from "../../context/AuthContext";
+import PageHeader from "../../components/common/PageHeader";
+import ConfirmDialog from "../../components/common/ConfirmDialog";
+import DechargeForm from "./DechargeForm";
+import { dechargesAPI } from "../../api/decharges";
 
 const DECHARGE_PERMISSIONS = {
   create: [
-    'create-decharges',
-    'create decharges',
-    'create-decharge',
-    'create decharge',
-    'cree-decharge',
-    'cree decharge',
-    'cree-decharges',
-    'cree decharges',
+    "create-decharges",
+    "create decharges",
+    "create-decharge",
+    "create decharge",
+    "cree-decharge",
+    "cree decharge",
+    "cree-decharges",
+    "cree decharges",
   ],
-  readAll: ['read-decharges', 'read decharges'],
-  readOne: ['read-decharge', 'read decharge'],
-  deleteOne: ['delete-decharge', 'delete decharge'],
+  readAll: ["read-decharges", "read decharges"],
+  readOne: ["read-decharge", "read decharge"],
+  deleteOne: ["delete-decharge", "delete decharge"],
 };
 
 const formatDate = (value) => {
-  if (!value) return '—';
+  if (!value) return "—";
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '—';
-  return date.toLocaleDateString('fr-FR');
+  if (Number.isNaN(date.getTime())) return "—";
+  return date.toLocaleDateString("fr-FR");
 };
 
 const DechargesList = () => {
@@ -63,20 +65,35 @@ const DechargesList = () => {
   const [decharges, setDecharges] = useState([]);
   const [loading, setLoading] = useState(true);
   const [formOpen, setFormOpen] = useState(false);
-  const [filters, setFilters] = useState({ search: '', maintenanceType: '' });
+  const [filters, setFilters] = useState({
+    search: "",
+    maintenanceType: "",
+    destinataire: "",
+    receptionnaireFonction: "",
+    numeroSerie: "",
+    numeroInventaire: "",
+  });
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
-  const [deleteDialog, setDeleteDialog] = useState({ open: false, id: null, reference: '' });
+  const [deleteDialog, setDeleteDialog] = useState({
+    open: false,
+    id: null,
+    reference: "",
+  });
   const [deleteLoading, setDeleteLoading] = useState(false);
 
-  const hasCreateByKeyword = (user?.permissionNames || []).some((permission) => {
-    const name = String(permission || '').toLowerCase();
-    const hasDecharge = name.includes('decharge') || name.includes('decharges');
-    const hasCreate = name.includes('create') || name.includes('cree');
-    return hasDecharge && hasCreate;
-  });
+  const hasCreateByKeyword = (user?.permissionNames || []).some(
+    (permission) => {
+      const name = String(permission || "").toLowerCase();
+      const hasDecharge =
+        name.includes("decharge") || name.includes("decharges");
+      const hasCreate = name.includes("create") || name.includes("cree");
+      return hasDecharge && hasCreate;
+    },
+  );
 
-  const canCreate = hasPermissionAny(DECHARGE_PERMISSIONS.create) || hasCreateByKeyword;
+  const canCreate =
+    hasPermissionAny(DECHARGE_PERMISSIONS.create) || hasCreateByKeyword;
   const canReadAll = hasPermissionAny(DECHARGE_PERMISSIONS.readAll);
   const canReadOne = hasPermissionAny(DECHARGE_PERMISSIONS.readOne);
   const canDeleteOne = hasPermissionAny(DECHARGE_PERMISSIONS.deleteOne);
@@ -86,7 +103,9 @@ const DechargesList = () => {
     if (!canReadAll) {
       setLoading(false);
       setDecharges([]);
-      enqueueSnackbar('Vous n\'avez pas la permission de lire les décharges.', { variant: 'warning' });
+      enqueueSnackbar("Vous n'avez pas la permission de lire les décharges.", {
+        variant: "warning",
+      });
       return;
     }
 
@@ -95,7 +114,10 @@ const DechargesList = () => {
       const data = await dechargesAPI.getAll(filters);
       setDecharges(data);
     } catch (error) {
-      enqueueSnackbar(error.message || 'Erreur lors du chargement des décharges.', { variant: 'error' });
+      enqueueSnackbar(
+        error.message || "Erreur lors du chargement des décharges.",
+        { variant: "error" },
+      );
     }
     setLoading(false);
   }, [canReadAll, enqueueSnackbar, filters]);
@@ -103,6 +125,52 @@ const DechargesList = () => {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  const [exportLoading, setExportLoading] = useState(false);
+
+  const handleExportPdf = async () => {
+    if (!canPrint) {
+      enqueueSnackbar(
+        "Vous n\'avez pas la permission d'exporter les décharges.",
+        { variant: "warning" },
+      );
+      return;
+    }
+    setExportLoading(true);
+    try {
+      await dechargesAPI.exportPdf();
+      enqueueSnackbar("Export PDF généré avec succès.", { variant: "success" });
+    } catch (err) {
+      enqueueSnackbar(err.message || "Erreur lors de l export PDF.", {
+        variant: "error",
+      });
+    } finally {
+      setExportLoading(false);
+    }
+  };
+
+  const handleExportExcel = async () => {
+    if (!canPrint) {
+      enqueueSnackbar(
+        "Vous n\'avez pas la permission d'exporter les décharges.",
+        { variant: "warning" },
+      );
+      return;
+    }
+    setExportLoading(true);
+    try {
+      await dechargesAPI.exportExcel();
+      enqueueSnackbar("Export Excel généré avec succès.", {
+        variant: "success",
+      });
+    } catch (err) {
+      enqueueSnackbar(err.message || "Erreur lors de l export Excel.", {
+        variant: "error",
+      });
+    } finally {
+      setExportLoading(false);
+    }
+  };
 
   const handleFilterChange = (field) => (event) => {
     setFilters((prev) => ({ ...prev, [field]: event.target.value }));
@@ -112,7 +180,7 @@ const DechargesList = () => {
   const handleCreate = async (payload, printAfterCreate = false) => {
     try {
       const created = await dechargesAPI.create(payload);
-      enqueueSnackbar('Décharge créée avec succès', { variant: 'success' });
+      enqueueSnackbar("Décharge créée avec succès", { variant: "success" });
 
       if (printAfterCreate && created?.id) {
         await dechargesAPI.printPdf(created.id);
@@ -121,7 +189,10 @@ const DechargesList = () => {
       setFormOpen(false);
       loadData();
     } catch (error) {
-      enqueueSnackbar(error.message || 'Erreur lors de la création de la décharge.', { variant: 'error' });
+      enqueueSnackbar(
+        error.message || "Erreur lors de la création de la décharge.",
+        { variant: "error" },
+      );
     }
   };
 
@@ -129,41 +200,63 @@ const DechargesList = () => {
     try {
       await dechargesAPI.printPdf(decharge.id);
     } catch (error) {
-      enqueueSnackbar(error.message || 'Erreur lors de l\'impression.', { variant: 'error' });
+      enqueueSnackbar(error.message || "Erreur lors de l'impression.", {
+        variant: "error",
+      });
     }
   };
 
   const handleDelete = async () => {
     if (!canDeleteOne) {
-      enqueueSnackbar('Vous n\'avez pas la permission de supprimer des décharges.', { variant: 'warning' });
+      enqueueSnackbar(
+        "Vous n'avez pas la permission de supprimer des décharges.",
+        { variant: "warning" },
+      );
       return;
     }
 
     setDeleteLoading(true);
     try {
       await dechargesAPI.delete(deleteDialog.id);
-      enqueueSnackbar('Décharge supprimée avec succès', { variant: 'success' });
-      setDeleteDialog({ open: false, id: null, reference: '' });
+      enqueueSnackbar("Décharge supprimée avec succès", { variant: "success" });
+      setDeleteDialog({ open: false, id: null, reference: "" });
       loadData();
     } catch (error) {
-      enqueueSnackbar(error.message || 'Erreur lors de la suppression de la décharge.', { variant: 'error' });
+      enqueueSnackbar(
+        error.message || "Erreur lors de la suppression de la décharge.",
+        { variant: "error" },
+      );
     }
     setDeleteLoading(false);
   };
 
-  const displayed = decharges.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
+  const displayed = decharges.slice(
+    page * rowsPerPage,
+    page * rowsPerPage + rowsPerPage,
+  );
 
   return (
     <Box>
       <PageHeader
         title="Décharges"
         subtitle={`${decharges.length} document(s)`}
-        breadcrumbs={[{ label: 'Accueil', path: '/dashboard' }, { label: 'Décharges' }]}
+        breadcrumbs={[
+          { label: "Accueil", path: "/dashboard" },
+          { label: "Décharges" },
+        ]}
         action={
           canCreate ? (
-            <Button variant="contained" startIcon={<AddIcon />} onClick={() => setFormOpen(true)}>
-              Nouvelle Décharge
-            </Button>
+            <Box display="flex" gap={1}>
+              {canCreate && (
+                <Button
+                  variant="contained"
+                  startIcon={<AddIcon />}
+                  onClick={() => setFormOpen(true)}
+                >
+                  Nouvelle Décharge
+                </Button>
+              )}
+            </Box>
           ) : null
         }
       />
@@ -178,18 +271,62 @@ const DechargesList = () => {
                 label="Recherche"
                 placeholder="Référence, destinataire, réceptionnaire..."
                 value={filters.search}
-                onChange={handleFilterChange('search')}
+                onChange={handleFilterChange("search")}
               />
             </Grid>
             <Grid item xs={12} sm={6} md={3}>
               <FormControl fullWidth size="small" sx={{ minWidth: 180 }}>
                 <InputLabel>Type</InputLabel>
-                <Select value={filters.maintenanceType} onChange={handleFilterChange('maintenanceType')} label="Type">
+                <Select
+                  value={filters.maintenanceType}
+                  onChange={handleFilterChange("maintenanceType")}
+                  label="Type"
+                >
                   <MenuItem value="">Tous</MenuItem>
                   <MenuItem value="HARD">HARD</MenuItem>
                   <MenuItem value="SOFT">SOFT</MenuItem>
                 </Select>
               </FormControl>
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <TextField
+                fullWidth
+                size="small"
+                label="Destinataire"
+                placeholder="Destinataire"
+                value={filters.destinataire}
+                onChange={handleFilterChange("destinataire")}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <TextField
+                fullWidth
+                size="small"
+                label="Fonction réceptionnaire"
+                placeholder="Fonction réceptionnaire"
+                value={filters.receptionnaireFonction}
+                onChange={handleFilterChange("receptionnaireFonction")}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <TextField
+                fullWidth
+                size="small"
+                label="N° de série"
+                placeholder="Numéro de série"
+                value={filters.numeroSerie}
+                onChange={handleFilterChange("numeroSerie")}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <TextField
+                fullWidth
+                size="small"
+                label="N° d'inventaire"
+                placeholder="Numéro d'inventaire"
+                value={filters.numeroInventaire}
+                onChange={handleFilterChange("numeroInventaire")}
+              />
             </Grid>
           </Grid>
         </CardContent>
@@ -213,52 +350,94 @@ const DechargesList = () => {
                 Array.from({ length: 5 }).map((_, index) => (
                   <TableRow key={`skeleton-${index}`}>
                     {[1, 2, 3, 4, 5, 6].map((col) => (
-                      <TableCell key={`skeleton-col-${col}`}><Skeleton /></TableCell>
+                      <TableCell key={`skeleton-col-${col}`}>
+                        <Skeleton />
+                      </TableCell>
                     ))}
                   </TableRow>
                 ))
               ) : displayed.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={6} align="center" sx={{ py: 4 }}>
-                    <Box display="flex" flexDirection="column" alignItems="center" gap={1} color="text.secondary">
+                    <Box
+                      display="flex"
+                      flexDirection="column"
+                      alignItems="center"
+                      gap={1}
+                      color="text.secondary"
+                    >
                       <DescriptionIcon sx={{ fontSize: 40, opacity: 0.3 }} />
-                      <Typography variant="body2">Aucune décharge trouvée</Typography>
+                      <Typography variant="body2">
+                        Aucune décharge trouvée
+                      </Typography>
                     </Box>
                   </TableCell>
                 </TableRow>
               ) : (
                 displayed.map((decharge) => {
-                  const receptionnaire = `${decharge.receptionnaireNom || ''} ${decharge.receptionnairePrenom || ''}`.trim();
+                  const receptionnaire =
+                    `${decharge.receptionnaireNom || ""} ${decharge.receptionnairePrenom || ""}`.trim();
                   return (
                     <TableRow key={decharge.id}>
                       <TableCell>
-                        <Typography variant="caption" fontWeight={700} color="primary.main">
+                        <Typography
+                          variant="caption"
+                          fontWeight={700}
+                          color="primary.main"
+                        >
                           {decharge.reference}
                         </Typography>
                       </TableCell>
                       <TableCell>{decharge.maintenanceType}</TableCell>
-                      <TableCell>{decharge.destinataire || '—'}</TableCell>
+                      <TableCell>{decharge.destinataire || "—"}</TableCell>
                       <TableCell>
-                        <Typography variant="body2">{receptionnaire || '—'}</Typography>
-                        <Typography variant="caption" color="text.secondary">{decharge.receptionnaireFonction || '—'}</Typography>
+                        <Typography variant="body2">
+                          {receptionnaire || "—"}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {decharge.receptionnaireFonction || "—"}
+                        </Typography>
                       </TableCell>
                       <TableCell>{formatDate(decharge.createdAt)}</TableCell>
                       <TableCell align="center">
                         <Box display="flex" justifyContent="center" gap={0.5}>
-                          <Tooltip title={canPrint ? 'Imprimer PDF' : 'Permission insuffisante'}>
+                          <Tooltip
+                            title={
+                              canPrint
+                                ? "Imprimer PDF"
+                                : "Permission insuffisante"
+                            }
+                          >
                             <span>
-                              <IconButton size="small" color="primary" disabled={!canPrint} onClick={() => handlePrint(decharge)}>
+                              <IconButton
+                                size="small"
+                                color="primary"
+                                disabled={!canPrint}
+                                onClick={() => handlePrint(decharge)}
+                              >
                                 <PrintIcon fontSize="small" />
                               </IconButton>
                             </span>
                           </Tooltip>
-                          <Tooltip title={canDeleteOne ? 'Supprimer' : 'Permission insuffisante'}>
+                          <Tooltip
+                            title={
+                              canDeleteOne
+                                ? "Supprimer"
+                                : "Permission insuffisante"
+                            }
+                          >
                             <span>
                               <IconButton
                                 size="small"
                                 color="error"
                                 disabled={!canDeleteOne}
-                                onClick={() => setDeleteDialog({ open: true, id: decharge.id, reference: decharge.reference })}
+                                onClick={() =>
+                                  setDeleteDialog({
+                                    open: true,
+                                    id: decharge.id,
+                                    reference: decharge.reference,
+                                  })
+                                }
                               >
                                 <DeleteIcon fontSize="small" />
                               </IconButton>
@@ -285,7 +464,9 @@ const DechargesList = () => {
             setPage(0);
           }}
           labelRowsPerPage="Lignes par page:"
-          labelDisplayedRows={({ from, to, count }) => `${from}–${to} sur ${count}`}
+          labelDisplayedRows={({ from, to, count }) =>
+            `${from}–${to} sur ${count}`
+          }
         />
       </Card>
 
@@ -300,7 +481,9 @@ const DechargesList = () => {
         title="Supprimer la Décharge"
         message={`Êtes-vous sûr de vouloir supprimer la décharge "${deleteDialog.reference}" ? Cette action est irréversible.`}
         onConfirm={handleDelete}
-        onClose={() => setDeleteDialog({ open: false, id: null, reference: '' })}
+        onClose={() =>
+          setDeleteDialog({ open: false, id: null, reference: "" })
+        }
         loading={deleteLoading}
       />
     </Box>

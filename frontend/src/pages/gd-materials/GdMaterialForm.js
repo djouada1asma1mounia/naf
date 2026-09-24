@@ -116,7 +116,8 @@ const GdMaterialForm = ({
     if (!form.subsidiaryCode) newErrors.subsidiaryCode = "Champ requis";
     if (!form.status) newErrors.status = "Champ requis";
     if (!form.ownerId && !String(form.utilisateur || "").trim()) {
-      newErrors.utilisateur = "Saisissez un nom si aucun compte n'est sélectionné";
+      newErrors.utilisateur =
+        "Saisissez un nom si aucun compte n'est sélectionné";
     }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -189,7 +190,7 @@ const GdMaterialForm = ({
                 helperText={errors.serialNumber}
               />
             </Grid>
-            <Grid item xs={12} sm={6}>
+            <Grid item xs={12} sx={{ minWidth: 150 }}>
               <TextField
                 fullWidth
                 select
@@ -223,7 +224,7 @@ const GdMaterialForm = ({
                 ))}
               </TextField>
             </Grid>
-            <Grid item xs={12} sm={6}>
+            <Grid item xs={12} sx={{ minWidth: 170 }}>
               <TextField
                 fullWidth
                 select
@@ -255,7 +256,7 @@ const GdMaterialForm = ({
                   <TextField
                     fullWidth
                     select
-                    label="Utilisateur"
+                    label="Utilisateur *"
                     value={form.ownerId || ""}
                     onChange={handleOwnerChange}
                     error={!!errors.ownerId}
@@ -286,7 +287,10 @@ const GdMaterialForm = ({
                       value={form.utilisateur}
                       onChange={handleChange("utilisateur")}
                       error={!!errors.utilisateur}
-                      helperText={errors.utilisateur || "À renseigner uniquement si Aucun est sélectionné"}
+                      helperText={
+                        errors.utilisateur ||
+                        "À renseigner uniquement si Aucun est sélectionné"
+                      }
                       sx={{ mt: 2 }}
                     />
                   )}
@@ -294,7 +298,7 @@ const GdMaterialForm = ({
               ) : (
                 <TextField
                   fullWidth
-                  label="Utilisateur"
+                  label="Utilisateur *"
                   value={form.owner}
                   disabled
                   error={!!errors.ownerId}

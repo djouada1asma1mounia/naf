@@ -1,4 +1,4 @@
-import axiosInstance from './axios';
+import axiosInstance from "./axios";
 
 const getErrorMessage = (error, fallback) => {
   const apiMessage = error?.response?.data?.message;
@@ -6,64 +6,77 @@ const getErrorMessage = (error, fallback) => {
   return apiMessage || error?.message || fallback;
 };
 
-const escapeHtml = (value) => String(value || '')
-  .replace(/&/g, '&amp;')
-  .replace(/</g, '&lt;')
-  .replace(/>/g, '&gt;')
-  .replace(/"/g, '&quot;')
-  .replace(/'/g, '&#039;');
+const escapeHtml = (value) =>
+  String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 
 const toFrDate = (value) => {
   const date = value ? new Date(value) : null;
-  if (!date || Number.isNaN(date.getTime())) return '';
-  return date.toLocaleDateString('fr-FR');
+  if (!date || Number.isNaN(date.getTime())) return "";
+  return date.toLocaleDateString("fr-FR");
 };
 
 const splitReference = (reference, createdAt) => {
-  const raw = String(reference || '').trim();
-  const [numberPart = '', yearPart = ''] = raw.split('/').map((part) => part.trim());
+  const raw = String(reference || "").trim();
+  const [numberPart = "", yearPart = ""] = raw
+    .split("/")
+    .map((part) => part.trim());
   const fallbackYear = (() => {
     const date = createdAt ? new Date(createdAt) : new Date();
-    return Number.isNaN(date.getTime()) ? String(new Date().getFullYear()) : String(date.getFullYear());
+    return Number.isNaN(date.getTime())
+      ? String(new Date().getFullYear())
+      : String(date.getFullYear());
   })();
 
   return {
-    number: numberPart || raw || '',
+    number: numberPart || raw || "",
     year: yearPart || fallbackYear,
   };
 };
 
 const buildPrintableHtml = (decharge = {}) => {
-  const maintenanceType = String(decharge.maintenanceType || '').toUpperCase();
-  const isHard = maintenanceType === 'HARD';
-  const isSoft = maintenanceType === 'SOFT';
-  const { number: refNumber, year: refYear } = splitReference(decharge.reference, decharge.createdAt);
+  const maintenanceType = String(decharge.maintenanceType || "").toUpperCase();
+  const isHard = maintenanceType === "HARD";
+  const isSoft = maintenanceType === "SOFT";
+  const { number: refNumber, year: refYear } = splitReference(
+    decharge.reference,
+    decharge.createdAt,
+  );
   const logoUrl = `${window.location.origin}/naftal-logo.png`;
   const createdDate = toFrDate(decharge.createdAt);
 
   const rows = (decharge.items || [])
-    .map((item) => `
+    .map(
+      (item) => `
       <tr>
         <td>${escapeHtml(item.designation)}</td>
-        <td style="text-align:center;">${String(Number(item.quantity) || '').padStart(2, '0')}</td>
+        <td style="text-align:center;">${String(Number(item.quantity) || "").padStart(2, "0")}</td>
         <td>${escapeHtml(item.marque)}</td>
         <td>${escapeHtml(item.numeroSerie)}</td>
         <td>${escapeHtml(item.numeroInventaire)}</td>
       </tr>
-    `)
-    .join('');
+    `,
+    )
+    .join("");
 
   const minRows = Math.max(0, 4 - (decharge.items || []).length);
   const emptyRows = Array.from({ length: minRows })
-    .map(() => '<tr><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>')
-    .join('');
+    .map(
+      () =>
+        "<tr><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>",
+    )
+    .join("");
 
   return `
     <!doctype html>
     <html lang="fr">
       <head>
         <meta charset="utf-8" />
-        <title>Décharge ${escapeHtml(decharge.reference || '')}</title>
+        <title>Décharge ${escapeHtml(decharge.reference || "")}</title>
         <style>
           @page {
             size: A4;
@@ -305,8 +318,8 @@ const buildPrintableHtml = (decharge = {}) => {
           <p class="paragraph">
             Je soussigné: Reconnais avoir reçu à ce jour du DPT Informatique
             <span class="type-check">
-              <span class="check-item"><span class="check ${isHard ? 'checked' : ''}"></span>HARD</span>
-              <span class="check-item"><span class="check ${isSoft ? 'checked' : ''}"></span>SOFT</span>
+              <span class="check-item"><span class="check ${isHard ? "checked" : ""}"></span>HARD</span>
+              <span class="check-item"><span class="check ${isSoft ? "checked" : ""}"></span>SOFT</span>
             </span>
             <br />
             Alger le matériel ci-dessous:
@@ -349,17 +362,17 @@ const buildPrintableHtml = (decharge = {}) => {
 };
 
 const printHtml = (html) => {
-  const iframe = document.createElement('iframe');
-  iframe.style.position = 'fixed';
-  iframe.style.right = '0';
-  iframe.style.bottom = '0';
-  iframe.style.width = '0';
-  iframe.style.height = '0';
-  iframe.style.border = '0';
+  const iframe = document.createElement("iframe");
+  iframe.style.position = "fixed";
+  iframe.style.right = "0";
+  iframe.style.bottom = "0";
+  iframe.style.width = "0";
+  iframe.style.height = "0";
+  iframe.style.border = "0";
   document.body.appendChild(iframe);
 
   const doc = iframe.contentWindow?.document;
-  if (!doc) throw new Error('Impossible d’ouvrir le document à imprimer.');
+  if (!doc) throw new Error("Impossible d’ouvrir le document à imprimer.");
 
   doc.open();
   doc.write(html);
@@ -399,13 +412,13 @@ const normalizeDecharge = (item = {}) => {
   const items = Array.isArray(item.items) ? item.items : [];
   return {
     id: item?.id,
-    reference: item?.reference || '',
-    maintenanceType: item?.maintenanceType || '',
-    observation: item?.observation || '',
-    destinataire: item?.destinataire || '',
-    receptionnaireNom: item?.receptionnaireNom || '',
-    receptionnairePrenom: item?.receptionnairePrenom || '',
-    receptionnaireFonction: item?.receptionnaireFonction || '',
+    reference: item?.reference || "",
+    maintenanceType: item?.maintenanceType || "",
+    observation: item?.observation || "",
+    destinataire: item?.destinataire || "",
+    receptionnaireNom: item?.receptionnaireNom || "",
+    receptionnairePrenom: item?.receptionnairePrenom || "",
+    receptionnaireFonction: item?.receptionnaireFonction || "",
     createdAt: item?.createdAt || null,
     createdBy: item?.createdBy || null,
     items,
@@ -416,18 +429,70 @@ const applyFilters = (decharges = [], filters = {}) => {
   let result = [...decharges];
 
   if (filters.maintenanceType) {
-    result = result.filter((d) => d.maintenanceType === filters.maintenanceType);
+    result = result.filter(
+      (d) => d.maintenanceType === filters.maintenanceType,
+    );
   }
 
   if (filters.search) {
     const query = String(filters.search).trim().toLowerCase();
     result = result.filter((d) => {
-      const receptionnaire = `${d.receptionnaireNom || ''} ${d.receptionnairePrenom || ''}`.trim();
-      const haystack = [d.reference, d.destinataire, receptionnaire, d.receptionnaireFonction]
-        .map((value) => String(value || '').toLowerCase())
-        .join(' ');
+      const receptionnaire =
+        `${d.receptionnaireNom || ""} ${d.receptionnairePrenom || ""}`.trim();
+      const haystack = [
+        d.reference,
+        d.destinataire,
+        receptionnaire,
+        d.receptionnaireFonction,
+      ]
+        .map((value) => String(value || "").toLowerCase())
+        .join(" ");
       return haystack.includes(query);
     });
+  }
+
+  if (filters.destinataire) {
+    const q = String(filters.destinataire).toLowerCase();
+    result = result.filter((d) =>
+      String(d.destinataire || "")
+        .toLowerCase()
+        .includes(q),
+    );
+  }
+
+  if (filters.receptionnaireFonction) {
+    const q = String(filters.receptionnaireFonction).toLowerCase();
+    result = result.filter((d) =>
+      String(d.receptionnaireFonction || "")
+        .toLowerCase()
+        .includes(q),
+    );
+  }
+
+  if (filters.numeroSerie) {
+    const q = String(filters.numeroSerie).toLowerCase();
+    result = result.filter((d) =>
+      Array.isArray(d.items)
+        ? d.items.some((it) =>
+            String(it.numeroSerie || "")
+              .toLowerCase()
+              .includes(q),
+          )
+        : false,
+    );
+  }
+
+  if (filters.numeroInventaire) {
+    const q = String(filters.numeroInventaire).toLowerCase();
+    result = result.filter((d) =>
+      Array.isArray(d.items)
+        ? d.items.some((it) =>
+            String(it.numeroInventaire || "")
+              .toLowerCase()
+              .includes(q),
+          )
+        : false,
+    );
   }
 
   return result;
@@ -436,12 +501,14 @@ const applyFilters = (decharges = [], filters = {}) => {
 export const dechargesAPI = {
   getAll: async (filters = {}) => {
     try {
-      const response = await axiosInstance.get('/decharges');
+      const response = await axiosInstance.get("/decharges");
       const data = response?.data?.data || [];
       const normalized = data.map(normalizeDecharge);
       return applyFilters(normalized, filters);
     } catch (error) {
-      throw new Error(getErrorMessage(error, 'Erreur lors du chargement des décharges.'));
+      throw new Error(
+        getErrorMessage(error, "Erreur lors du chargement des décharges."),
+      );
     }
   },
 
@@ -451,17 +518,19 @@ export const dechargesAPI = {
       const data = response?.data?.data || response?.data;
       return normalizeDecharge(data);
     } catch (error) {
-      throw new Error(getErrorMessage(error, 'Décharge introuvable.'));
+      throw new Error(getErrorMessage(error, "Décharge introuvable."));
     }
   },
 
   create: async (payload) => {
     try {
-      const response = await axiosInstance.post('/decharges', payload);
+      const response = await axiosInstance.post("/decharges", payload);
       const data = response?.data?.data || response?.data;
       return normalizeDecharge(data);
     } catch (error) {
-      throw new Error(getErrorMessage(error, 'Erreur lors de la création de la décharge.'));
+      throw new Error(
+        getErrorMessage(error, "Erreur lors de la création de la décharge."),
+      );
     }
   },
 
@@ -470,27 +539,83 @@ export const dechargesAPI = {
       const response = await axiosInstance.delete(`/decharges/${id}`);
       return response?.data;
     } catch (error) {
-      throw new Error(getErrorMessage(error, 'Erreur lors de la suppression de la décharge.'));
+      throw new Error(
+        getErrorMessage(error, "Erreur lors de la suppression de la décharge."),
+      );
+    }
+  },
+
+  exportPdf: async () => {
+    try {
+      const response = await axiosInstance.get("/decharges/export/pdf", {
+        responseType: "blob",
+      });
+      const contentDisposition =
+        response?.headers?.["content-disposition"] || "";
+      const fileNameMatch = /filename="?([^\"]+)"?/.exec(contentDisposition);
+      const fileName = fileNameMatch?.[1] || `decharges-${Date.now()}.pdf`;
+      const blob = new Blob([response.data], { type: "application/pdf" });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", fileName);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      throw new Error(
+        getErrorMessage(error, "Erreur lors de l export PDF des décharges."),
+      );
+    }
+  },
+
+  exportExcel: async () => {
+    try {
+      const response = await axiosInstance.get("/decharges/export/excel", {
+        responseType: "blob",
+      });
+      const contentDisposition =
+        response?.headers?.["content-disposition"] || "";
+      const fileNameMatch = /filename="?([^\"]+)"?/.exec(contentDisposition);
+      const fileName = fileNameMatch?.[1] || `decharges-${Date.now()}.xlsx`;
+      const blob = new Blob([response.data], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", fileName);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      throw new Error(
+        getErrorMessage(error, "Erreur lors de l export Excel des décharges."),
+      );
     }
   },
 
   downloadPdf: async (id, reference) => {
     try {
       const response = await axiosInstance.get(`/decharges/${id}/pdf`, {
-        responseType: 'blob',
+        responseType: "blob",
       });
 
-      const blob = new Blob([response.data], { type: 'application/pdf' });
+      const blob = new Blob([response.data], { type: "application/pdf" });
       const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
+      const link = document.createElement("a");
       link.href = url;
-      link.download = `decharge-${String(reference || id).replace('/', '-')}.pdf`;
+      link.download = `decharge-${String(reference || id).replace("/", "-")}.pdf`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
     } catch (error) {
-      throw new Error(getErrorMessage(error, 'Impossible de télécharger la décharge.'));
+      throw new Error(
+        getErrorMessage(error, "Impossible de télécharger la décharge."),
+      );
     }
   },
 
@@ -499,9 +624,11 @@ export const dechargesAPI = {
       const decharge = await dechargesAPI.getById(id);
       const html = buildPrintableHtml(decharge);
       printHtml(html);
-      return { mode: 'html' };
+      return { mode: "html" };
     } catch (error) {
-      throw new Error(getErrorMessage(error, 'Impossible d\'imprimer la décharge.'));
+      throw new Error(
+        getErrorMessage(error, "Impossible d'imprimer la décharge."),
+      );
     }
   },
 };

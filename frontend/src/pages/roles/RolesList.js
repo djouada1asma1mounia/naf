@@ -1,42 +1,63 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from "react";
 import {
-  Box, Button, Card, Typography, TextField, Dialog,
-  DialogTitle, DialogContent, DialogActions, IconButton, Tooltip,
-  Divider, Skeleton, Avatar, Table, TableBody, TableCell,
-  TableContainer, TableHead, TableRow, TablePagination,
-} from '@mui/material';
-import AddIcon from '@mui/icons-material/Add';
-import DeleteIcon from '@mui/icons-material/Delete';
-import EditIcon from '@mui/icons-material/Edit';
-import BadgeIcon from '@mui/icons-material/Badge';
-import PeopleIcon from '@mui/icons-material/People';
-import { rolesAPI } from '../../api/roles';
-import { authAPI } from '../../api/auth';
-import PageHeader from '../../components/common/PageHeader';
-import ConfirmDialog from '../../components/common/ConfirmDialog';
-import { useSnackbar } from 'notistack';
-import { useAuth } from '../../context/AuthContext';
+  Box,
+  Button,
+  Card,
+  CardContent,
+  Typography,
+  TextField,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  IconButton,
+  Tooltip,
+  Divider,
+  Skeleton,
+  Avatar,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  TablePagination,
+} from "@mui/material";
+import AddIcon from "@mui/icons-material/Add";
+import DeleteIcon from "@mui/icons-material/Delete";
+import EditIcon from "@mui/icons-material/Edit";
+import BadgeIcon from "@mui/icons-material/Badge";
+import PeopleIcon from "@mui/icons-material/People";
+import { rolesAPI } from "../../api/roles";
+import { authAPI } from "../../api/auth";
+import PageHeader from "../../components/common/PageHeader";
+import ConfirmDialog from "../../components/common/ConfirmDialog";
+import { useSnackbar } from "notistack";
+import { useAuth } from "../../context/AuthContext";
 
 const ROLE_PERMISSIONS = {
-  create: ['create-role', 'create role'],
-  read: ['read-roles', 'read roles', 'read-role', 'read role'],
-  update: ['update-role', 'update role'],
-  remove: ['delete-role', 'delete role'],
+  create: ["create-role", "create role"],
+  read: ["read-roles", "read roles", "read-role", "read role"],
+  update: ["update-role", "update role"],
+  remove: ["delete-role", "delete role"],
 };
 
 const RoleForm = ({ open, onClose, onSubmit, editItem }) => {
-  const [form, setForm] = useState({ name: '' });
+  const [form, setForm] = useState({ name: "" });
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    setForm(editItem ? { name: editItem.name } : { name: '' });
+    setForm(editItem ? { name: editItem.name } : { name: "" });
     setErrors({});
   }, [editItem, open]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.name.trim()) { setErrors({ name: 'Champ requis' }); return; }
+    if (!form.name.trim()) {
+      setErrors({ name: "Champ requis" });
+      return;
+    }
     setLoading(true);
     try {
       await onSubmit(form);
@@ -49,17 +70,25 @@ const RoleForm = ({ open, onClose, onSubmit, editItem }) => {
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
       <DialogTitle>
         <Typography variant="h6" fontWeight={700}>
-          {editItem ? 'Modifier le Rôle' : 'Nouveau Rôle'}
+          {editItem ? "Modifier le Rôle" : "Nouveau Rôle"}
         </Typography>
       </DialogTitle>
       <Divider />
       <DialogContent>
-        <Box component="form" id="role-form" onSubmit={handleSubmit} sx={{ pt: 1 }}>
+        <Box
+          component="form"
+          id="role-form"
+          onSubmit={handleSubmit}
+          sx={{ pt: 1 }}
+        >
           <TextField
             fullWidth
             label="Nom du rôle *"
             value={form.name}
-            onChange={(e) => { setForm((f) => ({ ...f, name: e.target.value })); setErrors({}); }}
+            onChange={(e) => {
+              setForm((f) => ({ ...f, name: e.target.value }));
+              setErrors({});
+            }}
             error={!!errors.name}
             helperText={errors.name}
             sx={{ mb: 1 }}
@@ -68,9 +97,16 @@ const RoleForm = ({ open, onClose, onSubmit, editItem }) => {
       </DialogContent>
       <Divider />
       <DialogActions sx={{ px: 3, py: 2 }}>
-        <Button onClick={onClose} variant="outlined" disabled={loading}>Annuler</Button>
-        <Button type="submit" form="role-form" variant="contained" disabled={loading}>
-          {editItem ? 'Modifier' : 'Créer'}
+        <Button onClick={onClose} variant="outlined" disabled={loading}>
+          Annuler
+        </Button>
+        <Button
+          type="submit"
+          form="role-form"
+          variant="contained"
+          disabled={loading}
+        >
+          {editItem ? "Modifier" : "Créer"}
         </Button>
       </DialogActions>
     </Dialog>
@@ -82,13 +118,18 @@ const RolesList = () => {
   const { enqueueSnackbar } = useSnackbar();
   const [roles, setRoles] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
   const [formOpen, setFormOpen] = useState(false);
   const [editItem, setEditItem] = useState(null);
-  const [deleteDialog, setDeleteDialog] = useState({ open: false, id: null, name: '' });
+  const [deleteDialog, setDeleteDialog] = useState({
+    open: false,
+    id: null,
+    name: "",
+  });
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [usersDialog, setUsersDialog] = useState({
     open: false,
-    roleName: '',
+    roleName: "",
     users: [],
     loading: false,
   });
@@ -104,7 +145,9 @@ const RolesList = () => {
     if (!canRead) {
       setLoading(false);
       setRoles([]);
-      enqueueSnackbar('Vous n\'avez pas la permission de lire les rôles.', { variant: 'warning' });
+      enqueueSnackbar("Vous n'avez pas la permission de lire les rôles.", {
+        variant: "warning",
+      });
       return;
     }
 
@@ -112,60 +155,114 @@ const RolesList = () => {
     try {
       setRoles(await rolesAPI.getAll());
     } catch (err) {
-      enqueueSnackbar(err.message || 'Erreur chargement rôles', { variant: 'error' });
+      enqueueSnackbar(err.message || "Erreur chargement rôles", {
+        variant: "error",
+      });
     }
     setLoading(false);
   }, [enqueueSnackbar, canRead]);
 
-  useEffect(() => { loadData(); }, [loadData]);
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
-  const displayed = roles.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
+  const filtered = roles.filter((r) => {
+    if (!search) return true;
+    const s = String(search).toLowerCase();
+    return (
+      String(r.name || "")
+        .toLowerCase()
+        .includes(s) ||
+      String(r.id || "")
+        .toLowerCase()
+        .includes(s)
+    );
+  });
+
+  const displayed = filtered.slice(
+    page * rowsPerPage,
+    page * rowsPerPage + rowsPerPage,
+  );
 
   const handleFormSubmit = async (data) => {
     try {
       if (editItem) {
-        if (!canUpdate) throw new Error('Vous n\'avez pas la permission de modifier les rôles.');
+        if (!canUpdate)
+          throw new Error(
+            "Vous n'avez pas la permission de modifier les rôles.",
+          );
         await rolesAPI.update(editItem.id, data);
-        enqueueSnackbar('Rôle modifié', { variant: 'success' });
+        enqueueSnackbar("Rôle modifié", { variant: "success" });
       } else {
-        if (!canCreate) throw new Error('Vous n\'avez pas la permission de créer des rôles.');
+        if (!canCreate)
+          throw new Error("Vous n'avez pas la permission de créer des rôles.");
         await rolesAPI.create(data);
-        enqueueSnackbar('Rôle créé', { variant: 'success' });
+        enqueueSnackbar("Rôle créé", { variant: "success" });
       }
       setFormOpen(false);
       loadData();
-    } catch (err) { enqueueSnackbar(err.message || 'Erreur', { variant: 'error' }); }
+    } catch (err) {
+      enqueueSnackbar(err.message || "Erreur", { variant: "error" });
+    }
   };
 
   const handleDeleteConfirm = async () => {
     if (!canDelete) {
-      enqueueSnackbar('Vous n\'avez pas la permission de supprimer des rôles.', { variant: 'warning' });
+      enqueueSnackbar("Vous n'avez pas la permission de supprimer des rôles.", {
+        variant: "warning",
+      });
       return;
     }
 
     setDeleteLoading(true);
     try {
       await rolesAPI.delete(deleteDialog.id);
-      enqueueSnackbar('Rôle supprimé', { variant: 'success' });
-      setDeleteDialog({ open: false, id: null, name: '' });
+      enqueueSnackbar("Rôle supprimé", { variant: "success" });
+      setDeleteDialog({ open: false, id: null, name: "" });
       loadData();
-    } catch (err) { enqueueSnackbar(err.message || 'Erreur', { variant: 'error' }); }
+    } catch (err) {
+      enqueueSnackbar(err.message || "Erreur", { variant: "error" });
+    }
     setDeleteLoading(false);
   };
 
   const handleViewRoleUsers = async (role) => {
-    setUsersDialog({ open: true, roleName: role.name, users: [], loading: true });
+    setUsersDialog({
+      open: true,
+      roleName: role.name,
+      users: [],
+      loading: true,
+    });
     try {
       const allUsers = await authAPI.getUsers();
       const roleUsers = allUsers.filter((user) => {
-        const byId = user.roleId != null && String(user.roleId) === String(role.id);
-        const byName = String(user.role || '').trim().toLowerCase() === String(role.name || '').trim().toLowerCase();
+        const byId =
+          user.roleId != null && String(user.roleId) === String(role.id);
+        const byName =
+          String(user.role || "")
+            .trim()
+            .toLowerCase() ===
+          String(role.name || "")
+            .trim()
+            .toLowerCase();
         return byId || byName;
       });
-      setUsersDialog({ open: true, roleName: role.name, users: roleUsers, loading: false });
+      setUsersDialog({
+        open: true,
+        roleName: role.name,
+        users: roleUsers,
+        loading: false,
+      });
     } catch (err) {
-      enqueueSnackbar(err.message || 'Erreur chargement utilisateurs', { variant: 'error' });
-      setUsersDialog({ open: true, roleName: role.name, users: [], loading: false });
+      enqueueSnackbar(err.message || "Erreur chargement utilisateurs", {
+        variant: "error",
+      });
+      setUsersDialog({
+        open: true,
+        roleName: role.name,
+        users: [],
+        loading: false,
+      });
     }
   };
 
@@ -173,16 +270,40 @@ const RolesList = () => {
     <Box>
       <PageHeader
         title="Gestion des Rôles"
-        subtitle={`${roles.length} rôle(s)`}
-        breadcrumbs={[{ label: 'Accueil', path: '/dashboard' }, { label: 'Rôles' }]}
+        subtitle={`${filtered.length} rôle(s)`}
+        breadcrumbs={[
+          { label: "Accueil", path: "/dashboard" },
+          { label: "Rôles" },
+        ]}
         action={
           canCreate ? (
-            <Button variant="contained" startIcon={<AddIcon />} onClick={() => { setEditItem(null); setFormOpen(true); }}>
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={() => {
+                setEditItem(null);
+                setFormOpen(true);
+              }}
+            >
               Nouveau Rôle
             </Button>
           ) : null
         }
       />
+      <Card sx={{ mb: 2 }}>
+        <CardContent>
+          <TextField
+            fullWidth
+            size="small"
+            placeholder="Rechercher par nom ou ID..."
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(0);
+            }}
+          />
+        </CardContent>
+      </Card>
 
       <Card>
         <TableContainer>
@@ -196,13 +317,21 @@ const RolesList = () => {
             <TableBody>
               {loading ? (
                 Array.from({ length: 3 }).map((_, i) => (
-                  <TableRow key={i}>{[1,2].map((j) => <TableCell key={j}><Skeleton /></TableCell>)}</TableRow>
+                  <TableRow key={i}>
+                    {[1, 2].map((j) => (
+                      <TableCell key={j}>
+                        <Skeleton />
+                      </TableCell>
+                    ))}
+                  </TableRow>
                 ))
               ) : displayed.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={2} align="center" sx={{ py: 4 }}>
                     <BadgeIcon sx={{ fontSize: 40, opacity: 0.3 }} />
-                    <Typography variant="body2" color="text.secondary">Aucun rôle</Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      Aucun rôle
+                    </Typography>
                   </TableCell>
                 </TableRow>
               ) : (
@@ -210,29 +339,59 @@ const RolesList = () => {
                   <TableRow key={r.id}>
                     <TableCell>
                       <Box display="flex" alignItems="center" gap={1.5}>
-                        <Avatar sx={{ width: 32, height: 32, bgcolor: 'secondary.main', fontSize: '0.75rem' }}>
+                        <Avatar
+                          sx={{
+                            width: 32,
+                            height: 32,
+                            bgcolor: "secondary.main",
+                            fontSize: "0.75rem",
+                          }}
+                        >
                           <BadgeIcon fontSize="small" />
                         </Avatar>
-                        <Typography variant="body2" fontWeight={600}>{r.name}</Typography>
+                        <Typography variant="body2" fontWeight={600}>
+                          {r.name}
+                        </Typography>
                       </Box>
                     </TableCell>
                     <TableCell align="center">
                       <Box display="flex" gap={0.5} justifyContent="center">
                         <Tooltip title="Voir utilisateurs">
-                          <IconButton size="small" color="info" onClick={() => handleViewRoleUsers(r)}>
+                          <IconButton
+                            size="small"
+                            color="info"
+                            onClick={() => handleViewRoleUsers(r)}
+                          >
                             <PeopleIcon fontSize="small" />
                           </IconButton>
                         </Tooltip>
                         {canUpdate && (
                           <Tooltip title="Modifier">
-                            <IconButton size="small" color="primary" onClick={() => { setEditItem(r); setFormOpen(true); }}>
+                            <IconButton
+                              size="small"
+                              color="primary"
+                              onClick={() => {
+                                setEditItem(r);
+                                setFormOpen(true);
+                              }}
+                            >
                               <EditIcon fontSize="small" />
                             </IconButton>
                           </Tooltip>
                         )}
                         {canDelete && (
                           <Tooltip title="Supprimer">
-                            <IconButton size="small" color="error" onClick={() => setDeleteDialog({ open: true, id: r.id, name: r.name })}>
+                            <IconButton
+                              size="small"
+                              color="error"
+                              onClick={() =>
+                                setDeleteDialog({
+                                  open: true,
+                                  id: r.id,
+                                  name: r.name,
+                                })
+                              }
+                            >
                               <DeleteIcon fontSize="small" />
                             </IconButton>
                           </Tooltip>
@@ -245,31 +404,51 @@ const RolesList = () => {
             </TableBody>
           </Table>
         </TableContainer>
-        {roles.length > rowsPerPage && (
+        {filtered.length > rowsPerPage && (
           <TablePagination
             rowsPerPageOptions={[5, 10, 25]}
-            component="div" count={roles.length} rowsPerPage={rowsPerPage} page={page}
+            component="div"
+            count={filtered.length}
+            rowsPerPage={rowsPerPage}
+            page={page}
             onPageChange={(_, np) => setPage(np)}
-            onRowsPerPageChange={(e) => { setRowsPerPage(+e.target.value); setPage(0); }}
+            onRowsPerPageChange={(e) => {
+              setRowsPerPage(+e.target.value);
+              setPage(0);
+            }}
             labelRowsPerPage="Lignes par page:"
-            labelDisplayedRows={({ from, to, count }) => `${from}–${to} sur ${count}`}
+            labelDisplayedRows={({ from, to, count }) =>
+              `${from}–${to} sur ${count}`
+            }
           />
         )}
       </Card>
 
-      <RoleForm open={formOpen} onClose={() => setFormOpen(false)} onSubmit={handleFormSubmit} editItem={editItem} />
+      <RoleForm
+        open={formOpen}
+        onClose={() => setFormOpen(false)}
+        onSubmit={handleFormSubmit}
+        editItem={editItem}
+      />
       <ConfirmDialog
         open={deleteDialog.open}
         title="Supprimer le Rôle"
         message={`Supprimer le rôle "${deleteDialog.name}" ? Cette action est irréversible.`}
         onConfirm={handleDeleteConfirm}
-        onClose={() => setDeleteDialog({ open: false, id: null, name: '' })}
+        onClose={() => setDeleteDialog({ open: false, id: null, name: "" })}
         loading={deleteLoading}
       />
 
       <Dialog
         open={usersDialog.open}
-        onClose={() => setUsersDialog({ open: false, roleName: '', users: [], loading: false })}
+        onClose={() =>
+          setUsersDialog({
+            open: false,
+            roleName: "",
+            users: [],
+            loading: false,
+          })
+        }
         maxWidth="md"
         fullWidth
       >
@@ -303,9 +482,12 @@ const RolesList = () => {
                 <TableBody>
                   {usersDialog.users.map((user) => (
                     <TableRow key={user.id}>
-                      <TableCell>{`${user.firstName || ''} ${user.lastName || ''}`.trim() || '—'}</TableCell>
-                      <TableCell>{user.email || '—'}</TableCell>
-                      <TableCell>{user.department || '—'}</TableCell>
+                      <TableCell>
+                        {`${user.firstName || ""} ${user.lastName || ""}`.trim() ||
+                          "—"}
+                      </TableCell>
+                      <TableCell>{user.email || "—"}</TableCell>
+                      <TableCell>{user.department || "—"}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -315,7 +497,17 @@ const RolesList = () => {
         </DialogContent>
         <Divider />
         <DialogActions sx={{ px: 3, py: 2 }}>
-          <Button onClick={() => setUsersDialog({ open: false, roleName: '', users: [], loading: false })} variant="outlined">
+          <Button
+            onClick={() =>
+              setUsersDialog({
+                open: false,
+                roleName: "",
+                users: [],
+                loading: false,
+              })
+            }
+            variant="outlined"
+          >
             Fermer
           </Button>
         </DialogActions>

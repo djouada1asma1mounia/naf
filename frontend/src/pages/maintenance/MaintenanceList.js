@@ -32,7 +32,6 @@ import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
 import GridOnIcon from "@mui/icons-material/GridOn";
-import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import {
   INTERVENTION_FILTER_OPTIONS,
   maintenanceAPI,
@@ -486,22 +485,6 @@ const MaintenanceList = () => {
                     >
                       Export Excel
                     </Button>
-                    <Button
-                      variant="outlined"
-                      color="primary"
-                      startIcon={<CloudUploadIcon />}
-                      onClick={handleImportClick}
-                      disabled={importLoading}
-                    >
-                      Import Excel
-                    </Button>
-                    <input
-                      ref={importFileInputRef}
-                      type="file"
-                      accept=".xlsx"
-                      style={{ display: "none" }}
-                      onChange={handleImportFile}
-                    />
                   </>
                 )}
                 {canCreate && (

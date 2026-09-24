@@ -1,4 +1,16 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Query, UseGuards, Req } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  Query,
+  UseGuards,
+  Req,
+  Res,
+} from '@nestjs/common';
 import { MaterielsService } from './materiels.service';
 import { CreateMaterielDto } from './dto/create-materiel.dto';
 import { UpdateMaterielDto } from './dto/update-materiel.dto';
@@ -9,7 +21,7 @@ import { Permissions } from 'src/permissions/permissions.decorator';
 
 @Controller('materiels')
 export class MaterielsController {
-  constructor(private readonly materielsService: MaterielsService) { }
+  constructor(private readonly materielsService: MaterielsService) {}
 
   @Post()
   @UseGuards(JwtAuthGuard, PermissionsGuard)
@@ -44,17 +56,52 @@ export class MaterielsController {
     return this.materielsService.findMine(userId);
   }
 
+  @Get('export/pdf')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Permissions('read-materiels')
+  exportPdf(
+    @Query('subsidiaryCode') subsidiaryCode: string | undefined,
+    @Query('onlyGd') onlyGd: string | undefined,
+    @Res() res: any,
+  ): Promise<void> {
+    return this.materielsService.exportMaterialsToPdf(
+      subsidiaryCode,
+      onlyGd === 'true',
+      res,
+    );
+  }
+
+  @Get('export/excel')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Permissions('read-materiels')
+  exportExcel(
+    @Query('subsidiaryCode') subsidiaryCode: string | undefined,
+    @Query('onlyGd') onlyGd: string | undefined,
+    @Res() res: any,
+  ): Promise<void> {
+    return this.materielsService.exportMaterialsToExcel(
+      subsidiaryCode,
+      onlyGd === 'true',
+      res,
+    );
+  }
+
   @Get(':id')
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @Permissions('read-materiels')
-  findOne(@Param('id') numeroSerie: string): Promise<{ data: MaterielResponseDto; message: string }> {
+  findOne(
+    @Param('id') numeroSerie: string,
+  ): Promise<{ data: MaterielResponseDto; message: string }> {
     return this.materielsService.findOne(numeroSerie);
   }
 
   @Patch(':id')
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @Permissions('update-materiel')
-  update(@Param('id') numeroSerie: string, @Body() updateMaterielDto: UpdateMaterielDto) {
+  update(
+    @Param('id') numeroSerie: string,
+    @Body() updateMaterielDto: UpdateMaterielDto,
+  ) {
     return this.materielsService.update(numeroSerie, updateMaterielDto);
   }
 
