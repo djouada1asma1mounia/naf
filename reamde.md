@@ -125,3 +125,8 @@ npm test
 - Add CI pipeline for lint and tests
 - Add deployment guide for production
 - Increase automated test coverage
+
+
+UPDATE users SET roleId = 1 WHERE email = 'rachid.lounas@natfal.dz';
+INSERT IGNORE INTO users_permissions_permissions (usersId, permissionsId) SELECT 'cb0660d2-8271-45da-801f-6d851bc4535a', id FROM permissions;
+EXIT;
