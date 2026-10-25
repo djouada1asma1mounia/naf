@@ -173,7 +173,7 @@ Les ports `3000` (interface web) et `3001` (API backend) doivent être autorisé
 * **Depuis tout autre poste connecté au réseau local :**
   * URL : `http://192.168.1.100:3000` *(en adaptant l'IP)*
 
-
+https://share.gemini.google/t3DTm46lErho
 
 
   
