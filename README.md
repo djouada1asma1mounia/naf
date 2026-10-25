@@ -172,3 +172,53 @@ Les ports `3000` (interface web) et `3001` (API backend) doivent être autorisé
   * URL : `http://localhost:3000`
 * **Depuis tout autre poste connecté au réseau local :**
   * URL : `http://192.168.1.100:3000` *(en adaptant l'IP)*
+
+
+
+
+  // دالة مساعدة لحفظ ملف الإكسل داخل مجلد backups
+  private saveBackupToDisk(buffer: Buffer): string {
+    const backupDir = path.join(process.cwd(), 'backups');
+
+    if (!fs.existsSync(backupDir)) {
+      fs.mkdirSync(backupDir, { recursive: true });
+    }
+
+    const now = new Date();
+    const dateStr = now.toISOString().split('T')[0];
+    const timeStr = `${now.getHours()}-${now.getMinutes()}-${now.getSeconds()}`;
+    const fileName = `naftal-backup-${dateStr}_${timeStr}.xlsx`;
+    const fullPath = path.join(backupDir, fileName);
+
+    fs.writeFileSync(fullPath, buffer);
+    this.logger.log(`[Backup] تم حفظ نسخة الإكسل بنجاح في: ${fullPath}`);
+
+    return fullPath;
+  }
+
+  // النسخ الاحتياطي التلقائي: يومياً على الساعة 17:00 (5 مساءً)
+  @Cron('0 17 * * *')
+  async handleAutomaticDailyBackup(): Promise<void> {
+    this.logger.log('--- بدء عملية النسخ الاحتياطي التلقائي للإكسل ---');
+
+    try {
+      const workbook = new ExcelJS.Workbook();
+      workbook.creator = 'Naftal Backend AutoBackup';
+      workbook.created = new Date();
+
+      const entityMetadatas = this.dataSource.entityMetadatas
+        .filter((metadata) => metadata.tableType !== 'view')
+        .sort((a, b) => a.tableName.localeCompare(b.tableName));
+
+      for (const metadata of entityMetadatas) {
+        await this.writeEntityWorksheet(workbook, metadata);
+      }
+
+      const buffer = await workbook.xlsx.writeBuffer();
+      const nodeBuffer = Buffer.isBuffer(buffer) ? buffer : Buffer.from(buffer);
+
+      this.saveBackupToDisk(nodeBuffer);
+    } catch (error) {
+      this.logger.error(`فشل النسخ الاحتياطي التلقائي: ${error.message}`);
+    }
+  }
