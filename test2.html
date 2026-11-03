@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>نظام إدارة ومخططات عتاد الشاليهات</title>
+  <style>
+    :root {
+      --primary: #1e293b;
+      --accent: #2563eb;
+      --border: #cbd5e1;
+      --bg-gray: #f8fafc;
+    }
+
+    * {
+      box-sizing: border-box;
+      font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
+    }
+
+    body {
+      margin: 0;
+      padding: 20px;
+      background-color: #f1f5f9;
+      color: #0f172a;
+    }
+
+    /* شريط التحكم العلوي */
+    .toolbar {
+      max-width: 1200px;
+      margin: 0 auto 20px auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #ffffff;
+      padding: 12px 20px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+
+    .tabs {
+      display: flex;
+      gap: 8px;
+    }
+
+    .tab-btn {
+      padding: 8px 16px;
+      border: 1px solid var(--border);
+      background: #fff;
+      border-radius: 6px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .tab-btn.active {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+    }
+
+    .action-btn {
+      padding: 8px 16px;
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      font-weight: bold;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* الورقة الرئيسية (A4 أفقي للمخطط) */
+    .print-sheet {
+      max-width: 1200px;
+      margin: 0 auto;
+      background: #fff;
+      padding: 25px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+    }
+
+    .doc-header {
+      display: flex;
+      justify-content: space-between;
+      border-bottom: 2px solid var(--primary);
+      padding-bottom: 12px;
+      margin-bottom: 20px;
+    }
+
+    .doc-title {
+      font-size: 20px;
+      font-weight: bold;
+      margin: 0 0 4px 0;
+    }
+
+    .doc-meta {
+      font-size: 13px;
+      color: #475569;
+    }
+
+    /* المخطط المكاني */
+    .floorplan-wrapper {
+      border: 2px dashed #94a3b8;
+      border-radius: 8px;
+      padding: 16px;
+      background: var(--bg-gray);
+      margin-bottom: 24px;
+    }
+
+    .floorplan-header {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      font-weight: bold;
+      color: #64748b;
+      margin-bottom: 12px;
+    }
+
+    .chalet-layout {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr) 220px;
+      gap: 16px;
+    }
+
+    .office-card {
+      background: #fff;
+      border: 1.5px solid #cbd5e1;
+      border-radius: 6px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      min-height: 140px;
+    }
+
+    .office-info h4 {
+      margin: 0 0 2px 0;
+      font-size: 14px;
+      color: var(--primary);
+    }
+
+    .office-info p {
+      margin: 0 0 8px 0;
+      font-size: 12px;
+      color: #64748b;
+    }
+
+    .badges-box {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-bottom: 8px;
+    }
+
+    .dev-badge {
+      font-family: 'Consolas', monospace;
+      font-size: 11px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      border: 1px solid #cbd5e1;
+      background: #f8fafc;
+      font-weight: bold;
+    }
+
+    .print-user-btn {
+      background: #f1f5f9;
+      border: 1px solid #cbd5e1;
+      padding: 5px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      cursor: pointer;
+      font-weight: 600;
+      text-align: center;
+    }
+
+    .print-user-btn:hover {
+      background: #e2e8f0;
+    }
+
+    /* جدول الجرد العام */
+    table.data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+      margin-bottom: 20px;
+    }
+
+    table.data-table th, table.data-table td {
+      border: 1px solid #cbd5e1;
+      padding: 8px 10px;
+      text-align: right;
+    }
+
+    table.data-table th {
+      background: #f8fafc;
+      color: #334155;
+    }
+
+    .code-font {
+      font-family: 'Consolas', monospace;
+      direction: ltr;
+      text-align: left;
+      font-weight: bold;
+    }
+
+    /* نافذة استلام الموظف المستقلة (Modal) */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 1000;
+      justify-content: center;
+      align-items: center;
+      overflow-y: auto;
+      padding: 20px;
+    }
+
+    .decharge-sheet {
+      background: #fff;
+      width: 100%;
+      max-width: 800px;
+      padding: 30px;
+      border-radius: 6px;
+      position: relative;
+    }
+
+    .decharge-header {
+      border-bottom: 2px solid #000;
+      padding-bottom: 10px;
+      margin-bottom: 20px;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .employee-box {
+      background: #f8fafc;
+      border: 1px solid #cbd5e1;
+      padding: 12px;
+      border-radius: 6px;
+      margin-bottom: 20px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      font-size: 13px;
+    }
+
+    .sign-section {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-top: 30px;
+    }
+
+    .sign-field {
+      border: 1px solid #000;
+      height: 100px;
+      padding: 8px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      font-size: 12px;
+    }
+
+    .close-modal-btn {
+      position: absolute;
+      top: 15px;
+      left: 15px;
+      background: #ef4444;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      padding: 5px 10px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    /* ضوابط الطباعة الورقية الصارمة */
+    @media print {
+      body {
+        padding: 0;
+        background: #fff;
+      }
+      .toolbar, .print-user-btn, .close-modal-btn {
+        display: none !important;
+      }
+      .print-sheet {
+        border: none;
+        box-shadow: none;
+        padding: 0;
+        max-width: 100%;
+      }
+      .modal-overlay {
+        position: static;
+        background: transparent;
+        display: block !important;
+        padding: 0;
+      }
+      .decharge-sheet {
+        border: none;
+        padding: 0;
+        max-width: 100%;
+      }
+      body.printing-decharge .print-sheet {
+        display: none !important;
+      }
+      @page {
+        size: A4 landscape;
+        margin: 10mm;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- شريط أدوات التحكم -->
+  <div class="toolbar">
+    <div class="tabs">
+      <button class="tab-btn active" onclick="loadChalet(1, this)">الشاليه رقم 01</button>
+      <button class="tab-btn" onclick="loadChalet(2, this)">الشاليه رقم 02</button>
+    </div>
+    <button class="action-btn" onclick="window.print()">🖨️ طباعة مخطط الشاليه كاملاً</button>
+  </div>
+
+  <!-- ورقة المخطط الإجمالية للشاليه -->
+  <div class="print-sheet" id="mainPrintArea">
+    <div class="doc-header">
+      <div>
+        <h1 class="doc-title" id="chaletTitle">مخطط توزيع وجرد العتاد - الشاليه رقم 01</h1>
+        <div class="doc-meta" id="chaletDept">المصلحة: الصيانة والاستغلال | الموقع: المنطقة الشمالية</div>
+      </div>
+      <div style="text-align: left;">
+        <div class="doc-meta">التاريخ: <strong>2026-11-03</strong></div>
+        <div class="doc-meta">المرجع: <strong class="code-font" id="chaletRef">CH01-2026</strong></div>
+      </div>
+    </div>
+
+    <!-- المخطط البصري للمكاتب -->
+    <div class="floorplan-wrapper">
+      <div class="floorplan-header">
+        <span>توزيع المكاتب والعتاد (Layout)</span>
+        <span>المدخل الرئيسي ⬅️</span>
+      </div>
+      <div class="chalet-layout" id="layoutContainer">
+        <!-- توليد المكاتب ديناميكياً هنا -->
+      </div>
+    </div>
+
+    <!-- جدول الأجهزة الشامل والأرقام التسلسلية -->
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th style="width: 8%; text-align: center;">المعرف</th>
+          <th style="width: 12%;">المكتب</th>
+          <th style="width: 18%;">الموظف المسؤول</th>
+          <th style="width: 18%;">نوع الجهاز</th>
+          <th style="width: 18%;">الموديل</th>
+          <th style="width: 26%;">الرقم التسلسلي (Serial Number)</th>
+        </tr>
+      </thead>
+      <tbody id="tableContainer">
+        <!-- توليد البيانات ديناميكياً هنا -->
+      </tbody>
+    </table>
+  </div>
+
+  <!-- نافذة طباعة وصل الاستلام لكل موظف -->
+  <div class="modal-overlay" id="dechargeModal">
+    <div class="decharge-sheet">
+      <button class="close-modal-btn" onclick="closeModal()">إغلاق ✕</button>
+      
+      <div class="decharge-header">
+        <div>
+          <h2 style="margin: 0; font-size: 18px;">وصل تسليم واستلام عتاد معلوماتي (عهدة)</h2>
+          <div style="font-size: 12px; color: #555;">DÉCHARGE DE MATÉRIEL INFORMATIQUE</div>
+        </div>
+        <div style="text-align: left; font-size: 12px;">
+          <div>التاريخ: <strong>2026-11-03</strong></div>
+        </div>
+      </div>
+
+      <div class="employee-box" id="employeeDetails">
+        <!-- بيانات الموظف المختار -->
+      </div>
+
+      <div style="font-weight: bold; font-size: 13px; margin-bottom: 8px;">قائمة الأجهزة المستلمة:</div>
+      <table class="data-table" style="margin-bottom: 15px;">
+        <thead>
+          <tr>
+            <th style="text-align: center;">المعرف</th>
+            <th>نوع الجهاز</th>
+            <th>الموديل</th>
+            <th>الرقم التسلسلي (Serial Number)</th>
+            <th>الحالة</th>
+          </tr>
+        </thead>
+        <tbody id="userDevicesTable">
+          <!-- أجهزة الموظف فقط -->
+        </tbody>
+      </table>
+
+      <div style="font-size: 11px; line-height: 1.6; border-top: 1px dashed #aaa; padding-top: 8px;">
+        <strong>إقرار بالمسؤولية:</strong> يقر الموظف المذكور أعلاه باستلام الأجهزة المذكورة بحالة جيدة، ويتعهد بالحفاظ عليها واستعمالها في إطار المهام المهنية الموكلة إليه حصراً.
+      </div>
+
+      <div class="sign-section">
+        <div class="sign-field">
+          <strong>توقيع وختم مصلحة تكنولوجيا المعلومات (IT)</strong>
+        </div>
+        <div class="sign-field">
+          <strong>توقيع الموظف المستلم</strong>
+          <span style="font-size: 10px; color: #666;">(مسبوق بعبارة: قرأت ووافقت)</span>
+        </div>
+      </div>
+
+      <div style="margin-top: 20px; text-align: center;">
+        <button class="action-btn" style="margin: 0 auto;" onclick="printUserDecharge()">🖨️ طباعة بطاقة هذا الموظف فقط</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // قاعدة بيانات الشاليهات والموظفين والأجهزة
+    const chaletsData = {
+      1: {
+        title: "مخطط توزيع وجرد العتاد - الشاليه رقم 01",
+        dept: "المصلحة: الصيانة والاستغلال | الموقع: المنطقة الشمالية",
+        ref: "CH01-2026",
+        offices: [
+          {
+            name: "مكتب 01",
+            user: "أيمن ح.",
+            role: "مهندس نظم",
+            devices: [
+              { id: "D-01", type: "وحدة معالجة (PC)", model: "Dell OptiPlex 7090", sn: "CZC9421L8B" },
+              { id: "M-01", type: "شاشة 24 بوصة", model: "Dell P2419H", sn: "CN-0T482R-74261" },
+              { id: "P-01", type: "طابعة ليزرية", model: "Canon LBP223dw", sn: "KMYL039182" }
+            ]
+          },
+          {
+            name: "مكتب 02",
+            user: "كريم م.",
+            role: "محاسب",
+            devices: [
+              { id: "D-02", type: "وحدة معالجة (PC)", model: "HP ProDesk 400 G7", sn: "CZC0392X11" },
+              { id: "M-02", type: "شاشة 24 بوصة", model: "HP EliteDisplay E243", sn: "6CM9140PQ1" }
+            ]
+          },
+          {
+            name: "مكتب 03",
+            user: "أمينة ق.",
+            role: "إدارة",
+            devices: [
+              { id: "D-03", type: "وحدة معالجة (PC)", model: "Lenovo M70s", sn: "MJ08B491AZ" },
+              { id: "M-03", type: "شاشة 22 بوصة", model: "Lenovo T22i", sn: "VK39100827" },
+              { id: "P-02", type: "طابعة متعددة", model: "HP LaserJet M428fdw", sn: "VNC4K11823" }
+            ]
+          },
+          {
+            name: "خزانة الشبكة (Rack)",
+            user: "مشترك (IT)",
+            role: "بنية تحتية",
+            devices: [
+              { id: "SW-01", type: "Switch 24 Ports", model: "Cisco Catalyst 2960X", sn: "FCW2140C0SZ" },
+              { id: "RT-01", type: "Router / Gateway", model: "MikroTik RB4011", sn: "HEE08P39101" }
+            ]
+          }
+        ]
+      },
+      2: {
+        title: "مخطط توزيع وجرد العتاد - الشاليه رقم 02",
+        dept: "المصلحة: الدراسات والمشاريع | الموقع: المنطقة الشرقية",
+        ref: "CH02-2026",
+        offices: [
+          {
+            name: "مكتب 01",
+            user: "خالد ع.",
+            role: "رئيس مشروع",
+            devices: [
+              { id: "D-11", type: "حاسوب محمول (Laptop)", model: "Dell Latitude 5420", sn: "5CD1198XYZ" },
+              { id: "M-11", type: "شاشة 27 بوصة", model: "Dell UltraSharp U2722D", sn: "CN-088V21-99210" }
+            ]
+          },
+          {
+            name: "مكتب 02",
+            user: "ياسين ب.",
+            role: "تقني شبكات",
+            devices: [
+              { id: "D-12", type: "وحدة معالجة (PC)", model: "HP EliteDesk 800 G6", sn: "CZC88190TT" },
+              { id: "M-12", type: "شاشة 24 بوصة", model: "HP E24 G4", sn: "3CQ11928LL" }
+            ]
+          }
+        ]
+      }
+    };
+
+    let currentChaletId = 1;
+    let selectedOffice = null;
+
+    function renderChalet(id) {
+      const data = chaletsData[id];
+      document.getElementById('chaletTitle').innerText = data.title;
+      document.getElementById('chaletDept').innerText = data.dept;
+      document.getElementById('chaletRef').innerText = data.ref;
+
+      const layoutContainer = document.getElementById('layoutContainer');
+      const tableContainer = document.getElementById('tableContainer');
+      
+      layoutContainer.innerHTML = '';
+      tableContainer.innerHTML = '';
+
+      data.offices.forEach((office, index) => {
+        // بطاقة المكتب في المخطط
+        const officeDiv = document.createElement('div');
+        officeDiv.className = 'office-card';
+        
+        let badgesHtml = office.devices.map(d => `<span class="dev-badge">${d.id}</span>`).join('');
+        
+        officeDiv.innerHTML = `
+          <div class="office-info">
+            <h4>${office.name}</h4>
+            <p>${office.user} (${office.role})</p>
+            <div class="badges-box">${badgesHtml}</div>
+          </div>
+          <button class="print-user-btn" onclick="openDecharge(${id}, ${index})">📄 وصل الموظف</button>
+        `;
+        layoutContainer.appendChild(officeDiv);
+
+        // أسطر الجدول العام
+        office.devices.forEach(dev => {
+          const row = document.createElement('tr');
+          row.innerHTML = `
+            <td class="code-font" style="text-align: center;">${dev.id}</td>
+            <td>${office.name}</td>
+            <td>${office.user}</td>
+            <td>${dev.type}</td>
+            <td>${dev.model}</td>
+            <td class="code-font">${dev.sn}</td>
+          `;
+          tableContainer.appendChild(row);
+        });
+      });
+    }
+
+    function loadChalet(id, btn) {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentChaletId = id;
+      renderChalet(id);
+    }
+
+    function openDecharge(chaletId, officeIndex) {
+      selectedOffice = chaletsData[chaletId].offices[officeIndex];
+      const details = document.getElementById('employeeDetails');
+      details.innerHTML = `
+        <div><strong>اسم الموظف:</strong> ${selectedOffice.user}</div>
+        <div><strong>الموقع:</strong> الشاليه رقم 0${chaletId}</div>
+        <div><strong>الوظيفة / المنصب:</strong> ${selectedOffice.role}</div>
+        <div><strong>المكتب:</strong> ${selectedOffice.name}</div>
+      `;
+
+      const tbody = document.getElementById('userDevicesTable');
+      tbody.innerHTML = '';
+      selectedOffice.devices.forEach(dev => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td class="code-font" style="text-align: center;">${dev.id}</td>
+          <td>${dev.type}</td>
+          <td>${dev.model}</td>
+          <td class="code-font">${dev.sn}</td>
+          <td style="text-align: center;">سليمة</td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      document.getElementById('dechargeModal').style.display = 'flex';
+    }
+
+    function closeModal() {
+      document.getElementById('dechargeModal').style.display = 'none';
+      document.body.classList.remove('printing-decharge');
+    }
+
+    function printUserDecharge() {
+      document.body.classList.add('printing-decharge');
+      window.print();
+    }
+
+    window.onafterprint = function() {
+      document.body.classList.remove('printing-decharge');
+    };
+
+    // تشغيل العرض الافتراضي
+    renderChalet(1);
+  </script>
+</body>
+</html>
