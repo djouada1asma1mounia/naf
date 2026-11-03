@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="fr" dir="ltr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chalet 7 - Plan d'implantation Matériel Informatique</title>
+  <style>
+    :root {
+      --primary: #1e293b;
+      --corridor: #64748b;
+      --border: #334155;
+      --bg-office: #ffffff;
+      --accent: #2563eb;
+      --edit-color: #d97706;
+      --danger: #dc2626;
+    }
+
+    * {
+      box-sizing: border-box;
+      font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
+    }
+
+    body {
+      margin: 0;
+      padding: 15px;
+      background-color: #f1f5f9;
+      color: #0f172a;
+    }
+
+    /* شريط التحكم العلوي */
+    .toolbar {
+      max-width: 1100px;
+      margin: 0 auto 15px auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #fff;
+      padding: 10px 20px;
+      border-radius: 8px;
+      border: 1px solid #cbd5e1;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+
+    .toolbar h2 {
+      margin: 0;
+      font-size: 18px;
+      color: var(--primary);
+    }
+
+    .btn-print-all {
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    /* ورقة المخطط الرئيسية */
+    .chalet-sheet {
+      max-width: 1100px;
+      margin: 0 auto;
+      background: #fff;
+      border: 2px solid var(--border);
+      border-radius: 8px;
+      padding: 20px;
+    }
+
+    .chalet-header {
+      text-align: center;
+      border-bottom: 2px solid var(--border);
+      padding-bottom: 10px;
+      margin-bottom: 20px;
+    }
+
+    .chalet-title {
+      font-size: 26px;
+      font-weight: 800;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      margin: 0;
+    }
+
+    /* الممر والمكاتب */
+    .corridor-layout {
+      display: grid;
+      grid-template-columns: 1fr 60px 1fr;
+      gap: 0;
+      position: relative;
+    }
+
+    .left-wing, .right-wing {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+    }
+
+    .central-hall {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .central-hall::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 4px;
+      background: var(--border);
+    }
+
+    .hall-label {
+      writing-mode: vertical-rl;
+      text-orientation: mixed;
+      background: #f1f5f9;
+      padding: 10px 4px;
+      font-size: 11px;
+      font-weight: bold;
+      color: #64748b;
+      letter-spacing: 3px;
+      border: 1px dashed var(--corridor);
+      border-radius: 4px;
+      z-index: 1;
+      margin: auto 0;
+    }
+
+    .office-card {
+      background: var(--bg-office);
+      border: 2px solid var(--border);
+      border-radius: 6px;
+      padding: 10px 12px;
+      position: relative;
+      box-shadow: 1px 2px 4px rgba(0,0,0,0.05);
+    }
+
+    .left-wing .office-card::after {
+      content: '';
+      position: absolute;
+      right: -30px;
+      top: 50%;
+      width: 30px;
+      height: 2px;
+      background: var(--border);
+    }
+
+    .right-wing .office-card::after {
+      content: '';
+      position: absolute;
+      left: -30px;
+      top: 50%;
+      width: 30px;
+      height: 2px;
+      background: var(--border);
+    }
+
+    .office-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1.5px solid #e2e8f0;
+      padding-bottom: 6px;
+      margin-bottom: 8px;
+    }
+
+    .user-name {
+      font-size: 16px;
+      font-weight: 800;
+      text-transform: uppercase;
+      color: #0f172a;
+    }
+
+    .office-actions {
+      display: flex;
+      gap: 5px;
+    }
+
+    .btn-action {
+      border: 1px solid #cbd5e1;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .btn-decharge { background: #e2e8f0; }
+    .btn-decharge:hover { background: #cbd5e1; }
+
+    .btn-edit { background: #fef3c7; border-color: #f59e0b; color: #92400e; }
+    .btn-edit:hover { background: #fde68a; }
+
+    .item-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      font-size: 11px;
+    }
+
+    .item-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 3px 0;
+      border-bottom: 1px dashed #f1f5f9;
+    }
+
+    .item-desc {
+      font-weight: 600;
+      color: #334155;
+    }
+
+    .item-sn {
+      font-family: 'Consolas', monospace;
+      font-weight: 700;
+      color: #000;
+      background: #f8fafc;
+      padding: 1px 4px;
+      border-radius: 3px;
+      border: 1px solid #e2e8f0;
+    }
+
+    .bottom-wing {
+      margin-top: 15px;
+      position: relative;
+    }
+
+    .bottom-wing::before {
+      content: '';
+      position: absolute;
+      top: -15px;
+      left: 50%;
+      width: 4px;
+      height: 15px;
+      background: var(--border);
+      transform: translateX(-50%);
+    }
+
+    /* النوافذ المنبثقة (Modals) */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 999;
+      align-items: center;
+      justify-content: center;
+      padding: 15px;
+    }
+
+    .modal-doc {
+      background: #fff;
+      width: 100%;
+      max-width: 750px;
+      padding: 30px;
+      border-radius: 8px;
+      position: relative;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+
+    .close-modal {
+      position: absolute;
+      top: 15px;
+      right: 15px;
+      background: #ef4444;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      padding: 6px 12px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    table.modal-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 15px 0;
+      font-size: 12px;
+    }
+
+    table.modal-table th, table.modal-table td {
+      border: 1px solid #334155;
+      padding: 8px;
+      text-align: left;
+    }
+
+    table.modal-table th { background: #f1f5f9; }
+
+    /* حقول التعديل في نافذة التعديل */
+    .edit-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr auto;
+      gap: 10px;
+      margin-bottom: 10px;
+      align-items: center;
+    }
+
+    .edit-input {
+      padding: 8px;
+      border: 1px solid #cbd5e1;
+      border-radius: 4px;
+      font-size: 13px;
+      width: 100%;
+    }
+
+    .btn-del-item {
+      background: #fee2e2;
+      color: var(--danger);
+      border: 1px solid #f87171;
+      padding: 7px 10px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    .btn-add-item {
+      background: #f1f5f9;
+      border: 1px dashed #64748b;
+      padding: 8px;
+      width: 100%;
+      border-radius: 4px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+
+    .btn-save {
+      background: #16a34a;
+      color: #fff;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 6px;
+      font-weight: bold;
+      cursor: pointer;
+      margin-top: 15px;
+    }
+
+    .signatures-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-top: 35px;
+    }
+
+    .sign-box {
+      border: 1px solid #334155;
+      height: 90px;
+      padding: 8px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      font-size: 11px;
+    }
+
+    /* قواعد الطباعة الصارمة */
+    @media print {
+      body {
+        padding: 0;
+        background: #fff;
+      }
+      .toolbar, .office-actions, .close-modal, .btn-save, .btn-add-item {
+        display: none !important;
+      }
+      .chalet-sheet {
+        border: none;
+        padding: 0;
+        max-width: 100%;
+      }
+      .modal-overlay {
+        position: static;
+        background: transparent;
+        display: block !important;
+        padding: 0;
+      }
+      .modal-doc {
+        border: none;
+        padding: 0;
+        max-width: 100%;
+      }
+      body.printing-single-user .chalet-sheet {
+        display: none !important;
+      }
+      @page {
+        size: A4 portrait;
+        margin: 10mm;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- شريط التحكم -->
+  <div class="toolbar">
+    <h2>🏢 إدارة عتاد الشاليهات</h2>
+    <div>
+      <button class="btn-print-all" onclick="resetToDefault()" style="background: #64748b; margin-right: 8px;">🔄 إعادة التعيين</button>
+      <button class="btn-print-all" onclick="window.print()">🖨️ طباعة مخطط الشاليه بالكامل</button>
+    </div>
+  </div>
+
+  <!-- المخطط الرئيسي -->
+  <div class="chalet-sheet" id="chaletView">
+    <div class="chalet-header">
+      <h1 class="chalet-title">CHALET 7</h1>
+      <small style="color: #64748b;">PLAN D'IMPLANTATION DU MATÉRIEL INFORMATIQUE</small>
+    </div>
+
+    <div class="corridor-layout">
+      <!-- الجانب الأيسر -->
+      <div class="left-wing">
+        <div class="office-card" style="min-height: 130px;" id="card-RAFIKA"></div>
+        <div style="flex-grow: 1;"></div>
+        <div class="office-card" style="min-height: 220px;" id="card-NABIL"></div>
+      </div>
+
+      <!-- الممر -->
+      <div class="central-hall">
+        <div class="hall-label">COULOIR</div>
+      </div>
+
+      <!-- الجانب الأيمن -->
+      <div class="right-wing">
+        <div class="office-card" id="card-MESSADH"></div>
+        <div class="office-card" id="card-AMIRI"></div>
+        <div class="office-card" id="card-SECRETY"></div>
+        <div class="office-card" id="card-DORIA"></div>
+      </div>
+    </div>
+
+    <!-- مكتب MENSRI في الأسفل -->
+    <div class="bottom-wing">
+      <div class="office-card" id="card-MENSRI"></div>
+    </div>
+  </div>
+
+  <!-- نافذة التعديل (Edit Modal) -->
+  <div class="modal-overlay" id="editModal">
+    <div class="modal-doc">
+      <button class="close-modal" onclick="closeEditModal()">Fermer ✕</button>
+      <h3 style="margin-top: 0; color: var(--primary);">✏️ Modifier le matériel : <span id="editUserTitle" style="color: var(--accent);"></span></h3>
+      
+      <div id="editItemsContainer" style="margin-top: 15px;">
+        <!-- حقول التعديل تضاف هنا ديناميكياً -->
+      </div>
+
+      <button class="btn-add-item" onclick="addNewItemRow()">➕ Ajouter un équipement</button>
+      
+      <div style="text-align: right;">
+        <button class="btn-save" onclick="saveUserEquipment()">💾 Enregistrer les modifications</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- نافذة طباعة الوصل (Décharge Modal) -->
+  <div class="modal-overlay" id="dechargeModal">
+    <div class="modal-doc">
+      <button class="close-modal" onclick="closeDechargeModal()">Fermer ✕</button>
+
+      <div style="border-bottom: 2px solid #000; padding-bottom: 8px; margin-bottom: 15px;">
+        <h3 style="margin: 0; text-transform: uppercase;">Fiche de Décharge Matériel Informatique</h3>
+        <small>Département Informatique / Chalet 7</small>
+      </div>
+
+      <p style="font-size: 14px; margin-bottom: 10px;">
+        Employé / Responsable : <strong id="modalUserName" style="font-size: 16px;"></strong><br>
+        Emplacement : <strong>CHALET 7</strong>
+      </p>
+
+      <table class="modal-table">
+        <thead>
+          <tr>
+            <th>Désignation de l'équipement</th>
+            <th>Numéro de Série (S/N)</th>
+            <th>État</th>
+          </tr>
+        </thead>
+        <tbody id="modalItemsBody"></tbody>
+      </table>
+
+      <p style="font-size: 11px; line-height: 1.5; color: #475569;">
+        Je soussigné(e) atteste avoir reçu le matériel informatique ci-dessus en bon état de fonctionnement et m'engage à le conserver sous ma responsabilité.
+      </p>
+
+      <div class="signatures-row">
+        <div class="sign-box">
+          <strong>Service Informatique (DSI)</strong>
+        </div>
+        <div class="sign-box">
+          <strong>Signature de l'employé</strong>
+          <span style="color: #64748b;">(Mention : Lu et approuvé)</span>
+        </div>
+      </div>
+
+      <div style="text-align: center; margin-top: 25px;">
+        <button class="btn-print-all" onclick="printSingleUser()">🖨️ Imprimer la décharge</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const defaultData = {
+      "RAFIKA": [
+        { desc: "PC Dell OptiPlex 7090", sn: "CZC9421L8B" },
+        { desc: "Écran Dell 24 pouces P2419H", sn: "CN-0T482R-01" },
+        { desc: "Imprimante HP LaserJet Pro 404", sn: "VNC3K04912" }
+      ],
+      "NABIL": [
+        { desc: "PC HP ProDesk 400 G7", sn: "CZC12389LM" },
+        { desc: "Écran HP EliteDisplay 24 pouces", sn: "6CM0411XYZ" },
+        { desc: "Scanner à plat Epson V39", sn: "Q88K019284" },
+        { desc: "Onduleur APC Back-UPS 650VA", sn: "9B2043X119" }
+      ],
+      "MESSADH": [
+        { desc: "PC Lenovo ThinkCentre M70", sn: "MJ08B491AZ" },
+        { desc: "Écran Lenovo 22 pouces T22i", sn: "VK39100827" }
+      ],
+      "AMIRI": [
+        { desc: "PC Dell OptiPlex 3080", sn: "4CD98101ZZ" },
+        { desc: "Écran Dell 22 pouces E2220H", sn: "CN-018274-99" }
+      ],
+      "SECRETY": [
+        { desc: "PC Dell OptiPlex 7080", sn: "CZC55120AB" },
+        { desc: "Écran Dell 24 pouces P2419H", sn: "CN-0T482R-88" },
+        { desc: "Imprimante MFP HP LaserJet 428fdw", sn: "VNC4K11823" }
+      ],
+      "DORIA": [
+        { desc: "PC HP 290 G4 Microtower", sn: "8CG10298KK" },
+        { desc: "Écran HP 21.5 pouces P22v", sn: "3CQ91827MM" }
+      ],
+      "MENSRI": [
+        { desc: "PC Dell OptiPlex 7090", sn: "CZC992110Q" },
+        { desc: "Écran Dell 24 pouces P2419H", sn: "CN-0T482R-44" },
+        { desc: "Imprimante Canon i-SENSYS LBP223", sn: "KMYL039182" },
+        { desc: "Onduleur APC Back-UPS 650VA", sn: "9B2043X992" }
+      ]
+    };
+
+    // تحميل البيانات من LocalStorage أو استخدام الافتراضية
+    let currentData = JSON.parse(localStorage.getItem('chalet7_inventory')) || defaultData;
+    let currentlyEditingUser = null;
+
+    // عرض المخطط
+    function renderBoard() {
+      Object.keys(currentData).forEach(user => {
+        const card = document.getElementById(`card-${user}`);
+        if (!card) return;
+
+        let itemsHtml = currentData[user].map(item => `
+          <li class="item-row">
+            <span class="item-desc">${item.desc}</span>
+            <span class="item-sn">S/N: ${item.sn}</span>
+          </li>
+        `).join('');
+
+        card.innerHTML = `
+          <div class="office-header">
+            <span class="user-name">${user}</span>
+            <div class="office-actions">
+              <button class="btn-action btn-edit" onclick="openEditModal('${user}')">✏️ Modifier</button>
+              <button class="btn-action btn-decharge" onclick="openDecharge('${user}')">📄 Décharge</button>
+            </div>
+          </div>
+          <ul class="item-list" ${user === 'MENSRI' ? 'style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;"' : ''}>
+            ${itemsHtml || '<li style="color: #94a3b8; font-style: italic;">Aucun équipement affecté</li>'}
+          </ul>
+        `;
+      });
+    }
+
+    // فتح نافذة التعديل
+    function openEditModal(userName) {
+      currentlyEditingUser = userName;
+      document.getElementById('editUserTitle').innerText = userName;
+      const container = document.getElementById('editItemsContainer');
+      container.innerHTML = '';
+
+      const items = currentData[userName] || [];
+      items.forEach(item => {
+        appendEditRow(item.desc, item.sn);
+      });
+
+      document.getElementById('editModal').style.display = 'flex';
+    }
+
+    function appendEditRow(desc = '', sn = '') {
+      const container = document.getElementById('editItemsContainer');
+      const div = document.createElement('div');
+      div.className = 'edit-row';
+      div.innerHTML = `
+        <input type="text" class="edit-input item-desc-input" placeholder="Modèle / Équipement" value="${desc}">
+        <input type="text" class="edit-input item-sn-input" placeholder="Numéro de Série (S/N)" value="${sn}" style="font-family: Consolas; font-weight: bold;">
+        <button class="btn-del-item" onclick="this.parentElement.remove()">🗑️</button>
+      `;
+      container.appendChild(div);
+    }
+
+    function addNewItemRow() {
+      appendEditRow();
+    }
+
+    // حفظ التعديلات
+    function saveUserEquipment() {
+      if (!currentlyEditingUser) return;
+
+      const container = document.getElementById('editItemsContainer');
+      const rows = container.querySelectorAll('.edit-row');
+      const updatedList = [];
+
+      rows.forEach(row => {
+        const desc = row.querySelector('.item-desc-input').value.trim();
+        const sn = row.querySelector('.item-sn-input').value.trim();
+        if (desc || sn) {
+          updatedList.push({ desc: desc || 'Équipement non spécifié', sn: sn || 'N/A' });
+        }
+      });
+
+      currentData[currentlyEditingUser] = updatedList;
+      localStorage.setItem('chalet7_inventory', JSON.stringify(currentData));
+      
+      renderBoard();
+      closeEditModal();
+    }
+
+    function closeEditModal() {
+      document.getElementById('editModal').style.display = 'none';
+      currentlyEditingUser = null;
+    }
+
+    // فتح نافذة الوصل للطباعة
+    function openDecharge(userName) {
+      document.getElementById('modalUserName').innerText = userName;
+      const tbody = document.getElementById('modalItemsBody');
+      tbody.innerHTML = '';
+
+      const items = currentData[userName] || [];
+      items.forEach(item => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td><strong>${item.desc}</strong></td>
+          <td style="font-family: Consolas; font-weight: bold;">${item.sn}</td>
+          <td>Opérationnel</td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      document.getElementById('dechargeModal').style.display = 'flex';
+    }
+
+    function closeDechargeModal() {
+      document.getElementById('dechargeModal').style.display = 'none';
+      document.body.classList.remove('printing-single-user');
+    }
+
+    function printSingleUser() {
+      document.body.classList.add('printing-single-user');
+      window.print();
+    }
+
+    function resetToDefault() {
+      if (confirm('Voulez-vous réinitialiser toutes les données aux valeurs par défaut ?')) {
+        localStorage.removeItem('chalet7_inventory');
+        currentData = JSON.parse(JSON.stringify(defaultData));
+        renderBoard();
+      }
+    }
+
+    window.onafterprint = function() {
+      document.body.classList.remove('printing-single-user');
+    };
+
+    // بدء التشغيل
+    renderBoard();
+  </script>
+</body>
+</html>
