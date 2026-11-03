@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="fr" dir="ltr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chalet 7 - Plan d'implantation Matériel Informatique</title>
+  <style>
+    :root {
+      --primary: #1e293b;
+      --corridor: #64748b;
+      --border: #334155;
+      --bg-office: #ffffff;
+      --accent: #2563eb;
+    }
+
+    * {
+      box-sizing: border-box;
+      font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
+    }
+
+    body {
+      margin: 0;
+      padding: 15px;
+      background-color: #f1f5f9;
+      color: #0f172a;
+    }
+
+    /* شريط التحكم العلوي */
+    .toolbar {
+      max-width: 1100px;
+      margin: 0 auto 15px auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #fff;
+      padding: 10px 20px;
+      border-radius: 8px;
+      border: 1px solid #cbd5e1;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+
+    .toolbar h2 {
+      margin: 0;
+      font-size: 18px;
+      color: var(--primary);
+    }
+
+    .btn-print-all {
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    /* الورقة الرئيسية للمخطط */
+    .chalet-sheet {
+      max-width: 1100px;
+      margin: 0 auto;
+      background: #fff;
+      border: 2px solid var(--border);
+      border-radius: 8px;
+      padding: 20px;
+    }
+
+    .chalet-header {
+      text-align: center;
+      border-bottom: 2px solid var(--border);
+      padding-bottom: 10px;
+      margin-bottom: 20px;
+    }
+
+    .chalet-title {
+      font-size: 26px;
+      font-weight: 800;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      margin: 0;
+    }
+
+    /* الهيكل المعماري (ممر وسطي مع مكاتب على الجانبين) */
+    .corridor-layout {
+      display: grid;
+      grid-template-columns: 1fr 60px 1fr;
+      gap: 0;
+      position: relative;
+    }
+
+    .left-wing, .right-wing {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+    }
+
+    /* الممر الأوسط (Couloir) */
+    .central-hall {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    /* الخط الوسطي للممر */
+    .central-hall::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 4px;
+      background: var(--border);
+    }
+
+    .hall-label {
+      writing-mode: vertical-rl;
+      text-orientation: mixed;
+      background: #f1f5f9;
+      padding: 10px 4px;
+      font-size: 11px;
+      font-weight: bold;
+      color: #64748b;
+      letter-spacing: 3px;
+      border: 1px dashed var(--corridor);
+      border-radius: 4px;
+      z-index: 1;
+      margin: auto 0;
+    }
+
+    /* بطاقة كل مكتب */
+    .office-card {
+      background: var(--bg-office);
+      border: 2px solid var(--border);
+      border-radius: 6px;
+      padding: 10px 12px;
+      position: relative;
+      box-shadow: 1px 2px 4px rgba(0,0,0,0.05);
+    }
+
+    /* خط الربط بالممر */
+    .left-wing .office-card::after {
+      content: '';
+      position: absolute;
+      right: -30px;
+      top: 50%;
+      width: 30px;
+      height: 2px;
+      background: var(--border);
+    }
+
+    .right-wing .office-card::after {
+      content: '';
+      position: absolute;
+      left: -30px;
+      top: 50%;
+      width: 30px;
+      height: 2px;
+      background: var(--border);
+    }
+
+    .office-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1.5px solid #e2e8f0;
+      padding-bottom: 6px;
+      margin-bottom: 8px;
+    }
+
+    .user-name {
+      font-size: 16px;
+      font-weight: 800;
+      text-transform: uppercase;
+      color: #0f172a;
+    }
+
+    .btn-decharge {
+      background: #e2e8f0;
+      border: 1px solid #cbd5e1;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .btn-decharge:hover {
+      background: #cbd5e1;
+    }
+
+    /* قائمة الأجهزة المصغرة داخل كل مكتب */
+    .item-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      font-size: 11px;
+    }
+
+    .item-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 3px 0;
+      border-bottom: 1px dashed #f1f5f9;
+    }
+
+    .item-desc {
+      font-weight: 600;
+      color: #334155;
+    }
+
+    .item-sn {
+      font-family: 'Consolas', monospace;
+      font-weight: 700;
+      color: #000;
+      background: #f8fafc;
+      padding: 1px 4px;
+      border-radius: 3px;
+      border: 1px solid #e2e8f0;
+    }
+
+    /* مكتب MENSRI الأفقي في أسفل الممر */
+    .bottom-wing {
+      margin-top: 15px;
+      position: relative;
+    }
+
+    .bottom-wing::before {
+      content: '';
+      position: absolute;
+      top: -15px;
+      left: 50%;
+      width: 4px;
+      height: 15px;
+      background: var(--border);
+      transform: translateX(-50%);
+    }
+
+    .office-card.full-width {
+      border: 2px solid var(--border);
+    }
+
+    /* نافذة استلام الموظف الفردية (Modal) */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 999;
+      align-items: center;
+      justify-content: center;
+      padding: 15px;
+    }
+
+    .decharge-doc {
+      background: #fff;
+      width: 100%;
+      max-width: 750px;
+      padding: 30px;
+      border-radius: 8px;
+      position: relative;
+    }
+
+    .close-modal {
+      position: absolute;
+      top: 15px;
+      right: 15px;
+      background: #ef4444;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      padding: 6px 12px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    table.modal-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 15px 0;
+      font-size: 12px;
+    }
+
+    table.modal-table th, table.modal-table td {
+      border: 1px solid #334155;
+      padding: 8px;
+      text-align: left;
+    }
+
+    table.modal-table th {
+      background: #f1f5f9;
+    }
+
+    .signatures-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-top: 35px;
+    }
+
+    .sign-box {
+      border: 1px solid #334155;
+      height: 90px;
+      padding: 8px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      font-size: 11px;
+    }
+
+    /* قواعد الطباعة للورق */
+    @media print {
+      body {
+        padding: 0;
+        background: #fff;
+      }
+      .toolbar, .btn-decharge, .close-modal {
+        display: none !important;
+      }
+      .chalet-sheet {
+        border: none;
+        padding: 0;
+        max-width: 100%;
+      }
+      .modal-overlay {
+        position: static;
+        background: transparent;
+        display: block !important;
+        padding: 0;
+      }
+      .decharge-doc {
+        border: none;
+        padding: 0;
+        max-width: 100%;
+      }
+      body.printing-single-user .chalet-sheet {
+        display: none !important;
+      }
+      @page {
+        size: A4 portrait;
+        margin: 10mm;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- شريط التحكم -->
+  <div class="toolbar">
+    <h2>🏢 إدارة عتاد الشاليهات</h2>
+    <button class="btn-print-all" onclick="window.print()">🖨️ طباعة مخطط الشاليه بالكامل</button>
+  </div>
+
+  <!-- المخطط الرئيسي (مطابق تماماً للرسم اليدوي) -->
+  <div class="chalet-sheet" id="chaletView">
+    <div class="chalet-header">
+      <h1 class="chalet-title">CHALET 7</h1>
+      <small style="color: #64748b;">PLAN D'IMPLANTATION DU MATÉRIEL INFORMATIQUE</small>
+    </div>
+
+    <div class="corridor-layout">
+      <!-- الجانب الأيسر (RAFIKA ثم NABIL) -->
+      <div class="left-wing">
+        <!-- RAFIKA -->
+        <div class="office-card" style="min-height: 130px;">
+          <div class="office-header">
+            <span class="user-name">RAFIKA</span>
+            <button class="btn-decharge" onclick="openDecharge('RAFIKA')">📄 Décharge</button>
+          </div>
+          <ul class="item-list">
+            <li class="item-row"><span class="item-desc">PC Dell 7090</span><span class="item-sn">S/N: CZC9421L8B</span></li>
+            <li class="item-row"><span class="item-desc">Écran Dell 24"</span><span class="item-sn">S/N: CN-0T482R-01</span></li>
+            <li class="item-row"><span class="item-desc">Imprimante HP 404</span><span class="item-sn">S/N: VNC3K04912</span></li>
+          </ul>
+        </div>
+
+        <div style="flex-grow: 1;"></div>
+
+        <!-- NABIL -->
+        <div class="office-card" style="min-height: 220px;">
+          <div class="office-header">
+            <span class="user-name">NABIL</span>
+            <button class="btn-decharge" onclick="openDecharge('NABIL')">📄 Décharge</button>
+          </div>
+          <ul class="item-list">
+            <li class="item-row"><span class="item-desc">PC HP 400 G7</span><span class="item-sn">S/N: CZC12389LM</span></li>
+            <li class="item-row"><span class="item-desc">Écran HP 24"</span><span class="item-sn">S/N: 6CM0411XYZ</span></li>
+            <li class="item-row"><span class="item-desc">Scanner Epson</span><span class="item-sn">S/N: Q88K019284</span></li>
+            <li class="item-row"><span class="item-desc">Onduleur (UPS)</span><span class="item-sn">S/N: 9B2043X119</span></li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- الممر الأوسط الرابط -->
+      <div class="central-hall">
+        <div class="hall-label">COULOIR</div>
+      </div>
+
+      <!-- الجانب الأيمن (MESSADH, AMIRI, SECRETY, DORIA) -->
+      <div class="right-wing">
+        <!-- MESSADH -->
+        <div class="office-card">
+          <div class="office-header">
+            <span class="user-name">MESSADH</span>
+            <button class="btn-decharge" onclick="openDecharge('MESSADH')">📄 Décharge</button>
+          </div>
+          <ul class="item-list">
+            <li class="item-row"><span class="item-desc">PC Lenovo M70</span><span class="item-sn">S/N: MJ08B491AZ</span></li>
+            <li class="item-row"><span class="item-desc">Écran Lenovo 22"</span><span class="item-sn">S/N: VK39100827</span></li>
+          </ul>
+        </div>
+
+        <!-- AMIRI -->
+        <div class="office-card">
+          <div class="office-header">
+            <span class="user-name">AMIRI</span>
+            <button class="btn-decharge" onclick="openDecharge('AMIRI')">📄 Décharge</button>
+          </div>
+          <ul class="item-list">
+            <li class="item-row"><span class="item-desc">PC Dell 3080</span><span class="item-sn">S/N: 4CD98101ZZ</span></li>
+            <li class="item-row"><span class="item-desc">Écran Dell 22"</span><span class="item-sn">S/N: CN-018274-99</span></li>
+          </ul>
+        </div>
+
+        <!-- SECRETY -->
+        <div class="office-card">
+          <div class="office-header">
+            <span class="user-name">SECRETY</span>
+            <button class="btn-decharge" onclick="openDecharge('SECRETY')">📄 Décharge</button>
+          </div>
+          <ul class="item-list">
+            <li class="item-row"><span class="item-desc">PC Dell 7080</span><span class="item-sn">S/N: CZC55120AB</span></li>
+            <li class="item-row"><span class="item-desc">Écran Dell 24"</span><span class="item-sn">S/N: CN-0T482R-88</span></li>
+            <li class="item-row"><span class="item-desc">Imprimante MFP 428</span><span class="item-sn">S/N: VNC4K11823</span></li>
+          </ul>
+        </div>
+
+        <!-- DORIA -->
+        <div class="office-card">
+          <div class="office-header">
+            <span class="user-name">DORIA</span>
+            <button class="btn-decharge" onclick="openDecharge('DORIA')">📄 Décharge</button>
+          </div>
+          <ul class="item-list">
+            <li class="item-row"><span class="item-desc">PC HP 290 G4</span><span class="item-sn">S/N: 8CG10298KK</span></li>
+            <li class="item-row"><span class="item-desc">Écran HP 21.5"</span><span class="item-sn">S/N: 3CQ91827MM</span></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- مكتب MENSRI بالعرض في نهاية الممر -->
+    <div class="bottom-wing">
+      <div class="office-card full-width">
+        <div class="office-header">
+          <span class="user-name">MENSRI</span>
+          <button class="btn-decharge" onclick="openDecharge('MENSRI')">📄 Décharge</button>
+        </div>
+        <ul class="item-list" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+          <li class="item-row"><span class="item-desc">PC Dell OptiPlex 7090</span><span class="item-sn">S/N: CZC992110Q</span></li>
+          <li class="item-row"><span class="item-desc">Écran Dell 24"</span><span class="item-sn">S/N: CN-0T482R-44</span></li>
+          <li class="item-row"><span class="item-desc">Imprimante Canon LBP223</span><span class="item-sn">S/N: KMYL039182</span></li>
+          <li class="item-row"><span class="item-desc">Onduleur APC 650VA</span><span class="item-sn">S/N: 9B2043X992</span></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- نافذة طباعة وصل الاستلام لكل شخص -->
+  <div class="modal-overlay" id="dechargeModal">
+    <div class="decharge-doc">
+      <button class="close-modal" onclick="closeModal()">Fermer ✕</button>
+
+      <div style="border-bottom: 2px solid #000; padding-bottom: 8px; margin-bottom: 15px;">
+        <h3 style="margin: 0; text-transform: uppercase;">Fiche de Décharge Matériel Informatique</h3>
+        <small>Département Informatique / Chalet 7</small>
+      </div>
+
+      <p style="font-size: 14px; margin-bottom: 10px;">
+        Employé / Responsable : <strong id="modalUserName" style="font-size: 16px;"></strong><br>
+        Emplacement : <strong>CHALET 7</strong>
+      </p>
+
+      <table class="modal-table">
+        <thead>
+          <tr>
+            <th>Désignation de l'équipement</th>
+            <th>Numéro de Série (S/N)</th>
+            <th>État</th>
+          </tr>
+        </thead>
+        <tbody id="modalItemsBody"></tbody>
+      </table>
+
+      <p style="font-size: 11px; line-height: 1.5; color: #475569;">
+        Je soussigné(e) atteste avoir reçu le matériel informatique ci-dessus en bon état de fonctionnement et m'engage à le conserver sous ma responsabilité.
+      </p>
+
+      <div class="signatures-row">
+        <div class="sign-box">
+          <strong>Service Informatique (DSI)</strong>
+        </div>
+        <div class="sign-box">
+          <strong>Signature de l'employé</strong>
+          <span style="color: #64748b;">(Mention : Lu et approuvé)</span>
+        </div>
+      </div>
+
+      <div style="text-align: center; margin-top: 25px;">
+        <button class="btn-print-all" onclick="printSingleUser()">🖨️ Imprimer la décharge</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // قاعدة بيانات أجهزة الموظفين في Chalet 7
+    const usersInventory = {
+      "RAFIKA": [
+        { desc: "PC Dell OptiPlex 7090", sn: "CZC9421L8B" },
+        { desc: "Écran Dell 24 pouces P2419H", sn: "CN-0T482R-01" },
+        { desc: "Imprimante HP LaserJet Pro 404", sn: "VNC3K04912" }
+      ],
+      "NABIL": [
+        { desc: "PC HP ProDesk 400 G7", sn: "CZC12389LM" },
+        { desc: "Écran HP EliteDisplay 24 pouces", sn: "6CM0411XYZ" },
+        { desc: "Scanner à plat Epson V39", sn: "Q88K019284" },
+        { desc: "Onduleur APC Back-UPS 650VA", sn: "9B2043X119" }
+      ],
+      "MESSADH": [
+        { desc: "PC Lenovo ThinkCentre M70", sn: "MJ08B491AZ" },
+        { desc: "Écran Lenovo 22 pouces T22i", sn: "VK39100827" }
+      ],
+      "AMIRI": [
+        { desc: "PC Dell OptiPlex 3080", sn: "4CD98101ZZ" },
+        { desc: "Écran Dell 22 pouces E2220H", sn: "CN-018274-99" }
+      ],
+      "SECRETY": [
+        { desc: "PC Dell OptiPlex 7080", sn: "CZC55120AB" },
+        { desc: "Écran Dell 24 pouces P2419H", sn: "CN-0T482R-88" },
+        { desc: "Imprimante MFP HP LaserJet 428fdw", sn: "VNC4K11823" }
+      ],
+      "DORIA": [
+        { desc: "PC HP 290 G4 Microtower", sn: "8CG10298KK" },
+        { desc: "Écran HP 21.5 pouces P22v", sn: "3CQ91827MM" }
+      ],
+      "MENSRI": [
+        { desc: "PC Dell OptiPlex 7090", sn: "CZC992110Q" },
+        { desc: "Écran Dell 24 pouces P2419H", sn: "CN-0T482R-44" },
+        { desc: "Imprimante Canon i-SENSYS LBP223", sn: "KMYL039182" },
+        { desc: "Onduleur APC Back-UPS 650VA", sn: "9B2043X992" }
+      ]
+    };
+
+    function openDecharge(userName) {
+      document.getElementById('modalUserName').innerText = userName;
+      const tbody = document.getElementById('modalItemsBody');
+      tbody.innerHTML = '';
+
+      const items = usersInventory[userName] || [];
+      items.forEach(item => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td><strong>${item.desc}</strong></td>
+          <td style="font-family: Consolas; font-weight: bold;">${item.sn}</td>
+          <td>Opérationnel</td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      document.getElementById('dechargeModal').style.display = 'flex';
+    }
+
+    function closeModal() {
+      document.getElementById('dechargeModal').style.display = 'none';
+      document.body.classList.remove('printing-single-user');
+    }
+
+    function printSingleUser() {
+      document.body.classList.add('printing-single-user');
+      window.print();
+    }
+
+    window.onafterprint = function() {
+      document.body.classList.remove('printing-single-user');
+    };
+  </script>
+</body>
+</html>
